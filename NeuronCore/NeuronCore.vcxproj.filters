@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Data">
+      <UniqueIdentifier>{220424B5-0610-5C83-9D28-01E3D11035AE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Math">
+      <UniqueIdentifier>{7DBB29B0-BBB1-517F-8B9F-074EA3BA453E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Platform">
+      <UniqueIdentifier>{0DE1208C-215C-50ED-AE6D-2B4507D8F6F1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Voxel">
+      <UniqueIdentifier>{EA63A037-04B0-5428-A7A2-4D75A2E2B0B9}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="FileSys.h">
+      <Filter>Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="ModelAxes.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Random.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="RayBox.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="RecordFile.h">
+      <Filter>Data</Filter>
+    </ClInclude>
+    <ClInclude Include="VoxFile.h">
+      <Filter>Voxel</Filter>
+    </ClInclude>
+    <ClInclude Include="VoxModel.h">
+      <Filter>Voxel</Filter>
+    </ClInclude>
+    <ClInclude Include="VoxelMaterial.h">
+      <Filter>Voxel</Filter>
+    </ClInclude>
+    <ClInclude Include="VoxelMesher.h">
+      <Filter>Voxel</Filter>
+    </ClInclude>
+    <ClInclude Include="VoxelWireframe.h">
+      <Filter>Voxel</Filter>
+    </ClInclude>
+    <ClInclude Include="WindowsSdk.h">
+      <Filter>Platform</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="FileSys.cpp">
+      <Filter>Platform</Filter>
+    </ClCompile>
+    <ClCompile Include="ModelAxes.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Random.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="RayBox.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="RecordFile.cpp">
+      <Filter>Data</Filter>
+    </ClCompile>
+    <ClCompile Include="VoxFile.cpp">
+      <Filter>Voxel</Filter>
+    </ClCompile>
+    <ClCompile Include="VoxModel.cpp">
+      <Filter>Voxel</Filter>
+    </ClCompile>
+    <ClCompile Include="VoxelMesher.cpp">
+      <Filter>Voxel</Filter>
+    </ClCompile>
+    <ClCompile Include="VoxelWireframe.cpp">
+      <Filter>Voxel</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Meshing">
+      <UniqueIdentifier>{C016CE7D-D942-5E04-AA62-D94A73230E6F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene">
+      <UniqueIdentifier>{073F640A-5DDF-551D-BBEE-A5E3085C7008}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Selection">
+      <UniqueIdentifier>{5E005CD9-26FD-53CD-A3E2-26D3A7D34783}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Support">
+      <UniqueIdentifier>{6FD70651-E7C3-550A-A7AA-B73000330C9D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Vox">
+      <UniqueIdentifier>{6A547AB1-A6AB-5F52-8F8F-B0D55B8D1F04}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="TestSupport.h">
+      <Filter>Support</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="ModelAxesTests.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="PaletteTests.cpp">
+      <Filter>Vox</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneTests.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="SelectionTests.cpp">
+      <Filter>Selection</Filter>
+    </ClCompile>
+    <ClCompile Include="TestSupport.cpp">
+      <Filter>Support</Filter>
+    </ClCompile>
+    <ClCompile Include="VoxFileTests.cpp">
+      <Filter>Vox</Filter>
+    </ClCompile>
+    <ClCompile Include="VoxelMesherTests.cpp">
+      <Filter>Meshing</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

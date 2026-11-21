@@ -1,0 +1,22 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Folder Name="/Engine/">
+    <Project Path="NeuronCore/NeuronCore.vcxproj" Id="3f3c549d-b794-5beb-9c43-ed86bed75b98" />
+    <Project Path="NeuronClient/NeuronClient.vcxproj" Id="7ebfd970-2a6f-588b-91ea-67c877d9c106" />
+    <Project Path="NeuronServer/NeuronServer.vcxproj" Id="adfbef81-768d-5a90-ad01-92bf2b687912" />
+  </Folder>
+  <Folder Name="/Game/">
+    <Project Path="GameCore/GameCore.vcxproj" Id="6d02e2ad-67a5-51ec-944a-2afdb5843360" />
+    <Project Path="GameLogic/GameLogic.vcxproj" Id="9cf427f4-cecb-5f57-a716-9044671f0000" />
+    <Project Path="GameApp/GameApp.vcxproj" Id="99eb673d-1511-5709-ae13-05b4cd4d2125" />
+  </Folder>
+  <Folder Name="/Tools/">
+    <Project Path="AssetGenerator/AssetGenerator.vcxproj" Id="0e1bfdab-eb0b-5bee-848d-9238e643c19f" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="OutpostTests/OutpostTests.vcxproj" Id="b635b04f-f75d-509c-86b3-d70ca4ab9849" />
+  </Folder>
+  <Project Path="Outpost/Outpost.vcxproj" Id="ddbf6727-3c3f-5814-a514-eea182cf326a" />
+</Solution>

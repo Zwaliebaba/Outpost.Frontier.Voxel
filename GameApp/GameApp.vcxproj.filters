@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Client">
+      <UniqueIdentifier>{42DFA1A8-13F0-5169-BB88-09E3A3C495CA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Hud">
+      <UniqueIdentifier>{9A38335D-029B-53D5-98EE-64029812BC98}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene">
+      <UniqueIdentifier>{BD4E4763-BEC2-5215-A0F8-F91D538439F5}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="SceneAssets.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="TacticalClient.h">
+      <Filter>Client</Filter>
+    </ClInclude>
+    <ClInclude Include="TacticalHud.h">
+      <Filter>Hud</Filter>
+    </ClInclude>
+    <ClInclude Include="TacticalScene.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="SceneAssets.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="TacticalClient.cpp">
+      <Filter>Client</Filter>
+    </ClCompile>
+    <ClCompile Include="TacticalHud.cpp">
+      <Filter>Hud</Filter>
+    </ClCompile>
+    <ClCompile Include="TacticalScene.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

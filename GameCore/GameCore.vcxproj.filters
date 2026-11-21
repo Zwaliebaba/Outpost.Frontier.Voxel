@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Palette">
+      <UniqueIdentifier>{93D3B622-94AF-5DEC-8921-515E673685C3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene">
+      <UniqueIdentifier>{EE98632B-2A43-5D77-97F1-966361B6E92D}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Palette.h">
+      <Filter>Palette</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneDefinition.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="WorldSnapshot.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Palette.cpp">
+      <Filter>Palette</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneDefinition.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="WorldSnapshot.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
