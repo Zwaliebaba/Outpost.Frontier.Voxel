@@ -76,8 +76,19 @@ bool MainWindow::Create(HINSTANCE _instance, std::uint32_t _clientWidth, std::ui
   // The windowed client area is exactly the requested size at the system DPI, centred in the
   // primary monitor's work area. Borderless fullscreen starts on that monitor and remembers this
   // rectangle for the first switch back to a window.
+  // A requested size that will not fit in the work area with its frame is scaled down, keeping the
+  // aspect ratio, rather than letting Windows clip the client area.
   const MONITORINFO monitor = MonitorInfo(MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY));
-  RECT windowed{0, 0, static_cast<LONG>(_clientWidth), static_cast<LONG>(_clientHeight)};
+  RECT frame{0, 0, 0, 0};
+  AdjustWindowRectExForDpi(&frame, WINDOWED_STYLE, FALSE, 0, GetDpiForSystem());
+  const double availableWidth = static_cast<double>(monitor.rcWork.right - monitor.rcWork.left - (frame.right - frame.left));
+  const double availableHeight = static_cast<double>(monitor.rcWork.bottom - monitor.rcWork.top - (frame.bottom - frame.top));
+  const double fit =
+    std::min({1.0, availableWidth / static_cast<double>(_clientWidth), availableHeight / static_cast<double>(_clientHeight)});
+  const auto clientWidth = static_cast<LONG>(static_cast<double>(_clientWidth) * fit);
+  const auto clientHeight = static_cast<LONG>(static_cast<double>(_clientHeight) * fit);
+  RECT windowed{0, 0, std::max(clientWidth, static_cast<LONG>(MIN_CLIENT_WIDTH)),
+                std::max(clientHeight, static_cast<LONG>(MIN_CLIENT_HEIGHT))};
   AdjustWindowRectExForDpi(&windowed, WINDOWED_STYLE, FALSE, 0, GetDpiForSystem());
   const LONG windowedWidth = windowed.right - windowed.left;
   const LONG windowedHeight = windowed.bottom - windowed.top;
