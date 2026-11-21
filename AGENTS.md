@@ -137,7 +137,7 @@ private:
 
 ## 2. Repository shape
 
-The concrete layout is recorded in [ADR-001](Design/ADR/ADR-001-solution-layout.md); this is its summary. One solution, `Outpost.Frontier.slnx`, with solution folders that name the layer:
+The concrete layout is recorded in [ADR-001](Design/ADR/ADR-001-solution-layout.md); this is its summary. One solution, `Outpost.Frontier.slnx`, with solution folders that name the layer; the executable sits at the solution root:
 
 | Folder | Project | Kind | Namespace | References |
 |---|---|---|---|---|
@@ -147,7 +147,7 @@ The concrete layout is recorded in [ADR-001](Design/ADR/ADR-001-solution-layout.
 | `Game` | `GameCore` | static library | `Outpost` | NeuronCore |
 | `Game` | `GameLogic` | static library | `Outpost` | NeuronCore, NeuronServer, GameCore |
 | `Game` | `GameApp` | static library | `Outpost` | NeuronCore, NeuronClient, GameCore |
-| `Game` | `Outpost` | Windows executable | `Outpost` | all of the above |
+| *(root)* | `Outpost` | Windows executable | `Outpost` | all of the above |
 | `Tools` | `AssetGenerator` | console executable | `Outpost` | NeuronCore, GameCore |
 | `Tests` | `OutpostTests` | unit-test DLL | `OutpostTests` | NeuronCore, NeuronClient, NeuronServer, GameCore, GameLogic |
 
@@ -184,14 +184,15 @@ These are the standing constraints the layout satisfies, and any change to it ha
 
 That alignment matters more than it looks, because **CI builds Debug only** (§6). Release is compiled by whoever ships, and a Release that quietly lost an include directory or sat on an older language standard would not be discovered until then. A static check of the two configurations is what stands in for the build nobody runs.
 
-**Build through the solution, never a `.vcxproj` directly.** Output paths and cross-project include directories are anchored on `$(SolutionDir)`, and MSBuild defines `SolutionDir` only for a solution build. Building a project file directly resolves every one of those paths against the *project* folder instead of the repository root. **It does not fail — that is the problem.** Output lands in the wrong folder, so the next solution build links against whichever copy is staler, and every cross-project include path becomes a directory that does not exist. The breakage is latent: it bites the first time a file reaches across projects, which may be weeks after someone got into the habit. To build one project, name it as a target on the solution — and with a `.slnx` that has solution folders, the target is the folder path, not the bare project name: `/t:Engine\NeuronClient`. A bare `/t:NeuronClient` fails with MSB4057.
+**Build through the solution, never a `.vcxproj` directly.** Output paths and cross-project include directories are anchored on `$(SolutionDir)`, and MSBuild defines `SolutionDir` only for a solution build. Building a project file directly resolves every one of those paths against the *project* folder instead of the repository root. **It does not fail — that is the problem.** Output lands in the wrong folder, so the next solution build links against whichever copy is staler, and every cross-project include path becomes a directory that does not exist. The breakage is latent: it bites the first time a file reaches across projects, which may be weeks after someone got into the habit. To build one project, name it as a target on the solution — and with a `.slnx` that has solution folders, the target of a project inside a folder is the folder path, not the bare project name: `/t:Engine\NeuronClient`. A bare `/t:NeuronClient` fails with MSB4057. A project at the solution root is named bare: `/t:Outpost`.
 
 ```powershell
 # Everything, from the repository root, naming the solution.
 msbuild Outpost.Frontier.slnx /p:Configuration=Debug /p:Platform=x64 /m /v:minimal /nologo
 
-# One project, still through the solution: <SolutionFolder>\<Project>.
-msbuild Outpost.Frontier.slnx "/t:Game\Outpost" /p:Configuration=Debug /p:Platform=x64 /m /nologo
+# One project, still through the solution: <SolutionFolder>\<Project>, or the bare name at the root.
+msbuild Outpost.Frontier.slnx "/t:Engine\NeuronClient" /p:Configuration=Debug /p:Platform=x64 /m /nologo
+msbuild Outpost.Frontier.slnx /t:Outpost /p:Configuration=Debug /p:Platform=x64 /m /nologo
 
 # Release, before you claim anything about it.
 msbuild Outpost.Frontier.slnx /p:Configuration=Release /p:Platform=x64 /m /v:minimal /nologo

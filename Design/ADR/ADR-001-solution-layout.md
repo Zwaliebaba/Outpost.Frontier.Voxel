@@ -25,7 +25,7 @@ One solution, `Outpost.Frontier.slnx`, x64 only, Debug and Release:
 | Game | `GameCore` | lib | The canonical palette and material table, the scene definition, the world snapshot |
 | Game | `GameLogic` | lib | `World`, the authoritative server state, which ticks and publishes snapshots |
 | Game | `GameApp` | lib | The client: scene assets, the tactical scene, the HUD, input |
-| Game | `Outpost` | exe | Window, message loop, command line, smoke test |
+| *(root)* | `Outpost` | exe | Window, message loop, command line, smoke test |
 | Tools | `AssetGenerator` | console exe | Writes every model as a `.vox` file |
 | Tests | `OutpostTests` | test DLL | CppUnitTest suites; no GPU |
 
@@ -37,7 +37,7 @@ The edges run one way. `GameLogic` (server) and `GameApp` (client) share `GameCo
 
 - `Build/Cpp.props` is imported by every project and states every shared setting once: toolset `v145`, `stdcpplatest`, `/permissive-`, `/W4 /WX`, `/fp:precise`, `/arch:AVX2`, `/utf-8`, output under `$(SolutionDir)x64\$(Configuration)\`, and the `FXCompile` settings. Debug and Release differ only where AGENTS.md §3 allows.
 - **Shaders:** `<Lib>/Shaders/<Name>VS.hlsl` and `<Name>PS.hlsl` are `FXCompile` items. DXC from the Windows SDK compiles them to `/T vs_6_7` / `ps_6_7` with `-HV 2021`, and writes `<Lib>/CompiledShaders/<Name>.h` holding the byte array `g_<Name>`. Shared code is in `.hlsli` files, which are not compiled alone. No PDB is embedded, so Debug and Release compile shaders identically. The headers are build output and ignored by git.
-- **Single-project builds with a `.slnx`** name the solution folder: `msbuild Outpost.Frontier.slnx "/t:Engine\NeuronClient"`. A bare project name fails with MSB4057.
+- **Single-project builds with a `.slnx`** name the solution folder: `msbuild Outpost.Frontier.slnx "/t:Engine\NeuronClient"`; a bare name for a project inside a folder fails with MSB4057. The executable sits at the solution root, so its target is `/t:Outpost`.
 
 ### Asset deployment
 

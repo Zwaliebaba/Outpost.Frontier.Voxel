@@ -38,11 +38,15 @@ Run these from the repository root in a *Developer PowerShell for VS 2026*. Alwa
 msbuild Outpost.Frontier.slnx /p:Configuration=Debug   /p:Platform=x64 /m /v:minimal /nologo
 msbuild Outpost.Frontier.slnx /p:Configuration=Release /p:Platform=x64 /m /v:minimal /nologo
 
-# One project: the target is <SolutionFolder>\<Project> (a bare name fails with MSB4057)
-msbuild Outpost.Frontier.slnx "/t:Game\Outpost" /p:Configuration=Debug /p:Platform=x64 /m /nologo
+# One project: <SolutionFolder>\<Project> for a project in a folder, the bare name at the root
+msbuild Outpost.Frontier.slnx "/t:Engine\NeuronClient" /p:Configuration=Debug /p:Platform=x64 /m /nologo
+msbuild Outpost.Frontier.slnx /t:Outpost /p:Configuration=Debug /p:Platform=x64 /m /nologo
 
-# Run
+# Run: borderless fullscreen on the primary monitor
 .\x64\Debug\Outpost.exe
+
+# Run in a framed window instead (the size shrinks to fit the work area if it must)
+.\x64\Debug\Outpost.exe --windowed --size 1600x900
 ```
 
 Or open `Outpost.Frontier.slnx` in Visual Studio, set **Outpost** as the startup project and press F5.
@@ -60,6 +64,7 @@ Each build copies `Assets\` next to the executable, and the executable finds its
 | R or Home | Reset the camera to the scene's starting view |
 | H | Show or hide the controls line |
 | F3 | Show or hide the status line (adapter, model and voxel counts, fps) |
+| F11 or Alt+Enter | Switch between borderless fullscreen and a framed window |
 | F12 | Save a screenshot to `Captures\` next to the executable |
 | Esc | Quit |
 
@@ -105,7 +110,7 @@ What the 42 unit tests cover:
 - **Scene:** parsing, validation of broken references, and server income.
 - **Selection math:** a ship ahead, beside the view, straddling the near plane, and behind the camera; pick rays; click versus drag; orbit-camera limits.
 
-Smoke-test options: `--frames N`, `--size WxH`, `--no-vsync`, `--debug-layer` / `--no-debug-layer`, and `--assets <dir>`.
+Smoke-test options: `--frames N`, `--size WxH`, `--no-vsync`, `--debug-layer` / `--no-debug-layer`, and `--assets <dir>`. The smoke test always renders in a window of exactly `--size`, never fullscreen, so its captures do not depend on the monitor.
 
 Exit codes:
 
