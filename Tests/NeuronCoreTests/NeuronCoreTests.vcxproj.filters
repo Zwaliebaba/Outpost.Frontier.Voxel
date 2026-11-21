@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Axes">
+      <UniqueIdentifier>{C71B787B-5FDD-57DF-BEF4-4756E59BEEF5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Meshing">
+      <UniqueIdentifier>{6545ABC0-1DD3-531D-B59A-B41F0DBCB48F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Support">
+      <UniqueIdentifier>{E6936DCD-5A72-5BD3-8297-E49520B5DB5D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Vox">
+      <UniqueIdentifier>{57B52DB4-7739-5BEF-BAC5-E10DB8D6FEF5}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="TestSupport.h">
+      <Filter>Support</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="ModelAxesTests.cpp">
+      <Filter>Axes</Filter>
+    </ClCompile>
+    <ClCompile Include="TestSupport.cpp">
+      <Filter>Support</Filter>
+    </ClCompile>
+    <ClCompile Include="VoxFileTests.cpp">
+      <Filter>Vox</Filter>
+    </ClCompile>
+    <ClCompile Include="VoxelMesherTests.cpp">
+      <Filter>Meshing</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

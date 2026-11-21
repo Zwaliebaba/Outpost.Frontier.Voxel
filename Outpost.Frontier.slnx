@@ -16,7 +16,12 @@
     <Project Path="AssetGenerator/AssetGenerator.vcxproj" Id="0e1bfdab-eb0b-5bee-848d-9238e643c19f" />
   </Folder>
   <Folder Name="/Tests/">
-    <Project Path="OutpostTests/OutpostTests.vcxproj" Id="b635b04f-f75d-509c-86b3-d70ca4ab9849" />
+    <Project Path="Tests/NeuronCoreTests/NeuronCoreTests.vcxproj" Id="cc536723-713c-5dd2-a5a1-f27f4480111c" />
+    <Project Path="Tests/NeuronClientTests/NeuronClientTests.vcxproj" Id="4176d50a-f144-5e5c-a2e3-a458a43dd431" />
+    <Project Path="Tests/NeuronServerTests/NeuronServerTests.vcxproj" Id="79a83e08-f8f7-58da-9567-ba41d1f290a6" />
+    <Project Path="Tests/GameCoreTests/GameCoreTests.vcxproj" Id="c257fe5c-f2d9-5067-9ca5-0f788e33f0be" />
+    <Project Path="Tests/GameLogicTests/GameLogicTests.vcxproj" Id="e17f23ac-d002-5735-add7-3f93857c4956" />
+    <Project Path="Tests/GameAppTests/GameAppTests.vcxproj" Id="e3e7edf0-9883-59f9-92e6-2c838e64694c" />
   </Folder>
   <Project Path="Outpost/Outpost.vcxproj" Id="ddbf6727-3c3f-5814-a514-eea182cf326a" />
 </Solution>

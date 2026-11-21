@@ -6,7 +6,7 @@
 #include <cmath>
 #include <stdexcept>
 
-namespace OutpostTests
+namespace GameCoreTests
 {
 
 namespace
@@ -65,21 +65,4 @@ DirectX::XMFLOAT3 Row(DirectX::FXMMATRIX _matrix, int _row) noexcept
   return row;
 }
 
-void ByteWriter::Tag(const char (&_tag)[5])
-{
-  for (int i = 0; i < 4; ++i)
-  {
-    m_bytes.push_back(static_cast<std::uint8_t>(_tag[i]));
-  }
-}
-
-void ByteWriter::Int(std::int32_t _value)
-{
-  const auto value = static_cast<std::uint32_t>(_value);
-  for (int shift = 0; shift < 32; shift += 8)
-  {
-    m_bytes.push_back(static_cast<std::uint8_t>((value >> shift) & 0xffu));
-  }
-}
-
-} // namespace OutpostTests
+} // namespace GameCoreTests

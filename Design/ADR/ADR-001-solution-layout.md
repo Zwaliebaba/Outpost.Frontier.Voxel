@@ -27,7 +27,7 @@ One solution, `Outpost.Frontier.slnx`, x64 only, Debug and Release:
 | Game | `GameApp` | lib | The client: scene assets, the tactical scene, the HUD, input |
 | *(root)* | `Outpost` | exe | Window, message loop, command line, smoke test |
 | Tools | `AssetGenerator` | console exe | Writes every model as a `.vox` file |
-| Tests | `OutpostTests` | test DLL | CppUnitTest suites; no GPU |
+| Tests | `<Library>Tests` ×6 | test DLLs | One CppUnitTest suite per library, under `Tests\` (see ADR-006); no GPU |
 
 Engine code is namespace `Neuron` and never names a game concept: the renderer draws voxels, lines, glows and HUD triangles, and the game decides what they are. Game code is namespace `Outpost`.
 

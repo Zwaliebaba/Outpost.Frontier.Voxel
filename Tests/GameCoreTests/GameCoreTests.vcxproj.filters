@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Palette">
+      <UniqueIdentifier>{7E1F806B-46CE-5A85-B4EC-D1BD525072C2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene">
+      <UniqueIdentifier>{FDF7B1EB-8996-56EC-B313-A065EDF9F6A7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Support">
+      <UniqueIdentifier>{00EFABDC-1FD1-5528-8F05-97DF1D3AC0C4}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="TestSupport.h">
+      <Filter>Support</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="PaletteTests.cpp">
+      <Filter>Palette</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneTests.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="TestSupport.cpp">
+      <Filter>Support</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

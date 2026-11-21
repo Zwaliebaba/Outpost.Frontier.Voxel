@@ -9,7 +9,7 @@
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
-namespace OutpostTests
+namespace NeuronCoreTests
 {
 
 namespace
@@ -173,4 +173,4 @@ public:
   }
 };
 
-} // namespace OutpostTests
+} // namespace NeuronCoreTests

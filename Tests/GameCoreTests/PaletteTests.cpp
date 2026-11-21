@@ -7,7 +7,7 @@
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
-namespace OutpostTests
+namespace GameCoreTests
 {
 
 TEST_CLASS(PaletteTests)
@@ -80,4 +80,4 @@ public:
   }
 };
 
-} // namespace OutpostTests
+} // namespace GameCoreTests

@@ -1,14 +1,13 @@
 #include "TestSupport.h"
 
 #include "ModelAxes.h"
-#include "SceneDefinition.h"
 
 #include "CppUnitTest.h"
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 using namespace DirectX;
 
-namespace OutpostTests
+namespace NeuronCoreTests
 {
 
 TEST_CLASS(ModelAxesTests)
@@ -75,26 +74,6 @@ public:
                    L"outward normals point at each other");
     Assert::IsTrue(Near(Row(childSocketWorld, 1), Row(parentSocketWorld, 1), 1e-4f), L"up vectors agree");
   }
-
-  TEST_METHOD(SceneBlueprintExtensionSitsOnTheHangarDock)
-  {
-    const Outpost::SceneDefinition scene = LoadRealScene();
-    const int hangar = scene.InstanceIndex("Hangar");
-    const int extension = scene.InstanceIndex("Extension");
-    Assert::IsTrue(hangar >= 0 && extension >= 0);
-    const Outpost::SceneInstance& instance = scene.instances[static_cast<std::size_t>(extension)];
-    Assert::IsTrue(instance.style == Outpost::InstanceStyle::Blueprint);
-    const Outpost::ModelAsset* hangarModel = scene.FindModel("HangarBay");
-    const Outpost::ModelAsset* sectionModel = scene.FindModel(instance.model);
-    const Neuron::Socket* dock = hangarModel->FindSocket(instance.parentSocket);
-    const Neuron::Socket* mount = sectionModel->FindSocket(instance.socket);
-    Assert::IsTrue(dock != nullptr && mount != nullptr);
-    const XMMATRIX dockWorld = Outpost::SocketWorld(scene, static_cast<std::size_t>(hangar), *dock);
-    const XMMATRIX mountWorld = Outpost::SocketWorld(scene, static_cast<std::size_t>(extension), *mount);
-    Assert::IsTrue(Near(Row(dockWorld, 3), Row(mountWorld, 3), 1e-3f), L"the extension's mount is at the hangar's dock");
-    const XMFLOAT3 dockNormal = Row(dockWorld, 2);
-    Assert::IsTrue(Near(Row(mountWorld, 2), XMFLOAT3{-dockNormal.x, -dockNormal.y, -dockNormal.z}, 1e-4f));
-  }
 };
 
-} // namespace OutpostTests
+} // namespace NeuronCoreTests

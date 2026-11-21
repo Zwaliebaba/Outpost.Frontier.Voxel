@@ -97,20 +97,23 @@ Every file carries the identical canonical RGBA palette chunk. Index 0 is empty,
 ## Tests and checks
 
 ```powershell
-# Unit tests (no GPU needed)
-& "C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\Extensions\TestPlatform\vstest.console.exe" x64\Debug\OutpostTests.dll /Platform:x64
+# Unit tests: every suite the build produced (no GPU needed)
+& "C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\Extensions\TestPlatform\vstest.console.exe" (Get-ChildItem x64\Debug -Filter *Tests.dll).FullName /Platform:x64
 
 # Smoke test: fixed timeline on WARP, image checks, debug layer on; exit code 0 on success
 .\x64\Debug\Outpost.exe --smoke-test --warp --capture smoke.png --report smoke.txt --compare "Design\Space Station HUD Without Navigation Path.png"
 ```
 
-What the 42 unit tests cover:
-- **VOX parse/write:** round trip; a hand-authored fixture with a distinct palette, which checks the index offset; rejection of bad magic, truncated chunks, invalid dimensions and out-of-bounds voxels.
-- **Palette:** palette equality across every generated file, and the 256 dimension limit.
-- **Meshing and wireframes:** single and adjacent voxel meshing, enclosed-voxel removal, coarse wireframes and the side profile.
-- **Axes and sockets:** axis conversion and handedness; socket mating, including the shipped blueprint landing on its dock.
-- **Scene:** parsing, validation of broken references, and server income.
-- **Selection math:** a ship ahead, beside the view, straddling the near plane, and behind the camera; pick rays; click versus drag; orbit-camera limits.
+Every library has its own test project under `Tests\`. In Visual Studio, *Test › Test Explorer* runs them all.
+
+| Project | Tests | Covers |
+|---|---|---|
+| `Tests\NeuronCoreTests` | 20 | VOX read/write and a hand-authored fixture that pins the palette offset; rejection of bad magic, truncated chunks, invalid dimensions and out-of-bounds voxels; meshing of single and adjacent voxels; wireframes and the side profile; VOX-to-world axes, handedness and socket mating |
+| `Tests\NeuronClientTests` | 8 | Selection maths: ships ahead, beside the view, straddling the near plane and behind the camera; pick rays; click versus drag; orbit-camera limits |
+| `Tests\NeuronServerTests` | 4 | The tick clock: whole ticks, carried remainders, stall catch-up, interpolation |
+| `Tests\GameCoreTests` | 12 | The canonical palette, including byte equality across every generated file; scene parsing and validation; the shipped blueprint landing on its dock |
+| `Tests\GameLogicTests` | 5 | The world: the first snapshot, exact income per minute, fractional income, capacity, reloading |
+| `Tests\GameAppTests` | 6 | The HUD: every vertex on screen at 720p, 1080p and 4K with ships off screen and behind the camera; build slots; scaling; fonts. The draw constants the voxel shader unprojects through |
 
 Smoke-test options: `--frames N`, `--size WxH`, `--no-vsync`, `--debug-layer` / `--no-debug-layer`, and `--assets <dir>`. The smoke test always renders in a window of exactly `--size`, never fullscreen, so its captures do not depend on the monitor.
 
@@ -131,7 +134,7 @@ Exit codes:
 
 All of the following passed on 2026-11-21, on Windows 11 with an RTX 3070 Ti Laptop GPU:
 - **Builds:** Debug and Release x64 through the solution, with `/warnaserror`: zero warnings.
-- **Unit tests:** `vstest.console.exe` over `OutpostTests.dll`, Debug and Release: 42 of 42 passed.
+- **Unit tests:** `vstest.console.exe` over all six `*Tests.dll` suites, Debug and Release: 55 of 55 passed.
 - **Smoke test on WARP**, Debug (debug layer on) and Release, at 1920×1080:
   - exit 0; 0 debug-layer errors and 0 warnings;
   - mean luminance 0.146, lit 26.8%, cyan 1.92%, warm 2.63%, 658 colours;

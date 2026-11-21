@@ -1,5 +1,3 @@
-#include "TestSupport.h"
-
 #include "OrbitCamera.h"
 #include "PointerGesture.h"
 #include "RayBox.h"
@@ -7,14 +5,26 @@
 
 #include "CppUnitTest.h"
 
+#include <cmath>
+
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 using namespace DirectX;
 
-namespace OutpostTests
+namespace NeuronClientTests
 {
 
 namespace
 {
+
+[[nodiscard]] bool Near(float _a, float _b, float _tolerance = 1e-4f) noexcept
+{
+  return std::abs(_a - _b) <= _tolerance;
+}
+
+[[nodiscard]] bool Near(const XMFLOAT3& _a, const XMFLOAT3& _b, float _tolerance = 1e-4f) noexcept
+{
+  return Near(_a.x, _b.x, _tolerance) && Near(_a.y, _b.y, _tolerance) && Near(_a.z, _b.z, _tolerance);
+}
 
 constexpr float WIDTH = 1920.0f;
 constexpr float HEIGHT = 1080.0f;
@@ -136,4 +146,4 @@ public:
   }
 };
 
-} // namespace OutpostTests
+} // namespace NeuronClientTests

@@ -149,9 +149,16 @@ The concrete layout is recorded in [ADR-001](Design/ADR/ADR-001-solution-layout.
 | `Game` | `GameApp` | static library | `Outpost` | NeuronCore, NeuronClient, GameCore |
 | *(root)* | `Outpost` | Windows executable | `Outpost` | all of the above |
 | `Tools` | `AssetGenerator` | console executable | `Outpost` | NeuronCore, GameCore |
-| `Tests` | `OutpostTests` | unit-test DLL | `OutpostTests` | NeuronCore, NeuronClient, NeuronServer, GameCore, GameLogic |
+| `Tests` | `NeuronCoreTests` | unit-test DLL | `NeuronCoreTests` | NeuronCore |
+| `Tests` | `NeuronClientTests` | unit-test DLL | `NeuronClientTests` | NeuronCore, NeuronClient |
+| `Tests` | `NeuronServerTests` | unit-test DLL | `NeuronServerTests` | NeuronServer |
+| `Tests` | `GameCoreTests` | unit-test DLL | `GameCoreTests` | NeuronCore, GameCore |
+| `Tests` | `GameLogicTests` | unit-test DLL | `GameLogicTests` | NeuronCore, NeuronServer, GameCore, GameLogic |
+| `Tests` | `GameAppTests` | unit-test DLL | `GameAppTests` | NeuronCore, NeuronClient, GameCore, GameApp |
 
 **Every project file is a standard Visual Studio project** ([ADR-005](Design/ADR/ADR-005-settings-in-project-files.md)): the layout the C++ project template writes, settings in the per-configuration groups the property pages edit, and nothing a property page cannot show — no shared property sheet, no custom targets, no comments. A setting is written only where it differs from the MSBuild default. The settings this file requires (§3, R16) are stated in every project and both configurations; a change to one is made in all of them in the same commit, and until `Build/CheckProjectFiles.py` compares them, that is review's job. Adding a project means creating it from the Visual Studio template, setting those properties, and adding it to the solution, to that table, and to `.clang-tidy`'s `HeaderFilterRegex`.
+
+**Every library has its own test project, and every test project lives under `Tests\`**, as `Tests\<Library>Tests\<Library>Tests.vcxproj` ([ADR-006](Design/ADR/ADR-006-test-projects.md)). A suite tests the library it is named for, through that library's public headers; it references that library and what the library itself builds on, and nothing above it. A new library arrives with its test project, and that project ships with real tests rather than only the `SuiteSmoke` placeholder (§3). `Tests\` is a container folder, not a project: each test project inside it is flat like any other.
 
 These are the standing constraints the layout satisfies, and any change to it has to keep satisfying.
 

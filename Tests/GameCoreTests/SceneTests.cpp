@@ -1,14 +1,12 @@
 #include "TestSupport.h"
 
 #include "SceneDefinition.h"
-#include "TickClock.h"
-#include "World.h"
 
 #include "CppUnitTest.h"
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
-namespace OutpostTests
+namespace GameCoreTests
 {
 
 namespace
@@ -119,36 +117,25 @@ public:
     Assert::IsTrue(Near(moved, DirectX::XMFLOAT3{100.0f, 0.0f, 0.0f}, 1e-3f));
   }
 
-  TEST_METHOD(ServerIncomeIsExactPerMinute)
+  TEST_METHOD(ShippedBlueprintExtensionSitsOnTheHangarDock)
   {
-    Outpost::SceneDefinition scene;
-    std::string error;
-    Assert::IsTrue(Outpost::ParseScene(MINIMAL_SCENE, scene, error));
-    Outpost::World world;
-    world.Load(scene);
-    const std::uint32_t ticksPerMinute = Neuron::TickClock::TICKS_PER_SECOND * 60;
-    for (std::uint32_t i = 0; i < ticksPerMinute; ++i)
-    {
-      world.Tick();
-    }
-    Assert::AreEqual(std::int64_t{220}, world.Snapshot().resources[0].amount, L"100 + 120 after exactly one minute");
-    Assert::AreEqual(std::uint64_t{ticksPerMinute}, world.TickCount());
-    const Outpost::ShipState* ship = world.Snapshot().FindShip("A");
-    Assert::IsNotNull(ship);
-    const std::vector<Outpost::ShipModuleState> damaged = ship->DamagedModules();
-    Assert::AreEqual(std::size_t{2}, damaged.size());
-    Assert::AreEqual(34, damaged[0].healthPercent, L"worst module first");
-  }
-
-  TEST_METHOD(TickClockMapsWallTimeToWholeTicks)
-  {
-    Neuron::TickClock clock;
-    Assert::AreEqual(0u, clock.Advance(Neuron::TickClock::MICROSECONDS_PER_TICK - 1));
-    Assert::AreEqual(1u, clock.Advance(1));
-    Assert::AreEqual(Neuron::TickClock::MAX_TICKS_PER_ADVANCE, clock.Advance(Neuron::TickClock::MICROSECONDS_PER_TICK * 100),
-                     L"a stall is caught up gently");
-    Assert::AreEqual(0u, clock.Advance(0), L"and its backlog is dropped");
+    const Outpost::SceneDefinition scene = LoadRealScene();
+    const int hangar = scene.InstanceIndex("Hangar");
+    const int extension = scene.InstanceIndex("Extension");
+    Assert::IsTrue(hangar >= 0 && extension >= 0);
+    const Outpost::SceneInstance& instance = scene.instances[static_cast<std::size_t>(extension)];
+    Assert::IsTrue(instance.style == Outpost::InstanceStyle::Blueprint);
+    const Outpost::ModelAsset* hangarModel = scene.FindModel("HangarBay");
+    const Outpost::ModelAsset* sectionModel = scene.FindModel(instance.model);
+    const Neuron::Socket* dock = hangarModel->FindSocket(instance.parentSocket);
+    const Neuron::Socket* mount = sectionModel->FindSocket(instance.socket);
+    Assert::IsTrue(dock != nullptr && mount != nullptr);
+    const DirectX::XMMATRIX dockWorld = Outpost::SocketWorld(scene, static_cast<std::size_t>(hangar), *dock);
+    const DirectX::XMMATRIX mountWorld = Outpost::SocketWorld(scene, static_cast<std::size_t>(extension), *mount);
+    Assert::IsTrue(Near(Row(dockWorld, 3), Row(mountWorld, 3), 1e-3f), L"the extension's mount is at the hangar's dock");
+    const DirectX::XMFLOAT3 dockNormal = Row(dockWorld, 2);
+    Assert::IsTrue(Near(Row(mountWorld, 2), DirectX::XMFLOAT3{-dockNormal.x, -dockNormal.y, -dockNormal.z}, 1e-4f));
   }
 };
 
-} // namespace OutpostTests
+} // namespace GameCoreTests
