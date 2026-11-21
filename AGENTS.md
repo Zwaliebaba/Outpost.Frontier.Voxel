@@ -151,7 +151,7 @@ The concrete layout is recorded in [ADR-001](Design/ADR/ADR-001-solution-layout.
 | `Tools` | `AssetGenerator` | console executable | `Outpost` | NeuronCore, GameCore |
 | `Tests` | `OutpostTests` | unit-test DLL | `OutpostTests` | NeuronCore, NeuronClient, NeuronServer, GameCore, GameLogic |
 
-`Build/Cpp.props` carries every compiler, linker and shader-compiler setting the projects share; a project file adds only what is its own. Adding a project means adding it to the solution, to that table, and to `.clang-tidy`'s `HeaderFilterRegex`.
+**Every project file is a standard Visual Studio project** ([ADR-005](Design/ADR/ADR-005-settings-in-project-files.md)): the layout the C++ project template writes, settings in the per-configuration groups the property pages edit, and nothing a property page cannot show — no shared property sheet, no custom targets, no comments. A setting is written only where it differs from the MSBuild default. The settings this file requires (§3, R16) are stated in every project and both configurations; a change to one is made in all of them in the same commit, and until `Build/CheckProjectFiles.py` compares them, that is review's job. Adding a project means creating it from the Visual Studio template, setting those properties, and adding it to the solution, to that table, and to `.clang-tidy`'s `HeaderFilterRegex`.
 
 These are the standing constraints the layout satisfies, and any change to it has to keep satisfying.
 

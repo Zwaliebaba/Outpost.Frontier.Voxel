@@ -90,6 +90,8 @@ Ships behind the camera or off screen get an edge arrow that points toward them;
 .\x64\Release\AssetGenerator.exe --check          # exit 1 if any committed file is stale
 ```
 
+A **new** asset file must also be added to the `Outpost` project in Visual Studio (*Add › Existing Item*, Item Type *Copy file*, destination `$(OutDir)Assets\Models`), or the build will not copy it next to the executable.
+
 Every file carries the identical canonical RGBA palette chunk. Index 0 is empty, and voxel colour `c` is chunk entry `c−1`. Glow comes from the renderer's material table, not from the file.
 
 ## Tests and checks
