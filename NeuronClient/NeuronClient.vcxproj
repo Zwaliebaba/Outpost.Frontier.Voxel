@@ -105,6 +105,9 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="ButtonSkin.h" />
+    <ClInclude Include="ControlFocus.h" />
+    <ClInclude Include="ControlState.h" />
     <ClInclude Include="FontAtlas.h" />
     <ClInclude Include="FrameCapture.h" />
     <ClInclude Include="GpuTypes.h" />
@@ -114,10 +117,13 @@
     <ClInclude Include="PointerGesture.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="ScreenProjection.h" />
+    <ClInclude Include="SpriteSheet.h" />
     <ClInclude Include="ChaseCamera.h" />
     <ClInclude Include="CommandMap.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ButtonSkin.cpp" />
+    <ClCompile Include="ControlFocus.cpp" />
     <ClCompile Include="FontAtlas.cpp" />
     <ClCompile Include="FrameCapture.cpp" />
     <ClCompile Include="GraphicsDevice.cpp" />
@@ -126,6 +132,7 @@
     <ClCompile Include="PointerGesture.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="ScreenProjection.cpp" />
+    <ClCompile Include="SpriteSheet.cpp" />
     <ClCompile Include="ChaseCamera.cpp" />
     <ClCompile Include="CommandMap.cpp" />
   </ItemGroup>

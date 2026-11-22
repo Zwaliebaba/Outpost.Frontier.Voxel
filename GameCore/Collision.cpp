@@ -23,7 +23,7 @@ namespace
 
 } // namespace
 
-bool SweepSphere(const WorldPosition& _start, const XMFLOAT3& _motion, float _radiusMetres, const CollisionBox& _box,
+bool SweepSphere(const UniversePosition& _start, const XMFLOAT3& _motion, float _radiusMetres, const CollisionBox& _box,
                  SweepHit& _outHit) noexcept
 {
   // Into the box's frame: the offset is taken in double and only then narrowed (ADR-007).
@@ -80,7 +80,7 @@ bool SweepSphere(const WorldPosition& _start, const XMFLOAT3& _motion, float _ra
   return true;
 }
 
-bool SweepSphere(const WorldPosition& _start, const XMFLOAT3& _motion, float _radiusMetres, std::span<const CollisionBox> _boxes,
+bool SweepSphere(const UniversePosition& _start, const XMFLOAT3& _motion, float _radiusMetres, std::span<const CollisionBox> _boxes,
                  ObjectId _self, SweepHit& _outHit) noexcept
 {
   bool found = false;
@@ -96,7 +96,7 @@ bool SweepSphere(const WorldPosition& _start, const XMFLOAT3& _motion, float _ra
   return found;
 }
 
-CollisionBox BoxForObject(const SceneDefinition& _scene, const WorldObject& _object) noexcept
+CollisionBox BoxForObject(const SceneDefinition& _scene, const UniverseObject& _object) noexcept
 {
   CollisionBox box;
   box.object = _object.id;
@@ -129,16 +129,16 @@ float BoundingRadius(const CollisionBox& _box) noexcept
   return XMVectorGetX(XMVector3Length(XMLoadFloat3(&_box.halfExtentsMetres)));
 }
 
-const ShipArchetype* FlyingArchetype(const ShipContent& _content, const WorldObject& _object) noexcept
+const ShipArchetype* FlyingArchetype(const ShipContent& _content, const UniverseObject& _object) noexcept
 {
   const auto found = std::ranges::find(_content.ships, _object.model, &ShipArchetype::model);
   return found != _content.ships.end() ? &*found : nullptr;
 }
 
-std::vector<CollisionBox> StaticBodies(const SceneDefinition& _scene, const ShipContent& _content, std::span<const WorldObject> _objects)
+std::vector<CollisionBox> StaticBodies(const SceneDefinition& _scene, const ShipContent& _content, std::span<const UniverseObject> _objects)
 {
   std::vector<CollisionBox> bodies;
-  for (const WorldObject& object : _objects)
+  for (const UniverseObject& object : _objects)
   {
     const SceneInstance* instance = _scene.FindInstance(object.name);
     if (FlyingArchetype(_content, object) != nullptr || (instance != nullptr && instance->style == InstanceStyle::Blueprint))

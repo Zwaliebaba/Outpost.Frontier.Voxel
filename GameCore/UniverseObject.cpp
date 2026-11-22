@@ -1,11 +1,11 @@
-#include "WorldObject.h"
+#include "UniverseObject.h"
 
 using namespace DirectX;
 
 namespace Outpost
 {
 
-XMMATRIX ObjectToWorld(const WorldObject& _object) noexcept
+XMMATRIX ObjectToWorld(const UniverseObject& _object) noexcept
 {
   const Pose& pose = _object.pose;
   return XMMatrixScaling(_object.scale, _object.scale, _object.scale) * XMMatrixRotationQuaternion(XMLoadFloat4(&pose.orientation)) *

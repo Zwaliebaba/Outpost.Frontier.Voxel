@@ -8,6 +8,7 @@
 
 #include <array>
 #include <cstdint>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -116,9 +117,12 @@ public:
   /// Default-heap buffer filled through a one-off upload; the call waits for the copy.
   [[nodiscard]] ComPtr<ID3D12Resource> CreateStaticBuffer(const void* _data, std::uint64_t _bytes);
 
-  /// Default-heap 2D texture with one mip, filled through a one-off upload.
+  /// Default-heap 2D texture with one mip, filled through a one-off upload; the call waits for the
+  /// copy. _payload holds the rows tightly packed, as GetCopyableFootprints counts them: texel rows
+  /// for an uncompressed format, rows of 4x4 blocks for a block-compressed one. Returns null when the
+  /// payload is shorter than the footprint or the device refuses the texture.
   [[nodiscard]] ComPtr<ID3D12Resource> CreateStaticTexture(DXGI_FORMAT _format, std::uint32_t _width, std::uint32_t _height,
-                                                           std::uint32_t _bytesPerPixel, const void* _pixels);
+                                                           std::span<const std::uint8_t> _payload);
 
   [[nodiscard]] ID3D12Device* Device() const noexcept
   {

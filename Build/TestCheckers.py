@@ -93,7 +93,7 @@ class TreeCase(unittest.TestCase):
         path = self.tree / relative
         path.write_text(path.read_text(encoding="utf-8-sig") + text, encoding="utf-8", newline="")
 
-    def register(self, project: str, kind: str, include: str, filter_name: str = "World") -> None:
+    def register(self, project: str, kind: str, include: str, filter_name: str = "Universe") -> None:
         """Adds an item to a project and its .filters, as Visual Studio would."""
         self.edit(f"{project}/{project}.vcxproj", "  <ItemGroup>\n    <ProjectReference", f"  <ItemGroup>\n    <{kind} Include=\"{include}\" />\n  </ItemGroup>\n  <ItemGroup>\n    <ProjectReference")
         self.edit_last(f"{project}/{project}.vcxproj.filters", "</Project>", f"  <ItemGroup>\n    <{kind} Include=\"{include}\">\n      <Filter>{filter_name}</Filter>\n    </{kind}>\n  </ItemGroup>\n</Project>")
@@ -113,8 +113,8 @@ def _git(directory: Path, *arguments: str) -> None:
 
 
 def _filters_with_world(case: TreeCase) -> None:
-    """GameLogic's .filters declares World, which register() uses; assert it still does."""
-    case.assertIn('<Filter Include="World">', (case.tree / "GameLogic/GameLogic.vcxproj.filters").read_text(encoding="utf-8-sig"))
+    """GameLogic's .filters declares Universe, which register() uses; assert it still does."""
+    case.assertIn('<Filter Include="Universe">', (case.tree / "GameLogic/GameLogic.vcxproj.filters").read_text(encoding="utf-8-sig"))
 
 
 class CheckProjectFilesTests(TreeCase):
@@ -136,12 +136,12 @@ class CheckProjectFilesTests(TreeCase):
         self.assertFinding(self.check(), "registration", "Ghost.cpp does not exist")
 
     def test_item_missing_from_filters(self) -> None:
-        self.edit("GameLogic/GameLogic.vcxproj.filters", '<ClCompile Include="World.cpp">', '<ClCompile Include="Elsewhere.cpp">')
-        self.assertFinding(self.check(), "filters", "World.cpp")
+        self.edit("GameLogic/GameLogic.vcxproj.filters", '<ClCompile Include="Universe.cpp">', '<ClCompile Include="Elsewhere.cpp">')
+        self.assertFinding(self.check(), "filters", "Universe.cpp")
 
     def test_file_kind_filter(self) -> None:
         text = (self.tree / "GameLogic/GameLogic.vcxproj.filters").read_text(encoding="utf-8-sig")
-        text = text.replace('<Filter Include="World">', '<Filter Include="Source Files">').replace("<Filter>World</Filter>", "<Filter>Source Files</Filter>")
+        text = text.replace('<Filter Include="Universe">', '<Filter Include="Source Files">').replace("<Filter>Universe</Filter>", "<Filter>Source Files</Filter>")
         self.write("GameLogic/GameLogic.vcxproj.filters", text)
         self.assertFinding(self.check(), "filters", "Source Files")
 
@@ -181,23 +181,23 @@ class CheckProjectFilesTests(TreeCase):
         self.assertFinding(self.check(), "flat", "CompiledShaders")
 
     def test_interface_prefix_on_a_type(self) -> None:
-        self.edit("GameLogic/World.h", "} // namespace Outpost", "class ITransport\r\n{\r\n};\r\n\r\n} // namespace Outpost")
+        self.edit("GameLogic/Universe.h", "} // namespace Outpost", "class ITransport\r\n{\r\n};\r\n\r\n} // namespace Outpost")
         self.assertFinding(self.check(), "type-affixes", "ITransport")
 
     def test_base_suffix_on_a_type(self) -> None:
-        self.edit("GameLogic/World.h", "} // namespace Outpost", "struct TransportBase\r\n{\r\n};\r\n\r\n} // namespace Outpost")
+        self.edit("GameLogic/Universe.h", "} // namespace Outpost", "struct TransportBase\r\n{\r\n};\r\n\r\n} // namespace Outpost")
         self.assertFinding(self.check(), "type-affixes", "TransportBase")
 
     def test_sdk_names_and_template_parameters_are_not_types_defined_here(self) -> None:
         self.edit(
-            "GameLogic/World.h",
+            "GameLogic/Universe.h",
             "} // namespace Outpost",
             "struct ID3D12Device;\r\ntemplate <class CType, typename T> using Pair = CType;\r\n// class IComment { colour };\r\n\r\n} // namespace Outpost",
         )
         self.assertClean(self.check())
 
     def test_british_spelling_in_an_identifier(self) -> None:
-        self.edit("GameLogic/World.h", "} // namespace Outpost", "inline constexpr int GREY_LEVEL = 1;\r\n\r\n} // namespace Outpost")
+        self.edit("GameLogic/Universe.h", "} // namespace Outpost", "inline constexpr int GREY_LEVEL = 1;\r\n\r\n} // namespace Outpost")
         self.assertFinding(self.check(), "spellings", "GREY_LEVEL")
 
     def test_release_drifts_from_debug(self) -> None:
@@ -298,10 +298,10 @@ class CheckFormatTests(TreeCase):
         self.assertClean(self.check())
 
     def test_misformatted_file_fails_and_fix_repairs_it(self) -> None:
-        self.append("GameLogic/World.cpp", "int  Badly( ){return 1;}\r\n")
+        self.append("GameLogic/Universe.cpp", "int  Badly( ){return 1;}\r\n")
         result = self.check()
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-        self.assertIn("GameLogic/World.cpp", result.stdout)
+        self.assertIn("GameLogic/Universe.cpp", result.stdout)
         self.assertClean(self.check("--fix"))
         self.assertClean(self.check())
 
@@ -345,7 +345,7 @@ class RunClangTidyTests(TreeCase):
         self.assertNotIn(f"/I{os.path.normpath(self.tree / 'NeuronServer')}", command, "a project never lists its own directory")
 
     def test_test_projects_get_the_unit_test_framework(self) -> None:
-        result = self.dry_run("Tests/GameLogicTests/WorldTests.cpp")
+        result = self.dry_run("Tests/GameLogicTests/UniverseTests.cpp")
         self.assertClean(result)
         self.assertIn("/D_WINDLL", result.stdout)
         self.assertIn("UnitTest", result.stdout)

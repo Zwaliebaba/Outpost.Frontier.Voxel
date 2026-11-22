@@ -1,7 +1,6 @@
 # The scripted smoke run (plan task F5): select the fighter on the right, orbit the view, zoom in.
-# Pixels of the 1920 x 1080 smoke frame; ticks are server ticks, one per frame. The client starts in
-# the chase view since slice 1, so the run switches to the tactical view first.
-press tick=1 name=F9
+# Pixels of the 1920 x 1080 smoke frame; ticks are server ticks, one per frame. A new game starts
+# docked since slice 2, in the tactical view, so no key switches to it.
 click tick=2 at=1545,700
 drag tick=4 button=left from=960,540 to=1180,580 ticks=20
 wheel tick=30 steps=1

@@ -45,7 +45,7 @@ public:
   void SetCursor(float _xPixels, float _yPixels, float _widthPixels, float _heightPixels) noexcept;
 
   /// Orders the ship to a point, stopping a distance short of it.
-  void GoTo(const WorldPosition& _target, float _standOffMetres) noexcept;
+  void GoTo(const UniversePosition& _target, float _standOffMetres) noexcept;
   /// Back to free flight: drops an order and the mouse lock.
   void Cancel() noexcept;
   /// The arbiter refused cruise: the wish is withdrawn rather than retried every tick.

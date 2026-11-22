@@ -153,7 +153,7 @@ The concrete layout is recorded in [ADR-001](Design/ADR/ADR-001-solution-layout.
 | `Tools` | `QuicSpike` | console executable | `Outpost` | NeuronCore, GameCore; the MsQuic package ([ADR-017](Design/ADR/ADR-017-nuget-and-the-msquic-transport.md)) |
 | `Tests` | `NeuronCoreTests` | unit-test DLL | `NeuronCoreTests` | NeuronCore |
 | `Tests` | `NeuronClientTests` | unit-test DLL | `NeuronClientTests` | NeuronCore, NeuronClient |
-| `Tests` | `NeuronServerTests` | unit-test DLL | `NeuronServerTests` | NeuronServer |
+| `Tests` | `NeuronServerTests` | unit-test DLL | `NeuronServerTests` | NeuronCore, NeuronServer |
 | `Tests` | `GameCoreTests` | unit-test DLL | `GameCoreTests` | NeuronCore, GameCore |
 | `Tests` | `GameLogicTests` | unit-test DLL | `GameLogicTests` | NeuronCore, NeuronServer, GameCore, GameLogic |
 | `Tests` | `GameAppTests` | unit-test DLL | `GameAppTests` | NeuronCore, NeuronClient, GameCore, GameApp |
@@ -273,7 +273,7 @@ For Direct3D that list means what the Windows SDK installs: `d3d12.h`, `dxgi1_6.
 
 **R18 to R25 come from the design.** A design document does not only say what to build; some of what it says constrains how the code is *shaped*. [`Design/GameDesign.md`](Design/GameDesign.md) §8 lists what keeps multiplayer possible in a game that ships single-player first, and §8.2 what keeps it possible at 100 players in one scene; the constraints in them that shape code are the eight rules below. They bind from the first line of game code, because the split they protect costs little now and a great deal to retrofit. The design says *authority* and *presentation*; in this tree those are the server half (`GameLogic` on `NeuronServer`) and the client half (`GameApp` on `NeuronClient`). The constraints that are game behaviour — what an absent player's outpost does, what a saved character holds — stay in the design. All eight are review's to enforce.
 
-**R18 — Client and server exchange data and never call each other.** `GameApp` does not reference `GameLogic` and `GameLogic` does not reference `GameApp` (§2); what crosses between them is a type defined in `GameCore`, handed over by the executable. Today that is `WorldSnapshot`, passed by reference. When commands flow up and object state flows down, they are messages from one catalogue in `GameCore`, and the in-process hand-over and the MsQuic network transport carry the same ones. A fact one half needs from the other is a message, never a pointer.
+**R18 — Client and server exchange data and never call each other.** `GameApp` does not reference `GameLogic` and `GameLogic` does not reference `GameApp` (§2); what crosses between them is a type defined in `GameCore`, handed over by the executable. Today that is `UniverseSnapshot`, passed by reference. When commands flow up and object state flows down, they are messages from one catalogue in `GameCore`, and the in-process hand-over and the MsQuic network transport carry the same ones. A fact one half needs from the other is a message, never a pointer.
 
 **R19 — The server decides; the client asks.** Damage, purchases, construction, mining yields, docking, standing and discovery are computed in `GameLogic` from commands. `GameApp` shows results and may predict them for display, but nothing it computes becomes true by being reported. The one exception the design grants is the motion of the player's own ship, which the client integrates from input and the server checks against the shared flight model.
 

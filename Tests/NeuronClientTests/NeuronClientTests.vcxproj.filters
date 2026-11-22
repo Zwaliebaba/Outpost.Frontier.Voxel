@@ -10,11 +10,29 @@
     <Filter Include="Camera">
       <UniqueIdentifier>{D1E21ABE-579E-471A-B8ED-EBBAB7978012}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Controls">
+      <UniqueIdentifier>{2F6D8B13-74A9-4E0C-9B35-E81A6C0D47B2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Hud">
+      <UniqueIdentifier>{C4E07A92-1B5F-4D36-A8E9-5D21F3B6C084}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Input">
       <UniqueIdentifier>{3DFA53E1-9775-4CB1-82C5-121B0CDB9AD7}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ButtonSkinTests.cpp">
+      <Filter>Controls</Filter>
+    </ClCompile>
+    <ClCompile Include="ControlFocusTests.cpp">
+      <Filter>Controls</Filter>
+    </ClCompile>
+    <ClCompile Include="HudBatchTests.cpp">
+      <Filter>Hud</Filter>
+    </ClCompile>
+    <ClCompile Include="SpriteSheetTests.cpp">
+      <Filter>Hud</Filter>
+    </ClCompile>
     <ClCompile Include="FrameCaptureTests.cpp">
       <Filter>Capture</Filter>
     </ClCompile>

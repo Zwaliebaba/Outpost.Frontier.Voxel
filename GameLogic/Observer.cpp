@@ -5,9 +5,9 @@
 namespace Outpost
 {
 
-bool Observer::Publish(const World& _world, Neuron::LoopbackTransport& _transport)
+bool Observer::Publish(const Universe& _universe, Neuron::LoopbackTransport& _transport)
 {
-  const WorldSnapshot& state = _world.State();
+  const UniverseSnapshot& state = _universe.State();
   m_lastMessageCount = 0;
   bool ok = true;
 
@@ -17,10 +17,10 @@ bool Observer::Publish(const World& _world, Neuron::LoopbackTransport& _transpor
     m_sentTick = state.tick;
   }
 
-  for (const WorldObject& object : state.objects)
+  for (const UniverseObject& object : state.objects)
   {
-    WorldObject* known = nullptr;
-    for (WorldObject& candidate : m_knownObjects)
+    UniverseObject* known = nullptr;
+    for (UniverseObject& candidate : m_knownObjects)
     {
       if (candidate.id == object.id)
       {
@@ -43,8 +43,14 @@ bool Observer::Publish(const World& _world, Neuron::LoopbackTransport& _transpor
 
   if (m_ownShip != NO_OBJECT)
   {
-    const FlightState* flight = _world.Flight(m_ownShip);
-    const bool behind = !m_ownShipSentTick.has_value() || _world.DivergedAt(m_ownShip) > *m_ownShipSentTick;
+    const DockStatusState dock = _universe.DockStatus(m_ownShip);
+    if (!m_sentDock.has_value() || !(*m_sentDock == dock))
+    {
+      ok = Send(DockStatusMessage{m_ownShip, dock}, _transport) && ok;
+      m_sentDock = dock;
+    }
+    const FlightState* flight = _universe.Flight(m_ownShip);
+    const bool behind = !m_ownShipSentTick.has_value() || _universe.DivergedAt(m_ownShip) > *m_ownShipSentTick;
     if (flight != nullptr && behind)
     {
       ok = Send(OwnShipMessage{state.tick, m_ownShip, *flight}, _transport) && ok;

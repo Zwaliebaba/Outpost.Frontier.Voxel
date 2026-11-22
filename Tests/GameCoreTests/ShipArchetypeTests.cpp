@@ -21,7 +21,7 @@ thruster name=T force=72000 drain=165
 
 constexpr std::string_view SHIP_KEYS =
   "model=EscortLancer mass=100 inertia=2800,2800,1000 drag=1 torque=24000,24000,58000 angulardrag=15000,15000,35000 strafe=20000 "
-  "strafedrain=2 maxbank=30 engine=E powerplant=P thruster=T";
+  "strafedrain=2 maxbank=30 engine=E powerplant=P thruster=T docking=berth";
 
 /// The error parsing fails with; fails the test if it parses.
 [[nodiscard]] std::string ErrorFor(std::string_view _text)

@@ -623,7 +623,7 @@ ComPtr<ID3D12Resource> GraphicsDevice::CreateStaticBuffer(const void* _data, std
 }
 
 ComPtr<ID3D12Resource> GraphicsDevice::CreateStaticTexture(DXGI_FORMAT _format, std::uint32_t _width, std::uint32_t _height,
-                                                           std::uint32_t _bytesPerPixel, const void* _pixels)
+                                                           std::span<const std::uint8_t> _payload)
 {
   D3D12_RESOURCE_DESC desc{};
   desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -634,6 +634,17 @@ ComPtr<ID3D12Resource> GraphicsDevice::CreateStaticTexture(DXGI_FORMAT _format, 
   desc.Format = _format;
   desc.SampleDesc.Count = 1;
   desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+  // The footprint says how the copy lays rows out: RowPitch is aligned for the copy engine, while
+  // rowBytes is the unpadded size of one source row, a row of 4x4 blocks for BC7.
+  D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint{};
+  UINT rows = 0;
+  UINT64 rowBytes = 0;
+  UINT64 totalBytes = 0;
+  m_device->GetCopyableFootprints(&desc, 0, 1, 0, &footprint, &rows, &rowBytes, &totalBytes);
+  if (rows == 0 || rowBytes == 0 || totalBytes == UINT64_MAX || _payload.size() < rowBytes * rows)
+  {
+    return nullptr;
+  }
   ComPtr<ID3D12Resource> texture;
   const D3D12_HEAP_PROPERTIES defaultHeap = HeapProperties(D3D12_HEAP_TYPE_DEFAULT);
   if (FAILED(m_device->CreateCommittedResource(&defaultHeap, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
@@ -641,12 +652,6 @@ ComPtr<ID3D12Resource> GraphicsDevice::CreateStaticTexture(DXGI_FORMAT _format, 
   {
     return nullptr;
   }
-  D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint{};
-  UINT rows = 0;
-  UINT64 rowBytes = 0;
-  UINT64 totalBytes = 0;
-  m_device->GetCopyableFootprints(&desc, 0, 1, 0, &footprint, &rows, &rowBytes, &totalBytes);
-
   ComPtr<ID3D12Resource> upload;
   const D3D12_HEAP_PROPERTIES uploadHeap = HeapProperties(D3D12_HEAP_TYPE_UPLOAD);
   const D3D12_RESOURCE_DESC uploadDesc = BufferDescription(totalBytes);
@@ -664,8 +669,7 @@ ComPtr<ID3D12Resource> GraphicsDevice::CreateStaticTexture(DXGI_FORMAT _format, 
   for (UINT row = 0; row < rows; ++row)
   {
     std::memcpy(static_cast<std::uint8_t*>(mapped) + footprint.Offset + static_cast<std::size_t>(row) * footprint.Footprint.RowPitch,
-                static_cast<const std::uint8_t*>(_pixels) + static_cast<std::size_t>(row) * _width * _bytesPerPixel,
-                static_cast<std::size_t>(_width) * _bytesPerPixel);
+                _payload.data() + static_cast<std::size_t>(row) * rowBytes, static_cast<std::size_t>(rowBytes));
   }
   upload->Unmap(0, nullptr);
   if (!ExecuteImmediate(upload.Get(), texture.Get(), true, footprint, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE))

@@ -1,0 +1,35 @@
+# The UI sprite manifest (ADR-023). Written by Tools/BuildUiAtlases.py with the atlases it draws;
+# edit the script and run it again rather than editing this file.
+#
+#   atlas name= file= kind=mask|color       a DDS beside this file. mask: R8_UNORM coverage, tinted
+#                                           when drawn. color: sRGB RGBA with straight alpha
+#   sprite name= atlas= rect=x,y,w,h        texels from the atlas's top-left corner
+#          slice=left,top,right,bottom      optional nine-slice margins in texels
+#
+# Art is authored at twice the 1080-line reference: the HUD draws it at half its own scale.
+# Runtime code names sprites, never rects.
+
+atlas name=UiMasks file=UiMasks.dds kind=mask
+atlas name=UiFrames file=UiFrames.dds kind=color
+
+sprite name=Icon.Launch atlas=UiMasks rect=8,8,64,64
+sprite name=Icon.Repair atlas=UiMasks rect=88,8,64,64
+sprite name=Icon.Build atlas=UiMasks rect=168,8,64,64
+sprite name=Icon.Yard atlas=UiMasks rect=248,8,64,64
+sprite name=Icon.Fleet atlas=UiMasks rect=328,8,64,64
+sprite name=Icon.Services atlas=UiMasks rect=408,8,64,64
+sprite name=Status.Warning atlas=UiMasks rect=8,88,64,64
+sprite name=Panel.Fill atlas=UiMasks rect=88,88,64,64 slice=20,20,20,20
+sprite name=Panel.Edge atlas=UiMasks rect=168,88,64,64 slice=20,20,20,20
+sprite name=Focus.Ring atlas=UiMasks rect=248,88,48,48 slice=16,16,16,16
+
+sprite name=Button.Idle atlas=UiFrames rect=8,8,48,48 slice=14,14,14,14
+sprite name=Button.Hover atlas=UiFrames rect=72,8,48,48 slice=14,14,14,14
+sprite name=Button.Pressed atlas=UiFrames rect=136,8,48,48 slice=14,14,14,14
+sprite name=Button.Selected atlas=UiFrames rect=200,8,48,48 slice=14,14,14,14
+sprite name=Button.Disabled atlas=UiFrames rect=8,72,48,48 slice=14,14,14,14
+sprite name=Button.Pending atlas=UiFrames rect=72,72,48,48 slice=14,14,14,14
+sprite name=Button.Confirmed atlas=UiFrames rect=136,72,48,48 slice=14,14,14,14
+sprite name=Button.Refused atlas=UiFrames rect=200,72,48,48 slice=14,14,14,14
+sprite name=Panel.Frame atlas=UiFrames rect=8,136,64,64 slice=20,20,20,20
+sprite name=Panel.Inset atlas=UiFrames rect=88,136,48,48 slice=16,16,16,16

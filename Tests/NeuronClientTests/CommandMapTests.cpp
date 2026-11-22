@@ -201,8 +201,7 @@ public:
       loaded = loaded || Neuron::CommandMap::Load(root, map, error);
     }
     Assert::IsTrue(loaded, std::wstring(error.begin(), error.end()).c_str());
-    for (const std::string_view command :
-         {"MouseFlight", "MouseFlightLock", "Thruster", "Cruise", "EngineKill", "ToggleTacticalView", "Quit"})
+    for (const std::string_view command : {"MouseFlight", "MouseFlightLock", "Thruster", "Cruise", "EngineKill", "Dock", "Launch", "Quit"})
     {
       Assert::IsTrue(map.FindCommand(command) != Neuron::NO_COMMAND, L"the game's commands are bound");
       Assert::IsTrue(map.KeyFor(map.FindCommand(command)) != Neuron::NO_KEY);

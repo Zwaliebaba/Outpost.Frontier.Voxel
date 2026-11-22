@@ -14,5 +14,6 @@ HudVertexOut main(uint _vertexId : SV_VertexID)
   float4 color = float4(vertex.color & 0xffu, (vertex.color >> 8) & 0xffu, (vertex.color >> 16) & 0xffu, vertex.color >> 24) / 255.0;
   output.color = float4(SrgbToLinear(color.rgb), color.a);
   output.uv = vertex.uv;
+  output.sampling = vertex.sampling;
   return output;
 }

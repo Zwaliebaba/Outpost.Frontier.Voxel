@@ -1,4 +1,4 @@
-#include "WorldSnapshot.h"
+#include "UniverseSnapshot.h"
 
 #include <algorithm>
 
@@ -20,7 +20,7 @@ std::vector<ShipModuleState> ShipState::DamagedModules() const
   return damaged;
 }
 
-const ShipState* WorldSnapshot::FindShip(std::string_view _instance) const noexcept
+const ShipState* UniverseSnapshot::FindShip(std::string_view _instance) const noexcept
 {
   for (const ShipState& ship : ships)
   {
@@ -32,9 +32,9 @@ const ShipState* WorldSnapshot::FindShip(std::string_view _instance) const noexc
   return nullptr;
 }
 
-const WorldObject* WorldSnapshot::FindObject(ObjectId _id) const noexcept
+const UniverseObject* UniverseSnapshot::FindObject(ObjectId _id) const noexcept
 {
-  for (const WorldObject& object : objects)
+  for (const UniverseObject& object : objects)
   {
     if (object.id == _id)
     {
@@ -44,9 +44,9 @@ const WorldObject* WorldSnapshot::FindObject(ObjectId _id) const noexcept
   return nullptr;
 }
 
-WorldObject* WorldSnapshot::FindObject(ObjectId _id) noexcept
+UniverseObject* UniverseSnapshot::FindObject(ObjectId _id) noexcept
 {
-  for (WorldObject& object : objects)
+  for (UniverseObject& object : objects)
   {
     if (object.id == _id)
     {
@@ -56,7 +56,7 @@ WorldObject* WorldSnapshot::FindObject(ObjectId _id) noexcept
   return nullptr;
 }
 
-const ShipMotionState* WorldSnapshot::FindMotion(ObjectId _id) const noexcept
+const ShipMotionState* UniverseSnapshot::FindMotion(ObjectId _id) const noexcept
 {
   for (const ShipMotionState& motion : motions)
   {

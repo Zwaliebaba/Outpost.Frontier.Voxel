@@ -85,6 +85,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="DdsFile.h" />
     <ClInclude Include="FileSys.h" />
     <ClInclude Include="LoopbackTransport.h" />
     <ClInclude Include="ModelAxes.h" />
@@ -100,6 +101,7 @@
     <ClInclude Include="WireFormat.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="DdsFile.cpp" />
     <ClCompile Include="FileSys.cpp" />
     <ClCompile Include="LoopbackTransport.cpp" />
     <ClCompile Include="ModelAxes.cpp" />

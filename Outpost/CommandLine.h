@@ -19,9 +19,10 @@ enum class ExitCode : int
   DebugLayerErrors = 5,
   ImageCheck = 6,
   Capture = 7,
-  Protocol = 8,   // a message between the halves could not be encoded, sent or decoded
-  Mismatch = 9,   // the frame's statistics left the tolerance of the report given to --expect
-  Prediction = 10 // the client's prediction of its own ship left the server's on a tick the server did not correct
+  Protocol = 8,    // a message between the halves could not be encoded, sent or decoded
+  Mismatch = 9,    // the frame's statistics left the tolerance of the report given to --expect
+  Prediction = 10, // the client's prediction of its own ship left the server's on a tick the server did not correct
+  Save = 11        // the save could not be read, did not fit the content, or could not be written
 };
 
 // A benchmark's frame count unless --frames says otherwise, and the frames at its start that are
@@ -47,6 +48,7 @@ struct LaunchOptions
   std::filesystem::path script;  // smoke test: input commands at fixed ticks (plan task F5)
   std::filesystem::path expect;  // smoke test: a stored report whose image statistics the frame must match
   std::filesystem::path assets;  // override for the Assets directory
+  std::filesystem::path save;    // the save file; by default Saved Games\Outpost Frontier\Save.txt, none in a smoke test
 };
 
 /// Parses the arguments after the program name. On failure _outError says why.

@@ -50,7 +50,7 @@ constexpr float APPROACH_GAIN = 0.5f;
                   throttleFor(desired.y, _spec.steeringTorqueNewtonMetres.y, _spec.angularDragNewtonMetreSeconds.y), 0.0f};
 }
 
-[[nodiscard]] ManoeuvreOutput FlyTo(const WorldPosition& _target, float _standOffMetres, const ShipFlightSpec& _spec,
+[[nodiscard]] ManoeuvreOutput FlyTo(const UniversePosition& _target, float _standOffMetres, const ShipFlightSpec& _spec,
                                     const FlightState& _state) noexcept
 {
   ManoeuvreOutput output;

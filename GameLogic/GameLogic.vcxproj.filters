@@ -4,30 +4,57 @@
     <Filter Include="Replication">
       <UniqueIdentifier>{9B7E2C41-5D08-4F6A-A3C2-1E8D4B6F0A27}</UniqueIdentifier>
     </Filter>
-    <Filter Include="World">
+    <Filter Include="Universe">
       <UniqueIdentifier>{B12C9F29-8C8F-5215-9475-BB92871B216E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Persistence">
+      <UniqueIdentifier>{04FBF547-C595-4092-B510-A4EF31D45985}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Observer.h">
       <Filter>Replication</Filter>
     </ClInclude>
-    <ClInclude Include="World.h">
-      <Filter>World</Filter>
+    <ClInclude Include="Universe.h">
+      <Filter>Universe</Filter>
     </ClInclude>
     <ClInclude Include="Commands.h">
       <Filter>Replication</Filter>
+    </ClInclude>
+    <ClInclude Include="Character.h">
+      <Filter>Persistence</Filter>
+    </ClInclude>
+    <ClInclude Include="SaveGame.h">
+      <Filter>Persistence</Filter>
+    </ClInclude>
+    <ClInclude Include="SaveRecord.h">
+      <Filter>Persistence</Filter>
+    </ClInclude>
+    <ClInclude Include="SpaceSupport.h">
+      <Filter>Universe</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Observer.cpp">
       <Filter>Replication</Filter>
     </ClCompile>
-    <ClCompile Include="World.cpp">
-      <Filter>World</Filter>
+    <ClCompile Include="Universe.cpp">
+      <Filter>Universe</Filter>
     </ClCompile>
     <ClCompile Include="Commands.cpp">
       <Filter>Replication</Filter>
+    </ClCompile>
+    <ClCompile Include="Character.cpp">
+      <Filter>Persistence</Filter>
+    </ClCompile>
+    <ClCompile Include="SaveGame.cpp">
+      <Filter>Persistence</Filter>
+    </ClCompile>
+    <ClCompile Include="SaveRecord.cpp">
+      <Filter>Persistence</Filter>
+    </ClCompile>
+    <ClCompile Include="SpaceSupport.cpp">
+      <Filter>Universe</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

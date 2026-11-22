@@ -23,7 +23,7 @@ One solution, `Outpost.Frontier.slnx`, x64 only, Debug and Release:
 | Engine | `NeuronClient` | lib | The D3D12 device and swap chain, the renderer and its shaders, the orbit camera, screen projection, pointer gestures, the HUD batch and font atlas, frame capture |
 | Engine | `NeuronServer` | lib | The fixed-rate tick clock |
 | Game | `GameCore` | lib | The canonical palette and material table, the scene definition, the world snapshot |
-| Game | `GameLogic` | lib | `World`, the authoritative server state, which ticks and publishes snapshots |
+| Game | `GameLogic` | lib | `Universe`, the authoritative server state, which ticks and publishes snapshots |
 | Game | `GameApp` | lib | The client: scene assets, the tactical scene, the HUD, input |
 | *(root)* | `Outpost` | exe | Window, message loop, command line, smoke test |
 | Assets/Models | Committed VOX files | Content | Edited directly in MagicaVoxel and copied by the Outpost project |
@@ -31,7 +31,7 @@ One solution, `Outpost.Frontier.slnx`, x64 only, Debug and Release:
 
 Engine code is namespace `Neuron` and never names a game concept: the renderer draws voxels, lines, glows and HUD triangles, and the game decides what they are. Game code is namespace `Outpost`.
 
-The edges run one way. `GameLogic` (server) and `GameApp` (client) share `GameCore` and never see each other. The client draws a `WorldSnapshot` and never reads `World`. `Outpost.exe` hosts both halves in one process for now; the snapshot is the seam where a network transport would go, but networking is out of scope. *Since the design ([GameDesign.md](../GameDesign.md)): networking is its slice 10, and AGENTS.md R18 makes this seam a rule from the first slice.*
+The edges run one way. `GameLogic` (server) and `GameApp` (client) share `GameCore` and never see each other. The client draws a `UniverseSnapshot` and never reads `Universe`. `Outpost.exe` hosts both halves in one process for now; the snapshot is the seam where a network transport would go, but networking is out of scope. *Since the design ([GameDesign.md](../GameDesign.md)): networking is its slice 10, and AGENTS.md R18 makes this seam a rule from the first slice.*
 
 ### Build shape
 
@@ -40,6 +40,8 @@ The edges run one way. `GameLogic` (server) and `GameApp` (client) share `GameCo
 - **Single-project builds with a `.slnx`** name the solution folder: `msbuild Outpost.Frontier.slnx "/t:Engine\NeuronClient"`; a bare name for a project inside a folder fails with MSB4057. The executable sits at the solution root, so its target is `/t:Outpost`.
 
 ### Asset deployment
+
+*Superseded by [ADR-024](ADR-024-assets-deployed-by-a-post-build-copy.md): one post-build copy of `Assets\` replaces the per-file items described here. The asset search at startup is unchanged.*
 
 `Assets/` at the repository root is the single source: models, `Scene.txt`. Each asset file is listed in `Outpost.vcxproj` as a Visual Studio *Copy file* item (`CopyFileToFolders`, filter `Assets`) with `$(OutDir)Assets` as its destination. The build copies it when it changes, and Visual Studio's up-to-date check sees the edit, so F5 picks up a changed scene. A new asset file is added to the project the same way, like any source file. At startup the executable resolves assets from **its own module directory**, walking up until it finds `Assets/Scene.txt`. The working directory is never consulted. So the same binary runs under F5, from `x64\Debug\`, or from a copied folder; `--assets <dir>` overrides the search. The test DLL uses the same search from its own location.
 

@@ -27,7 +27,7 @@ What is stated, in both configurations of every project:
 | Release only | Function-Level Linking, Intrinsic Functions, COMDAT folding, Optimize References, Whole Program Optimization, Incremental Linking off | Template; AGENTS.md §3 |
 | HLSL Compiler | Shader Model 6.7, Debugging Information off, Treat Warnings As Errors, header output to `CompiledShaders\` as `g_<Name>`, no object file | AGENTS.md §2 |
 
-Assets are *Copy file* items (`CopyFileToFolders`) in `Outpost.vcxproj`; see ADR-001.
+Assets are *Copy file* items (`CopyFileToFolders`) in `Outpost.vcxproj`; see ADR-001. *Since ADR-024 they are deployed by one post-build event instead.*
 
 ## Verified
 
@@ -45,5 +45,5 @@ After the change:
 ## Consequences
 
 - A required setting is stated in nine projects and two configurations each, so a change to one has to reach all of them, and nothing checks that yet. `Build/CheckProjectFiles.py` is meant to compare them; until it exists, that is review's job (AGENTS.md §2). *Since 2026-11-22 it exists and does: it requires every setting in this table in both configurations, allows Debug and Release to differ only where AGENTS.md §3 says, and rejects comments, custom targets and imports beyond the template's, except the build files of a package R14 approves.*
-- A new asset file must be added to `Outpost.vcxproj` as a *Copy file* item, or it is not deployed. That is the same rule AGENTS.md §2 already applies to source files.
+- A new asset file must be added to `Outpost.vcxproj` as a *Copy file* item, or it is not deployed. That is the same rule AGENTS.md §2 already applies to source files. *Superseded by ADR-024: a file under `Assets\` is deployed without a project item.*
 - In Debug, shaders compile without optimisation, which is Visual Studio's default for the HLSL compiler. AGENTS.md §3 allows Debug and Release to differ on optimisation.

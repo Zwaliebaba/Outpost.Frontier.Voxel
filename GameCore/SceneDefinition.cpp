@@ -4,6 +4,7 @@
 #include "RecordFile.h"
 #include "VoxFile.h"
 
+#include <algorithm>
 #include <system_error>
 
 using namespace DirectX;
@@ -100,9 +101,37 @@ void ModelAsset::SetSize(const Neuron::Int3& _size) noexcept
   }
 }
 
-const Neuron::Socket* ModelAsset::FindSocket(std::string_view _name) const noexcept
+std::string_view SocketClassName(SocketClass _class) noexcept
 {
-  for (const Neuron::Socket& socket : sockets)
+  switch (_class)
+  {
+  case SocketClass::Dock:
+    return "dock";
+  case SocketClass::Equipment:
+    return "equipment";
+  case SocketClass::Clamp:
+    return "clamp";
+  case SocketClass::Module:
+    break;
+  }
+  return "module";
+}
+
+const DockingPoint* ModelAsset::FindDockingPoint(std::string_view _name) const noexcept
+{
+  for (const DockingPoint& point : dockingPoints)
+  {
+    if (point.name == _name)
+    {
+      return &point;
+    }
+  }
+  return nullptr;
+}
+
+const ModelSocket* ModelAsset::FindSocket(std::string_view _name) const noexcept
+{
+  for (const ModelSocket& socket : sockets)
   {
     if (socket.name == _name)
     {
@@ -233,8 +262,10 @@ bool ParseScene(std::string_view _text, SceneDefinition& _outScene, std::string&
     else if (record.keyword == "socket")
     {
       std::string modelName;
-      Neuron::Socket socket{{}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}};
+      std::string socketClass;
+      ModelSocket socket{{{}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}, SocketClass::Module};
       if (!Required(record, "model", modelName, error) || !Required(record, "name", socket.name, error) ||
+          !Required(record, "class", socketClass, error) ||
           !Optional(record, "position", socket.positionVox, &Neuron::Record::GetFloat3, error) ||
           !Optional(record, "normal", socket.normalVox, &Neuron::Record::GetFloat3, error) ||
           !Optional(record, "up", socket.upVox, &Neuron::Record::GetFloat3, error))
@@ -247,7 +278,63 @@ bool ParseScene(std::string_view _text, SceneDefinition& _outScene, std::string&
         _outError = LineError(record, "socket on unknown model '" + modelName + "'");
         return false;
       }
+      bool known = false;
+      for (const SocketClass candidate : {SocketClass::Dock, SocketClass::Module, SocketClass::Equipment, SocketClass::Clamp})
+      {
+        if (SocketClassName(candidate) == socketClass)
+        {
+          socket.socketClass = candidate;
+          known = true;
+        }
+      }
+      if (!known)
+      {
+        _outError = LineError(record, "socket class must be dock, module, equipment or clamp");
+        return false;
+      }
+      if (model->FindSocket(socket.name) != nullptr)
+      {
+        _outError = LineError(record, "duplicate socket '" + socket.name + "' on model '" + modelName + "'");
+        return false;
+      }
       model->sockets.push_back(std::move(socket));
+    }
+    else if (record.keyword == "dockpoint")
+    {
+      std::string modelName;
+      std::string kind;
+      DockingPoint point;
+      if (!Required(record, "model", modelName, error) || !Required(record, "name", point.name, error) ||
+          !Required(record, "kind", kind, error) || !Required(record, "entry", point.entry, error) ||
+          !Required(record, "approach", point.approach, error) || !Required(record, "pad", point.pad, error) ||
+          !Optional(record, "radius", point.radiusMetres, &Neuron::Record::GetFloat, error))
+      {
+        return false;
+      }
+      ModelAsset* model = _outScene.FindModel(modelName);
+      if (model == nullptr)
+      {
+        _outError = LineError(record, "docking point on unknown model '" + modelName + "'");
+        return false;
+      }
+      const std::optional<DockKind> parsed = ParseDockKind(kind);
+      if (!parsed.has_value())
+      {
+        _outError = LineError(record, "docking point kind must be berth, medium or large");
+        return false;
+      }
+      point.kind = *parsed;
+      if (!(point.radiusMetres > 0.0f && point.radiusMetres <= 50.0f))
+      {
+        _outError = LineError(record, "docking point radius must be more than 0 and at most 50 m");
+        return false;
+      }
+      if (model->FindDockingPoint(point.name) != nullptr)
+      {
+        _outError = LineError(record, "duplicate docking point '" + point.name + "' on model '" + modelName + "'");
+        return false;
+      }
+      model->dockingPoints.push_back(std::move(point));
     }
     else if (record.keyword == "instance")
     {
@@ -421,6 +508,38 @@ std::vector<std::string> ValidateScene(const SceneDefinition& _scene, const std:
       problems.push_back("model '" + model.name + "' file not found: " + model.file);
     }
   }
+  for (const ModelAsset& model : _scene.models)
+  {
+    std::vector<std::string> used;
+    for (const DockingPoint& point : model.dockingPoints)
+    {
+      for (const std::string* socketName : {&point.entry, &point.approach, &point.pad})
+      {
+        const ModelSocket* socket = model.FindSocket(*socketName);
+        const std::string where = "docking point '" + point.name + "' on model '" + model.name + "'";
+        if (socket == nullptr)
+        {
+          problems.push_back(where + " names missing socket '" + *socketName + "'");
+        }
+        else if (socket->socketClass != SocketClass::Dock)
+        {
+          problems.push_back(where + " uses socket '" + *socketName + "', which is not a dock socket");
+        }
+        else if (std::ranges::find(used, *socketName) != used.end())
+        {
+          problems.push_back(where + " uses socket '" + *socketName + "' a second time");
+        }
+        used.push_back(*socketName);
+      }
+    }
+    for (const ModelSocket& socket : model.sockets)
+    {
+      if (socket.socketClass == SocketClass::Dock && std::ranges::find(used, socket.name) == used.end())
+      {
+        problems.push_back("dock socket '" + socket.name + "' on model '" + model.name + "' belongs to no docking point");
+      }
+    }
+  }
   for (const SceneInstance& instance : _scene.instances)
   {
     const ModelAsset* model = _scene.FindModel(instance.model);
@@ -493,10 +612,10 @@ XMMATRIX ModelToWorld(const SceneDefinition& _scene, std::size_t _instanceIndex)
   return ModelToWorldRecursive(_scene, _instanceIndex, 0);
 }
 
-WorldObject ObjectFromInstance(const SceneDefinition& _scene, std::size_t _instanceIndex, ObjectId _id)
+UniverseObject ObjectFromInstance(const SceneDefinition& _scene, std::size_t _instanceIndex, ObjectId _id)
 {
   const SceneInstance& instance = _scene.instances[_instanceIndex];
-  WorldObject object;
+  UniverseObject object;
   object.id = _id;
   object.name = instance.name;
   object.model = instance.model;
@@ -510,7 +629,7 @@ WorldObject ObjectFromInstance(const SceneDefinition& _scene, std::size_t _insta
     XMStoreFloat4(&object.pose.orientation, XMQuaternionNormalize(rotation));
     XMFLOAT3 position{};
     XMStoreFloat3(&position, translation);
-    object.pose.position = WorldPosition{position.x, position.y, position.z};
+    object.pose.position = UniversePosition{position.x, position.y, position.z};
   }
   return object;
 }

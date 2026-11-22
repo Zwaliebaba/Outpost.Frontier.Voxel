@@ -6,9 +6,12 @@
 #   scale, yaw/pitch/roll (degrees; yaw turns +Z toward +X) and position.
 # Socket and engine positions, and light positions with an instance, are VOX coordinates of that
 # instance's model. Pivots default to the centre of the model's grid.
+# Every socket has a class (ADR-009): dock, module, equipment or clamp. A docking point names three
+# dock sockets of its model: the entry outside the station, the approach point and the pad; a docked
+# ship's pivot sits on the pad, nose along its normal and top along its up (plan task 2.2).
 #
-# Keywords: camera, keylight, stars, model, socket, instance, ship, engine, light, objective,
-# resource, build, select, player.
+# Keywords: camera, keylight, stars, model, socket, dockpoint, instance, ship, engine, light,
+# objective, resource, build, select, player.
 
 camera target=-10,42,115 yaw=-16 pitch=28 distance=800 fov=38
 keylight direction=0.35,0.80,-0.48 color=0.74,0.84,1.0 intensity=2.3 ambientsky=0.070,0.085,0.120 ambientground=0.030,0.027,0.028
@@ -45,13 +48,24 @@ model name=Yard file=Models/Yard.vox voxelsize=0.75
 model name=RadiatorArray file=Models/RadiatorArray.vox voxelsize=0.75
 
 # ── Sockets ─────────────────────────────────────────────────────────────────────────────────
-# The hangar's docking socket on its +X wall, and the matching mounts on the section module.
-socket model=HangarBay     name=ExtensionDock position=128,60,34 normal=1,0,0  up=0,0,1
-socket model=HangarSection name=Mount         position=0,36,30  normal=-1,0,0 up=0,0,1
-socket model=HangarSection name=Dock          position=96,36,30 normal=1,0,0  up=0,0,1
+# The hangar's building socket on its +X wall, and the matching mounts on the section module.
+socket model=HangarBay     name=ExtensionDock class=module position=128,60,34 normal=1,0,0  up=0,0,1
+socket model=HangarSection name=Mount         class=module position=0,36,30  normal=-1,0,0 up=0,0,1
+socket model=HangarSection name=Dock          class=module position=96,36,30 normal=1,0,0  up=0,0,1
 # The tug's clamp and the cargo module's carrying point.
-socket model=Tug           name=Clamp         position=13,38,9  normal=0,1,0  up=0,0,1
-socket model=CargoModule   name=Mount         position=11,0,10  normal=0,-1,0 up=0,0,1
+socket model=Tug           name=Clamp         class=clamp  position=13,38,9  normal=0,1,0  up=0,0,1
+socket model=CargoModule   name=Mount         class=clamp  position=11,0,10  normal=0,-1,0 up=0,0,1
+# The hangar's berth for an escort: the bay is 46 m wide, 42 m high and 66 m deep, open towards -Y.
+# The ship backs in from 126 m out and sits nose out, 4.5 m above the deck.
+socket model=HangarBay     name=BerthEntry    class=dock   position=64,-180,26 normal=0,-1,0 up=0,0,1
+socket model=HangarBay     name=BerthApproach class=dock   position=64,-12,26  normal=0,-1,0 up=0,0,1
+socket model=HangarBay     name=BerthPad      class=dock   position=64,52,26   normal=0,-1,0 up=0,0,1
+dockpoint model=HangarBay  name=Berth kind=berth entry=BerthEntry approach=BerthApproach pad=BerthPad radius=4
+# A medium mooring at each docking collar's open end, for a tug: the ship stays outside.
+socket model=DockingCollar name=MooringEntry    class=dock position=18,-300,18 normal=0,-1,0 up=0,0,1
+socket model=DockingCollar name=MooringApproach class=dock position=18,-120,18 normal=0,-1,0 up=0,0,1
+socket model=DockingCollar name=MooringPad      class=dock position=18,-40,18  normal=0,-1,0 up=0,0,1
+dockpoint model=DockingCollar name=Mooring kind=medium entry=MooringEntry approach=MooringApproach pad=MooringPad radius=6
 
 # ── The shipyard: connected industrial campus, with the original named dock retained ──────
 # Architectural grids use 0.75-unit voxels; socket coordinates above are doubled accordingly.

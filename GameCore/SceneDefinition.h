@@ -1,8 +1,9 @@
 #pragma once
 
+#include "DockingPoint.h"
 #include "ModelAxes.h"
 #include "VoxelMesher.h"
-#include "WorldSnapshot.h"
+#include "UniverseSnapshot.h"
 
 #include <DirectXMath.h>
 
@@ -18,6 +19,22 @@ namespace Outpost
 // The editable scene definition, Assets/Scene.txt (ADR-002). Asset names, world placement,
 // pivots, sockets, ships and lights live there and nowhere in the code.
 
+/// What a socket is for (ADR-009): each consumer accepts its own class.
+enum class SocketClass : std::uint8_t
+{
+  Dock,      // a docking point's entry, approach or pad (slice 2)
+  Module,    // a build target (slice 4)
+  Equipment, // a weapon or turret mount (slices 3 and 6)
+  Clamp      // a tug's carrying point
+};
+
+[[nodiscard]] std::string_view SocketClassName(SocketClass _class) noexcept;
+
+struct ModelSocket : Neuron::Socket
+{
+  SocketClass socketClass = SocketClass::Module;
+};
+
 struct ModelAsset
 {
   std::string name;
@@ -26,10 +43,12 @@ struct ModelAsset
   bool pivotAuthored = false; // otherwise the pivot is the centre of the model's grid
   float voxelSize = 1.0f;     // world units per voxel
   Neuron::Int3 size{0, 0, 0}; // filled from the .vox file by SetSize()
-  std::vector<Neuron::Socket> sockets;
+  std::vector<ModelSocket> sockets;
+  std::vector<DockingPoint> dockingPoints;
 
   void SetSize(const Neuron::Int3& _size) noexcept;
-  [[nodiscard]] const Neuron::Socket* FindSocket(std::string_view _name) const noexcept;
+  [[nodiscard]] const ModelSocket* FindSocket(std::string_view _name) const noexcept;
+  [[nodiscard]] const DockingPoint* FindDockingPoint(std::string_view _name) const noexcept;
 };
 
 enum class InstanceStyle : std::uint8_t
@@ -148,7 +167,8 @@ struct SceneDefinition
 [[nodiscard]] bool LoadSceneContent(const std::filesystem::path& _assetRoot, SceneDefinition& _outScene, std::string& _outError);
 
 /// Every reference in the scene: model files that must exist under _assetRoot, models, parents
-/// and sockets that must resolve, and ships, engines and lights that must name an instance.
+/// and sockets that must resolve, ships, engines and lights that must name an instance, and docking
+/// points whose three sockets are `dock` sockets of their model, each used by one point.
 /// Returns one message per problem; empty means the scene is consistent.
 [[nodiscard]] std::vector<std::string> ValidateScene(const SceneDefinition& _scene, const std::filesystem::path& _assetRoot);
 
@@ -162,8 +182,8 @@ struct SceneDefinition
 [[nodiscard]] DirectX::XMMATRIX SocketWorld(const SceneDefinition& _scene, std::size_t _instanceIndex,
                                             const Neuron::Socket& _socket) noexcept;
 
-/// The world object a scene instance becomes: its names, owner, scale, and the pose of
+/// The universe object a scene instance becomes: its names, owner, scale, and the pose of
 /// ModelToWorld, socket attachments followed. Model sizes must be set (LoadSceneContent).
-[[nodiscard]] WorldObject ObjectFromInstance(const SceneDefinition& _scene, std::size_t _instanceIndex, ObjectId _id);
+[[nodiscard]] UniverseObject ObjectFromInstance(const SceneDefinition& _scene, std::size_t _instanceIndex, ObjectId _id);
 
 } // namespace Outpost

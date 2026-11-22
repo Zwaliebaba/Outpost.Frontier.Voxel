@@ -102,7 +102,7 @@ void FlightInput::SetCursor(float _xPixels, float _yPixels, float _widthPixels, 
   m_height = std::max(1.0f, _heightPixels);
 }
 
-void FlightInput::GoTo(const WorldPosition& _target, float _standOffMetres) noexcept
+void FlightInput::GoTo(const UniversePosition& _target, float _standOffMetres) noexcept
 {
   m_order = Manoeuvre::GoTo(_target, _standOffMetres);
   m_locked = false;

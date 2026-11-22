@@ -1,5 +1,7 @@
+#include "FileSys.h"
 #include "FontAtlas.h"
 #include "HudBatch.h"
+#include "SpriteSheet.h"
 #include "TacticalHud.h"
 
 #include "CppUnitTest.h"
@@ -19,9 +21,24 @@ namespace
 /// Line thickness may put a vertex a pixel past an edge it is drawn along.
 constexpr float EDGE_TOLERANCE_PIXELS = 2.0f;
 
-[[nodiscard]] Outpost::WorldSnapshot Snapshot()
+int g_moduleAnchor = 0;
+
+/// The shipped sprite manifest and its atlases (ADR-023), found above the test DLL.
+[[nodiscard]] Neuron::SpriteSheet ShippedSprites()
 {
-  Outpost::WorldSnapshot snapshot;
+  const auto root = Neuron::FindAssetRoot(Neuron::ModuleDirectory(&g_moduleAnchor), L"Scene.txt");
+  Assert::IsTrue(root.has_value(), L"Assets/Scene.txt is found above the test DLL");
+  Neuron::SpriteSheet sheet;
+  std::vector<Neuron::DdsImage> images;
+  std::string error;
+  Assert::IsTrue(Neuron::LoadSpriteSheet(*root / "Ui" / "Sprites.txt", sheet, images, error),
+                 std::wstring(error.begin(), error.end()).c_str());
+  return sheet;
+}
+
+[[nodiscard]] Outpost::UniverseSnapshot Snapshot()
+{
+  Outpost::UniverseSnapshot snapshot;
   snapshot.ships.push_back(Outpost::ShipState{
     "Frigate", "F-317", "Frigate", 68, {{"Hull Section (B)", 34}, {"Engineering", 72}, {"Atmospherics", 75}, {"Bridge", 100}}});
   snapshot.objectives.push_back(Outpost::ObjectiveState{"Defend the shipyard", true});
@@ -48,12 +65,13 @@ struct BuiltHud
 };
 
 /// Builds the HUD at a window size, with the scale the client uses for it, and ships on screen,
-/// off screen and behind the camera.
-void BuildHud(float _width, float _height, const Outpost::WorldSnapshot& _snapshot, BuiltHud& _out)
+/// off screen and behind the camera; skinned from _sprites when there are any.
+void BuildHud(float _width, float _height, const Outpost::UniverseSnapshot& _snapshot, BuiltHud& _out,
+              const Neuron::SpriteSheet* _sprites = nullptr)
 {
   const float scale = std::clamp(_height / 1080.0f, 0.6f, 2.0f);
   Assert::IsTrue(_out.atlas.Build(Outpost::TacticalHud::Fonts(scale)), L"the GDI font atlas builds");
-  _out.batch.Begin(&_out.atlas);
+  _out.batch.Begin(&_out.atlas, _sprites);
   Outpost::HudInput input;
   input.width = _width;
   input.height = _height;
@@ -88,7 +106,7 @@ TEST_CLASS(TacticalHudTests)
 public:
   TEST_METHOD(EveryVertexStaysOnScreenAtEveryWindowSize)
   {
-    const Outpost::WorldSnapshot snapshot = Snapshot();
+    const Outpost::UniverseSnapshot snapshot = Snapshot();
     for (const auto& [width, height] : {std::pair{1280.0f, 720.0f}, std::pair{1920.0f, 1080.0f}, std::pair{3840.0f, 2160.0f}})
     {
       BuiltHud hud;
@@ -115,7 +133,7 @@ public:
 
   TEST_METHOD(TheBuildPanelHasOneOnScreenSlotPerItem)
   {
-    const Outpost::WorldSnapshot snapshot = Snapshot();
+    const Outpost::UniverseSnapshot snapshot = Snapshot();
     BuiltHud hud;
     BuildHud(1920.0f, 1080.0f, snapshot, hud);
     Assert::AreEqual(std::size_t{4}, hud.layout.buildSlots.size());
@@ -132,7 +150,7 @@ public:
 
   TEST_METHOD(TheLayoutScalesWithTheWindow)
   {
-    const Outpost::WorldSnapshot snapshot = Snapshot();
+    const Outpost::UniverseSnapshot snapshot = Snapshot();
     BuiltHud small;
     BuiltHud large;
     BuildHud(1920.0f, 1080.0f, snapshot, small);
@@ -144,6 +162,48 @@ public:
       const Neuron::ScreenRect& b = large.layout.buildSlots[i];
       Assert::IsTrue(std::abs((b.right - b.left) - 2.0f * (a.right - a.left)) <= 2.0f, L"twice the window, twice the slot");
       Assert::IsTrue(std::abs(b.left - 2.0f * a.left) <= 2.0f);
+    }
+  }
+
+  TEST_METHOD(TheSkinnedHudKeepsItsLayoutAndStaysOnScreen)
+  {
+    const Outpost::UniverseSnapshot snapshot = Snapshot();
+    const Neuron::SpriteSheet sprites = ShippedSprites();
+    for (const auto& [width, height] : {std::pair{1280.0f, 720.0f}, std::pair{1920.0f, 1080.0f}, std::pair{3840.0f, 2160.0f}})
+    {
+      BuiltHud plain;
+      BuiltHud skinned;
+      BuildHud(width, height, snapshot, plain);
+      BuildHud(width, height, snapshot, skinned, &sprites);
+
+      // The re-skin changes how panels look, never where anything is.
+      Assert::AreEqual(plain.layout.buildSlots.size(), skinned.layout.buildSlots.size());
+      for (std::size_t i = 0; i < plain.layout.buildSlots.size(); ++i)
+      {
+        const Neuron::ScreenRect& a = plain.layout.buildSlots[i];
+        const Neuron::ScreenRect& b = skinned.layout.buildSlots[i];
+        Assert::IsTrue(a.left == b.left && a.top == b.top && a.right == b.right && a.bottom == b.bottom, L"the same build slots");
+      }
+      const Neuron::ScreenRect& a = plain.layout.silhouette;
+      const Neuron::ScreenRect& b = skinned.layout.silhouette;
+      Assert::IsTrue(a.left == b.left && a.top == b.top && a.right == b.right && a.bottom == b.bottom, L"the same silhouette");
+
+      std::size_t spriteVertices = 0;
+      std::size_t colorVertices = 0;
+      for (std::size_t layer = 0; layer < Neuron::HudBatch::LAYER_COUNT; ++layer)
+      {
+        for (const Neuron::GpuHudVertex& vertex : skinned.batch.Vertices(layer))
+        {
+          Assert::IsTrue(vertex.position.x >= -EDGE_TOLERANCE_PIXELS && vertex.position.x <= width + EDGE_TOLERANCE_PIXELS &&
+                           vertex.position.y >= -EDGE_TOLERANCE_PIXELS && vertex.position.y <= height + EDGE_TOLERANCE_PIXELS,
+                         L"every skinned vertex stays on screen");
+          spriteVertices += (vertex.sampling & Neuron::HUD_SLOT_MASK) != 0 ? 1 : 0;
+          colorVertices += (vertex.sampling & Neuron::HUD_SAMPLE_COLOR) != 0 ? 1 : 0;
+        }
+      }
+      // Seven panels of nine quads, five buttons and four build slots at the least.
+      Assert::IsTrue(spriteVertices >= std::size_t{7 + 5 + 4} * 9 * 6, L"panels, buttons and slots are drawn from sprites");
+      Assert::IsTrue(colorVertices > 0 && colorVertices < spriteVertices, L"both colour frames and tinted masks");
     }
   }
 

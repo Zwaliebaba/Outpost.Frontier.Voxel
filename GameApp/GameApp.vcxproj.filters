@@ -42,6 +42,9 @@
     <ClInclude Include="Prediction.h">
       <Filter>Flight</Filter>
     </ClInclude>
+    <ClInclude Include="DockedView.h">
+      <Filter>Hud</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="InputScript.cpp">
@@ -67,6 +70,9 @@
     </ClCompile>
     <ClCompile Include="Prediction.cpp">
       <Filter>Flight</Filter>
+    </ClCompile>
+    <ClCompile Include="DockedView.cpp">
+      <Filter>Hud</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -33,5 +33,8 @@
     <ClCompile Include="FlightHudTests.cpp">
       <Filter>Hud</Filter>
     </ClCompile>
+    <ClCompile Include="DockedViewTests.cpp">
+      <Filter>Hud</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

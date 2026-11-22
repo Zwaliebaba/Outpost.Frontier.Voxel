@@ -80,7 +80,7 @@ void WritePose(Neuron::WireWriter& _writer, const Pose& _pose)
 
 void WritePayload(Neuron::WireWriter& _writer, const ObjectSpawnMessage& _message)
 {
-  const WorldObject& object = _message.object;
+  const UniverseObject& object = _message.object;
   _writer.Uint32(object.id);
   _writer.String(object.name);
   _writer.String(object.model);
@@ -120,16 +120,16 @@ void WriteFloat3(Neuron::WireWriter& _writer, const DirectX::XMFLOAT3& _value)
   return value;
 }
 
-void WritePosition(Neuron::WireWriter& _writer, const WorldPosition& _position)
+void WritePosition(Neuron::WireWriter& _writer, const UniversePosition& _position)
 {
   _writer.Float64(_position.x);
   _writer.Float64(_position.y);
   _writer.Float64(_position.z);
 }
 
-[[nodiscard]] WorldPosition ReadPosition(Neuron::WireReader& _reader) noexcept
+[[nodiscard]] UniversePosition ReadPosition(Neuron::WireReader& _reader) noexcept
 {
-  WorldPosition position;
+  UniversePosition position;
   position.x = _reader.Float64();
   position.y = _reader.Float64();
   position.z = _reader.Float64();
@@ -197,6 +197,24 @@ void WritePayload(Neuron::WireWriter& _writer, const ShipMotionMessage& _message
   _writer.Uint8(motion.thruster ? 1 : 0);
   _writer.Uint8(motion.engineOn ? 1 : 0);
   _writer.Uint8(static_cast<std::uint8_t>(motion.cruise));
+}
+
+void WritePayload(Neuron::WireWriter& _writer, const DockCommandMessage& _message)
+{
+  _writer.Uint64(_message.tick);
+  _writer.Uint32(_message.ship);
+  _writer.Uint8(static_cast<std::uint8_t>(_message.command));
+}
+
+void WritePayload(Neuron::WireWriter& _writer, const DockStatusMessage& _message)
+{
+  const DockStatusState& status = _message.status;
+  _writer.Uint32(_message.ship);
+  _writer.Uint64(status.tick);
+  _writer.Uint8(static_cast<std::uint8_t>(status.phase));
+  _writer.Uint8(static_cast<std::uint8_t>(status.answer));
+  _writer.String(status.station);
+  _writer.String(status.reason);
 }
 
 [[nodiscard]] std::expected<Message, DecodeError> ReadPayload(MessageKind _kind, Neuron::WireReader& _reader)
@@ -328,6 +346,27 @@ void WritePayload(Neuron::WireWriter& _writer, const ShipMotionMessage& _message
     message = motion;
     break;
   }
+  case MessageKind::DockCommand:
+  {
+    DockCommandMessage command;
+    command.tick = _reader.Uint64();
+    command.ship = _reader.Uint32();
+    wellFormed = ReadEnum(_reader, DockCommand::Launch, command.command);
+    message = command;
+    break;
+  }
+  case MessageKind::DockStatus:
+  {
+    DockStatusMessage status;
+    status.ship = _reader.Uint32();
+    status.status.tick = _reader.Uint64();
+    wellFormed = ReadEnum(_reader, DockPhase::Launching, status.status.phase);
+    wellFormed = ReadEnum(_reader, DockAnswer::LaunchRefused, status.status.answer) && wellFormed;
+    status.status.station = _reader.String();
+    status.status.reason = _reader.String();
+    message = status;
+    break;
+  }
   default:
     return std::unexpected(DecodeError::UnknownKind);
   }
@@ -340,7 +379,7 @@ void WritePayload(Neuron::WireWriter& _writer, const ShipMotionMessage& _message
 
 [[nodiscard]] bool IsKnownKind(std::uint16_t _kind) noexcept
 {
-  return _kind >= static_cast<std::uint16_t>(MessageKind::Tick) && _kind <= static_cast<std::uint16_t>(MessageKind::ShipMotion);
+  return _kind >= static_cast<std::uint16_t>(MessageKind::Tick) && _kind <= static_cast<std::uint16_t>(MessageKind::DockStatus);
 }
 
 } // namespace
@@ -383,10 +422,18 @@ MessageKind KindOf(const Message& _message)
       {
         return MessageKind::OwnShip;
       }
+      else if constexpr (std::is_same_v<T, ShipMotionMessage>)
+      {
+        return MessageKind::ShipMotion;
+      }
+      else if constexpr (std::is_same_v<T, DockCommandMessage>)
+      {
+        return MessageKind::DockCommand;
+      }
       else
       {
-        static_assert(std::is_same_v<T, ShipMotionMessage>);
-        return MessageKind::ShipMotion;
+        static_assert(std::is_same_v<T, DockStatusMessage>);
+        return MessageKind::DockStatus;
       }
     },
     _message);
@@ -400,14 +447,16 @@ Route RouteOf(MessageKind _kind) noexcept
   case MessageKind::Resource:
   case MessageKind::ObjectState:
   case MessageKind::ShipMotion:
-    return Route{Neuron::Delivery::Datagram, STREAM_WORLD};
+    return Route{Neuron::Delivery::Datagram, STREAM_UNIVERSE};
   case MessageKind::FlightInput:
     return Route{Neuron::Delivery::Datagram, STREAM_COMMANDS};
+  case MessageKind::DockCommand:
+    return Route{Neuron::Delivery::Reliable, STREAM_COMMANDS};
   case MessageKind::Ship:
   case MessageKind::Objective:
   case MessageKind::ObjectSpawn:
   default:
-    return Route{Neuron::Delivery::Reliable, STREAM_WORLD};
+    return Route{Neuron::Delivery::Reliable, STREAM_UNIVERSE};
   }
 }
 
@@ -459,19 +508,19 @@ std::expected<Message, DecodeError> Decode(std::span<const std::uint8_t> _bytes)
   return ReadPayload(static_cast<MessageKind>(kind), payload);
 }
 
-void ApplyMessage(const Message& _message, WorldSnapshot& _world)
+void ApplyMessage(const Message& _message, UniverseSnapshot& _universe)
 {
   std::visit(
-    [&_world](const auto& _value)
+    [&_universe](const auto& _value)
     {
       using T = std::decay_t<decltype(_value)>;
       if constexpr (std::is_same_v<T, TickMessage>)
       {
-        _world.tick = std::max(_world.tick, _value.tick);
+        _universe.tick = std::max(_universe.tick, _value.tick);
       }
       else if constexpr (std::is_same_v<T, ShipMessage>)
       {
-        for (ShipState& ship : _world.ships)
+        for (ShipState& ship : _universe.ships)
         {
           if (ship.object == _value.ship.object)
           {
@@ -479,64 +528,64 @@ void ApplyMessage(const Message& _message, WorldSnapshot& _world)
             return;
           }
         }
-        _world.ships.push_back(_value.ship);
+        _universe.ships.push_back(_value.ship);
       }
       else if constexpr (std::is_same_v<T, ObjectiveMessage>)
       {
-        if (_world.objectives.size() <= _value.index)
+        if (_universe.objectives.size() <= _value.index)
         {
-          _world.objectives.resize(std::size_t{_value.index} + 1);
+          _universe.objectives.resize(std::size_t{_value.index} + 1);
         }
-        _world.objectives[_value.index] = _value.objective;
+        _universe.objectives[_value.index] = _value.objective;
       }
       else if constexpr (std::is_same_v<T, ResourceMessage>)
       {
-        if (_world.resources.size() <= _value.index)
+        if (_universe.resources.size() <= _value.index)
         {
-          _world.resources.resize(std::size_t{_value.index} + 1);
-          _world.resourceTicks.resize(std::size_t{_value.index} + 1, 0);
+          _universe.resources.resize(std::size_t{_value.index} + 1);
+          _universe.resourceTicks.resize(std::size_t{_value.index} + 1, 0);
         }
-        if (_value.tick >= _world.resourceTicks[_value.index])
+        if (_value.tick >= _universe.resourceTicks[_value.index])
         {
-          _world.resources[_value.index] = _value.resource;
-          _world.resourceTicks[_value.index] = _value.tick;
+          _universe.resources[_value.index] = _value.resource;
+          _universe.resourceTicks[_value.index] = _value.tick;
         }
       }
       else if constexpr (std::is_same_v<T, ObjectSpawnMessage>)
       {
-        if (WorldObject* known = _world.FindObject(_value.object.id))
+        if (UniverseObject* known = _universe.FindObject(_value.object.id))
         {
           *known = _value.object;
         }
         else
         {
-          _world.objects.push_back(_value.object);
+          _universe.objects.push_back(_value.object);
         }
-        ++_world.objectsRevision;
+        ++_universe.objectsRevision;
       }
       else if constexpr (std::is_same_v<T, ObjectStateMessage>)
       {
-        WorldObject* object = _world.FindObject(_value.id);
+        UniverseObject* object = _universe.FindObject(_value.id);
         if (object != nullptr && _value.tick >= object->poseTick)
         {
           if (!(object->pose == _value.pose))
           {
             object->pose = _value.pose;
-            ++_world.posesRevision;
+            ++_universe.posesRevision;
           }
           object->poseTick = _value.tick;
         }
       }
       else if constexpr (std::is_same_v<T, OwnShipMessage>)
       {
-        _world.ownShip = _value.ship;
-        _world.ownShipTick = _value.tick;
-        _world.ownShipState = _value.state;
-        ++_world.ownShipRevision;
+        _universe.ownShip = _value.ship;
+        _universe.ownShipTick = _value.tick;
+        _universe.ownShipState = _value.state;
+        ++_universe.ownShipRevision;
       }
       else if constexpr (std::is_same_v<T, ShipMotionMessage>)
       {
-        for (ShipMotionState& motion : _world.motions)
+        for (ShipMotionState& motion : _universe.motions)
         {
           if (motion.object == _value.motion.object)
           {
@@ -547,12 +596,17 @@ void ApplyMessage(const Message& _message, WorldSnapshot& _world)
             return;
           }
         }
-        _world.motions.push_back(_value.motion);
+        _universe.motions.push_back(_value.motion);
+      }
+      else if constexpr (std::is_same_v<T, DockStatusMessage>)
+      {
+        _universe.ownDock = _value.status;
+        ++_universe.ownDockRevision;
       }
       else
       {
-        // A command is the server's to act on; a client's picture of the world has no place for one.
-        static_assert(std::is_same_v<T, FlightInputMessage>);
+        // A command is the server's to act on; a client's picture of the universe has no place for one.
+        static_assert(std::is_same_v<T, FlightInputMessage> || std::is_same_v<T, DockCommandMessage>);
       }
     },
     _message);

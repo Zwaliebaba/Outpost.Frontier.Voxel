@@ -1,6 +1,6 @@
 #pragma once
 
-#include "WorldObject.h"
+#include "UniverseObject.h"
 
 #include <DirectXMath.h>
 
@@ -28,7 +28,7 @@ inline constexpr float CONTACT_REPEAT_SECONDS = 0.5f;
 struct CollisionBox
 {
   ObjectId object = NO_OBJECT;
-  WorldPosition center;
+  UniversePosition center;
   DirectX::XMFLOAT4 orientation{0.0f, 0.0f, 0.0f, 1.0f}; // box axes to world
   DirectX::XMFLOAT3 halfExtentsMetres{};
   DirectX::XMFLOAT3 velocityMetresPerSecond{};
@@ -46,16 +46,16 @@ struct SweepHit
 
 /// A sphere moving by _motion from _start, against one box grown by the radius. A sphere that
 /// starts inside the grown box does not hit it, so a ship placed overlapping a body can leave it.
-[[nodiscard]] bool SweepSphere(const WorldPosition& _start, const DirectX::XMFLOAT3& _motion, float _radiusMetres, const CollisionBox& _box,
-                               SweepHit& _outHit) noexcept;
+[[nodiscard]] bool SweepSphere(const UniversePosition& _start, const DirectX::XMFLOAT3& _motion, float _radiusMetres,
+                               const CollisionBox& _box, SweepHit& _outHit) noexcept;
 
 /// The first box the sweep meets, skipping the body _self. Ties go to the earlier box.
-[[nodiscard]] bool SweepSphere(const WorldPosition& _start, const DirectX::XMFLOAT3& _motion, float _radiusMetres,
+[[nodiscard]] bool SweepSphere(const UniversePosition& _start, const DirectX::XMFLOAT3& _motion, float _radiusMetres,
                                std::span<const CollisionBox> _boxes, ObjectId _self, SweepHit& _outHit) noexcept;
 
 /// The box around an object's model grid, scaled and placed at its pose. The model's size must be
 /// set (LoadSceneContent). An object whose model is unknown gets an empty box at its position.
-[[nodiscard]] CollisionBox BoxForObject(const SceneDefinition& _scene, const WorldObject& _object) noexcept;
+[[nodiscard]] CollisionBox BoxForObject(const SceneDefinition& _scene, const UniverseObject& _object) noexcept;
 
 /// The sphere that bounds a box: what a ship sweeps as. Half the box's diagonal, so that no part of
 /// the ship's model reaches through a wall it stopped at.
@@ -63,13 +63,13 @@ struct SweepHit
 
 /// The archetype an object flies with: the ship record whose model draws it, or null for an object
 /// that does not fly (Ships.txt, ADR-009). Both halves use this one rule.
-[[nodiscard]] const ShipArchetype* FlyingArchetype(const ShipContent& _content, const WorldObject& _object) noexcept;
+[[nodiscard]] const ShipArchetype* FlyingArchetype(const ShipContent& _content, const UniverseObject& _object) noexcept;
 
 /// The immovable bodies: every object that does not fly, except a blueprint-styled one, which is
 /// planned construction and not yet solid. Both halves build these from the same content and the
 /// same objects, so the client's prediction meets the same walls as the server.
 [[nodiscard]] std::vector<CollisionBox> StaticBodies(const SceneDefinition& _scene, const ShipContent& _content,
-                                                     std::span<const WorldObject> _objects);
+                                                     std::span<const UniverseObject> _objects);
 
 /// A bounce off a face of outward normal _normal: the velocity's part into the face is reversed and
 /// scaled by the elasticity; the part along it loses up to the friction times the normal impulse.

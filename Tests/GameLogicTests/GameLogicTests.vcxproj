@@ -93,8 +93,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ObserverTests.cpp" />
-    <ClCompile Include="WorldTests.cpp" />
+    <ClCompile Include="UniverseTests.cpp" />
     <ClCompile Include="FlightTests.cpp" />
+    <ClCompile Include="SaveGameTests.cpp" />
+    <ClCompile Include="SpaceSupportTests.cpp" />
+    <ClCompile Include="DockingTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\NeuronCore\NeuronCore.vcxproj">

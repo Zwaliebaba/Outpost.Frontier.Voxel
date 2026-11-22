@@ -61,7 +61,7 @@ bool QuicPeer::OpenConfiguration(const QUIC_CREDENTIAL_CONFIG& _credential, std:
   settings.IsSet.DatagramReceiveEnabled = TRUE;
   if (m_endpoint == Endpoint::Client)
   {
-    settings.PeerUnidiStreamCount = 1; // the world stream, which the server opens
+    settings.PeerUnidiStreamCount = 1; // the universe stream, which the server opens
     settings.IsSet.PeerUnidiStreamCount = TRUE;
   }
   const QUIC_BUFFER alpn = Alpn();

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "FlightModel.h"
-#include "WorldObject.h"
+#include "UniverseObject.h"
 
 #include <cstdint>
 
@@ -22,18 +22,18 @@ enum class ManoeuvreKind : std::uint8_t
 struct Manoeuvre
 {
   ManoeuvreKind kind = ManoeuvreKind::FreeFlight;
-  WorldPosition target;        // hold: the anchor; go-to: the point
+  UniversePosition target;     // hold: the anchor; go-to: the point
   float standOffMetres = 0.0f; // go-to: where to stop, measured from the target
 
   [[nodiscard]] static Manoeuvre FreeFlight() noexcept
   {
     return {};
   }
-  [[nodiscard]] static Manoeuvre Hold(const WorldPosition& _anchor) noexcept
+  [[nodiscard]] static Manoeuvre Hold(const UniversePosition& _anchor) noexcept
   {
     return Manoeuvre{ManoeuvreKind::HoldPosition, _anchor, 0.0f};
   }
-  [[nodiscard]] static Manoeuvre GoTo(const WorldPosition& _target, float _standOffMetres) noexcept
+  [[nodiscard]] static Manoeuvre GoTo(const UniversePosition& _target, float _standOffMetres) noexcept
   {
     return Manoeuvre{ManoeuvreKind::GoTo, _target, _standOffMetres};
   }

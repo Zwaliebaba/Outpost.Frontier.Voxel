@@ -94,8 +94,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ButtonSkinTests.cpp" />
+    <ClCompile Include="ControlFocusTests.cpp" />
     <ClCompile Include="FrameCaptureTests.cpp" />
+    <ClCompile Include="HudBatchTests.cpp" />
     <ClCompile Include="SelectionTests.cpp" />
+    <ClCompile Include="SpriteSheetTests.cpp" />
     <ClCompile Include="ChaseCameraTests.cpp" />
     <ClCompile Include="CommandMapTests.cpp" />
   </ItemGroup>

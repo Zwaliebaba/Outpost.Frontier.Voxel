@@ -2,6 +2,9 @@
 
 **Status:** proposal for review; no game implementation or approved gameplay rules change.
 **Confirmed constraint:** shipped UI artwork uses DDS textures, as requested on 2026-11-22.
+**Brought up to date:** 2026-11-22, after slice 1 and GameDesign.md decisions D14 to D20 (saving,
+pause, the docked ship, start-up and the Dock key). Where the study's mockups predate them, this
+document says so.
 
 ## Review files
 
@@ -19,10 +22,27 @@ using example data; they are not captures of an implemented replacement game HUD
 |---|---|
 | ![Mining and cargo](GameplayUi/Mining.png) | ![Docked construction](GameplayUi/Docked.png) |
 
-The current game already has the flight work merged separately on `main`. This document proposes
-the broader UI/DDS direction; merging the review files does not implement the proposed DDS loader,
-management screens, combat or mining systems. [Preview checks](GameplayUi/PreviewChecks.json)
-record the standalone study's interactions and layout results.
+This document proposes the broader UI/DDS direction; merging the review files does not implement
+the proposed DDS loader, management screens, combat or mining systems. [Preview checks](GameplayUi/PreviewChecks.json)
+record the standalone study's interactions and layout results. The `Docked.png` screenshot was taken
+before D17 and still shows an "Autosave on launch" service line; the HTML files now read "Saved on
+launch, docking and quit".
+
+## What the game has today
+
+Slice 1 is on `main` (ImplementationPlan.md §5). What exists, and what this proposal would replace:
+
+| Area | Today | Where |
+|---|---|---|
+| Flight HUD | One bottom-centre panel: speed in m/s, callsign, throttle, power and thruster pools, cruise state (charging, cruising, cooldown), engine-off and thruster labels; a centre reticle with a line to the steering cursor; a status line (F3) and a help line (H) whose keycaps come from the active bindings | `GameApp/FlightHud.*` |
+| Tactical HUD | The sample's command HUD: header with resources, objectives, radar, selected-ship panel with live voxel thumbnail and silhouette, BUILD/DESIGN/FLEET tabs, edge arrows for off-screen ships | `GameApp/TacticalHud.*` |
+| Shared look | One palette for both HUDs | `GameApp/HudPalette.h` |
+| Bindings | Every key is a record in `Assets/Content/Bindings.txt`, with contexts; `CommandMap::KeyFor` names the key bound to a command, so keycaps are never baked | `NeuronClient/CommandMap.*` |
+| Switching views | F9, a debug key, until slice 2 makes docked the only way into the tactical view (D10) | `GameApp/TacticalClient.*` |
+| Text and art | Live text from the generated R8 font atlas; no shipped UI textures | `NeuronClient/FontAtlas.*`, `HudBatch.*` |
+
+Not there yet: shields and structure (slice 3), targeting (slice 3), the wing strip (slice 6), docking
+and the docked services (slice 2).
 
 ## Direction
 
@@ -34,7 +54,12 @@ short status identifiers may use capitals. Color always accompanies a name, icon
 The game has **two views**. Flight, combat and mining are contexts of the flight view, sharing one
 layout and the same instrument positions. Docked command is the tactical view. Docking and launching
 are the transitions between the two, as GameDesign.md D10 requires. The four preview selectors are
-review controls, not an in-game switch that bypasses docking.
+review controls, not an in-game switch that bypasses docking. The game's F9 key is the same kind of
+stand-in, and slice 2 removes it.
+
+The docked screen is the first screen the player sees: there is no start menu, and a new game starts
+docked in the shipyard's hangar (D18). The player's own ship stays visible in its berth while docked,
+and nothing can damage it there (D16).
 
 The interaction study uses example values and local simulated actions. Costs, power draws, cargo
 capacities, ranges, keyboard bindings and damage values shown there are illustrative. They do not
@@ -44,7 +69,7 @@ set balance, implement a server or replace the blueprint's rules.
 
 | Context | Persistent information | Context actions | Space kept clear |
 |---|---|---|---|
-| Flight | Speed/regime, shield, structure, power and thruster pools; navigation target; sensors; wing command strip | Dock request, wing orders | Aiming, ship motion and the forward view |
+| Flight | Speed/regime, shield, structure, power and thruster pools; navigation target; sensors; wing command strip | Dock request (the Dock key, D20), wing orders | Aiming, ship motion and the forward view |
 | Combat | Same flight instruments, hostile target identity/range, shield/structure, lead point and chosen module | Hull/engines/weapons/core sub-targeting; attack, defend, hold fire | Reticle and the target's silhouette |
 | Mining | Same flight instruments, selected ore seam, tool state, cargo volume and tractor availability | Activate tool, collect reachable loot, return to dock | The rock face and mining feedback |
 | Docked command | Station view, resources and capacity, objectives, selected object and current order | BUILD, YARD, FLEET, SERVICES; launch | Most of the station remains visible between the rail and inspector |
@@ -52,10 +77,16 @@ set balance, implement a server or replace the blueprint's rules.
 ### Flight
 
 Anchor own-ship condition at lower left, a compact sensor display at lower right, target/navigation
-details at upper right, and one objective line at upper left. A low wing strip exposes form up,
+details at upper right, and one objective line at upper left. Today's flight HUD keeps its instruments
+in one bottom-centre panel; moving them to the lower left is this proposal's change, and shield and
+structure join them in slice 3. A low wing strip exposes form up,
 attack target, defend, dock and hold fire. Keycaps come from active bindings, not baked artwork.
 Power, thruster and shield are distinct quantities. Speed always carries its unit and flight regime.
 Cruise charging, active cruise, engine kill and depleted thruster states get explicit labels.
+
+The dock request is the Dock key: it asks the nearest station within 10 km that has a docking point
+for the ship's class, and once targeting exists, the target (D20). Its answer (proceed, wait, cannot
+dock, denied) is shown as a pending request until the authority replies, like every other command.
 
 The normal view is calm. Critical shield, engine or power conditions add one short message beside
 the instruments that explain it, with no full-screen flashing. A compact setting can collapse
@@ -91,16 +122,19 @@ must identify the same object.
 - **FLEET:** owned units, task, condition and concise orders. Multiple selection, go-to, defend,
   dock and itinerary assignment grow from the same directive model. In flight this remains the
   small wing command set rather than full fleet management.
-- **SERVICES:** repair, launch and docked save. Launch checks engine and power availability;
-  loss of a hangar explains why repair is unavailable.
+- **SERVICES:** repair and launch. Launch checks engine and power availability; loss of a hangar
+  explains why repair is unavailable. There is no save action: the game saves on launch, on docking
+  and on quit, into one slot (D17). The panel can say when it last saved.
 
 ## Interaction contract
 
 Controls share idle, hover/focus, pressed, selected, disabled-with-reason, pending, confirmed and
 refused states. Confirmation comes from authority state or replies; the production UI never treats
 a click as proof that construction, repair, docking or a fleet order succeeded. Escape cancels a
-placement or closes the top interaction before reaching the pause menu. Menu focus suppresses
-flight input and releases held controls on a context change.
+placement or an order, or closes the top interaction; it never quits. There is no pause menu, in
+either mode (D19): time never stops, saving is automatic (D17), and F10 or Alt+F4 quits (D15). Menu
+focus suppresses flight input and releases held controls on a context change, as `CommandMap`
+already does for a key held across a context switch.
 
 The mockup's Launch action shows a pending request; the review selectors expose the flight layout.
 In the actual game the UI stays docked until the docking system confirms the launch transition.
@@ -215,10 +249,17 @@ Start with the DDS foundation and one complete flight screen. Then implement the
 flow to make F-03 the first end-to-end management interaction. Keep new visual assets to the
 small reusable atlas set rather than a separate texture for every panel or screen.
 
+**Decided for slice 2** (the owner, 2026-11-22). The DDS foundation comes first, as
+ImplementationPlan.md task 2.5a with ADR-023, and the docked view of task 2.5 is built on it with
+this proposal's rail and inspector. Slice 2 fills SERVICES (launch and a placeholder repair); BUILD,
+YARD and FLEET get their content in slices 4 and 6.
+
 ## References
 
-- `Design/GameDesign.md` §3.1 and D10: view availability and command scope.
+- `Design/GameDesign.md` §3.1 and D10: view availability and command scope. D15 (keys), D16 (the
+  docked ship), D17 (saving), D18 (start-up), D19 (no pause) and D20 (the Dock key).
 - `Design/ImplementationPlan.md`: 1.9 flight HUD; 2.5 docked services; 3.10 combat; 4.7 build;
   5.8 mining/cargo; 6.4 fleet commands.
+- `GameApp/FlightHud.*`, `GameApp/HudPalette.h`, `Assets/Content/Bindings.txt`, `NeuronClient/CommandMap.*`.
 - `GameApp/TacticalHud.*`, `NeuronClient/HudBatch.*`, `NeuronClient/FontAtlas.*`,
   `NeuronClient/Renderer.cpp`, `NeuronClient/Shaders/Hud*.hlsl` and `Hud.hlsli`: current UI baseline.

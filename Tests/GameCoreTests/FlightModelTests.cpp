@@ -62,7 +62,7 @@ void Fly(const Outpost::ShipFlightSpec& _spec, const Outpost::FlightControls& _c
 
 [[nodiscard]] double DistanceFromOrigin(const Outpost::FlightState& _state)
 {
-  const Outpost::WorldPosition& p = _state.position;
+  const Outpost::UniversePosition& p = _state.position;
   return std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
 }
 

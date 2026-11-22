@@ -9,12 +9,12 @@ namespace Outpost
 {
 
 ShipBody ShipBodyFor(const SceneDefinition& _scene, const ShipContent& _content, const ShipArchetype& _archetype,
-                     const WorldObject& _object, CollisionBox* _outLocalBox)
+                     const UniverseObject& _object, CollisionBox* _outLocalBox)
 {
   ShipBody body;
   body.object = _object.id;
   body.spec = FlightSpecFor(_content, _archetype);
-  WorldObject atOrigin = _object;
+  UniverseObject atOrigin = _object;
   atOrigin.pose = Pose{};
   CollisionBox local = BoxForObject(_scene, atOrigin);
   local.massKilograms = _archetype.massKilograms;
@@ -51,7 +51,7 @@ ShipTickResult StepShip(const ShipBody& _ship, const ShipCommand& _command, std:
   result.controls = output.controls;
   result.arrived = output.arrived;
 
-  const WorldPosition start = _state.position;
+  const UniversePosition start = _state.position;
   StepFlight(_ship.spec, output.controls, _ticksPerSecond, _state);
   const XMFLOAT3 motion{static_cast<float>(_state.position.x - start.x), static_cast<float>(_state.position.y - start.y),
                         static_cast<float>(_state.position.z - start.z)};
@@ -63,8 +63,9 @@ ShipTickResult StepShip(const ShipBody& _ship, const ShipCommand& _command, std:
   }
   const float length = XMVectorGetX(XMVector3Length(XMLoadFloat3(&motion)));
   const float travelled = length > 0.0f ? std::max(0.0f, hit.fraction - CONTACT_STANDOFF_METRES / length) : 0.0f;
-  _state.position = WorldPosition{start.x + static_cast<double>(motion.x * travelled), start.y + static_cast<double>(motion.y * travelled),
-                                  start.z + static_cast<double>(motion.z * travelled)};
+  _state.position =
+    UniversePosition{start.x + static_cast<double>(motion.x * travelled), start.y + static_cast<double>(motion.y * travelled),
+                     start.z + static_cast<double>(motion.z * travelled)};
 
   // The bounce is taken in the body's frame of motion, so a moving body carries the ship with it.
   const XMVECTOR bodyVelocity = XMLoadFloat3(&hit.body->velocityMetresPerSecond);

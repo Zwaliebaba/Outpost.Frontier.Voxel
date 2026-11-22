@@ -32,7 +32,7 @@ constexpr float STAND_OFF_METRES = 50.0f;
   return Outpost::FlightSpecFor(content, *content.FindShip("EscortTalon"));
 }
 
-[[nodiscard]] Outpost::FlightState StartAt(const Outpost::ShipFlightSpec& _spec, Outpost::WorldPosition _position, float _yawDegrees,
+[[nodiscard]] Outpost::FlightState StartAt(const Outpost::ShipFlightSpec& _spec, Outpost::UniversePosition _position, float _yawDegrees,
                                            float _pitchDegrees)
 {
   Outpost::Pose pose;
@@ -43,7 +43,7 @@ constexpr float STAND_OFF_METRES = 50.0f;
   return Outpost::RestingFlightState(_spec, pose);
 }
 
-[[nodiscard]] double Distance(const Outpost::WorldPosition& _a, const Outpost::WorldPosition& _b)
+[[nodiscard]] double Distance(const Outpost::UniversePosition& _a, const Outpost::UniversePosition& _b)
 {
   const double dx = _a.x - _b.x;
   const double dy = _a.y - _b.y;
@@ -113,10 +113,10 @@ public:
   TEST_METHOD(GoToArrivesWithinItsStandOffFromSeveralStarts)
   {
     const Outpost::ShipFlightSpec spec = Fighter();
-    const Outpost::WorldPosition target{1.0e6, -2.0e5, 3.0e5}; // far from the origin: offsets are taken in double
+    const Outpost::UniversePosition target{1.0e6, -2.0e5, 3.0e5}; // far from the origin: offsets are taken in double
     struct Start
     {
-      Outpost::WorldPosition offset;
+      Outpost::UniversePosition offset;
       float yawDegrees;
       float pitchDegrees;
       const wchar_t* what;
@@ -128,7 +128,7 @@ public:
     };
     for (const Start& start : starts)
     {
-      const Outpost::WorldPosition from{target.x + start.offset.x, target.y + start.offset.y, target.z + start.offset.z};
+      const Outpost::UniversePosition from{target.x + start.offset.x, target.y + start.offset.y, target.z + start.offset.z};
       Outpost::FlightState state = StartAt(spec, from, start.yawDegrees, start.pitchDegrees);
       const float seconds = RunUntilArrived(Outpost::Manoeuvre::GoTo(target, STAND_OFF_METRES), spec, 120.0f, state);
       Assert::IsTrue(seconds >= 0.0f, start.what);
@@ -150,7 +150,7 @@ public:
   TEST_METHOD(HoldFliesBackToItsAnchor)
   {
     const Outpost::ShipFlightSpec spec = Fighter();
-    const Outpost::WorldPosition anchor{100.0, 20.0, -50.0};
+    const Outpost::UniversePosition anchor{100.0, 20.0, -50.0};
     Outpost::FlightState state = StartAt(spec, {300.0, 20.0, -50.0}, 0.0f, 0.0f);
     const Outpost::Manoeuvre hold = Outpost::Manoeuvre::Hold(anchor);
     Assert::IsFalse(Outpost::RunManoeuvre(hold, {}, spec, state).arrived);

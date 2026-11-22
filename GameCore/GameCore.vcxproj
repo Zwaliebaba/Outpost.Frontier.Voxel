@@ -93,10 +93,14 @@
     <ClInclude Include="Palette.h" />
     <ClInclude Include="SceneDefinition.h" />
     <ClInclude Include="ShipArchetype.h" />
-    <ClInclude Include="WorldObject.h" />
-    <ClInclude Include="WorldSnapshot.h" />
+    <ClInclude Include="UniverseObject.h" />
+    <ClInclude Include="UniverseSnapshot.h" />
     <ClInclude Include="Collision.h" />
     <ClInclude Include="ShipFlight.h" />
+    <ClInclude Include="RecordReader.h" />
+    <ClInclude Include="SystemContent.h" />
+    <ClInclude Include="Zone.h" />
+    <ClInclude Include="DockingPoint.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FlightModel.cpp" />
@@ -105,10 +109,13 @@
     <ClCompile Include="Palette.cpp" />
     <ClCompile Include="SceneDefinition.cpp" />
     <ClCompile Include="ShipArchetype.cpp" />
-    <ClCompile Include="WorldObject.cpp" />
-    <ClCompile Include="WorldSnapshot.cpp" />
+    <ClCompile Include="UniverseObject.cpp" />
+    <ClCompile Include="UniverseSnapshot.cpp" />
     <ClCompile Include="Collision.cpp" />
     <ClCompile Include="ShipFlight.cpp" />
+    <ClCompile Include="SystemContent.cpp" />
+    <ClCompile Include="Zone.cpp" />
+    <ClCompile Include="DockingPoint.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NeuronCore\NeuronCore.vcxproj">

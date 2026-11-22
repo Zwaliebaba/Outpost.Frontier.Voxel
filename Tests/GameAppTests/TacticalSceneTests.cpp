@@ -57,11 +57,12 @@ public:
   {
     // ADR-010: the scene is drawn relative to a grid point near the camera, so that what is near the
     // camera is near the render origin, wherever in the system the camera is.
-    const Outpost::WorldPosition atHome = Outpost::TacticalScene::RenderOriginFor(Outpost::WorldPosition{300.0, -200.0, 500.0});
+    const Outpost::UniversePosition atHome = Outpost::TacticalScene::RenderOriginFor(Outpost::UniversePosition{300.0, -200.0, 500.0});
     Assert::AreEqual(0.0, atHome.x);
     Assert::AreEqual(0.0, atHome.y);
     Assert::AreEqual(0.0, atHome.z, L"500 m is less than half a cell");
-    const Outpost::WorldPosition farOut = Outpost::TacticalScene::RenderOriginFor(Outpost::WorldPosition{100'000.0, -100'000.0, 600.0});
+    const Outpost::UniversePosition farOut =
+      Outpost::TacticalScene::RenderOriginFor(Outpost::UniversePosition{100'000.0, -100'000.0, 600.0});
     Assert::AreEqual(100'352.0, farOut.x, L"98 cells");
     Assert::AreEqual(-100'352.0, farOut.y, L"and the same below");
     Assert::AreEqual(1024.0, farOut.z);
@@ -73,8 +74,8 @@ public:
     // by a millimetre moves by a millimetre in render space.
     for (const double camera : {0.0, 511.9, 512.1, 99'999.5, 1.0e6, -3.7e5})
     {
-      const Outpost::WorldPosition position{camera, camera, camera};
-      const Outpost::WorldPosition origin = Outpost::TacticalScene::RenderOriginFor(position);
+      const Outpost::UniversePosition position{camera, camera, camera};
+      const Outpost::UniversePosition origin = Outpost::TacticalScene::RenderOriginFor(position);
       Assert::IsTrue(std::abs(camera - origin.x) <= Outpost::TacticalScene::ORIGIN_CELL_METRES / 2.0, std::to_wstring(camera).c_str());
       const float before = static_cast<float>(camera + 2.0 - origin.x);
       const float after = static_cast<float>(camera + 2.001 - origin.x);

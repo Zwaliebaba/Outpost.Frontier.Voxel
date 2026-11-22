@@ -3,7 +3,7 @@
 #include "FontAtlas.h"
 #include "HudBatch.h"
 #include "ScreenProjection.h"
-#include "WorldSnapshot.h"
+#include "UniverseSnapshot.h"
 
 #include <string>
 #include <vector>
@@ -55,7 +55,7 @@ struct HudInput
   float height = 1080.0f;
   float scale = 1.0f; // 1 at 1080 lines
   float timeSeconds = 0.0f;
-  const WorldSnapshot* snapshot = nullptr;
+  const UniverseSnapshot* snapshot = nullptr;
   const ShipState* selected = nullptr;
   std::vector<ShipMarker> markers;
   std::vector<RadarBlip> blips;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "DockingPoint.h"
+
 #include <DirectXMath.h>
 
 #include <filesystem>
@@ -61,6 +63,7 @@ struct ShipArchetype
   std::string engine;
   std::string powerPlant;
   std::string thruster;
+  DockKind dockingClass = DockKind::Berth; // the docking points it may use (ch. 04 §2)
 };
 
 /// How the chase camera sits behind one hull (blueprint ch. 09 §3.9). Presentation, so a record of
