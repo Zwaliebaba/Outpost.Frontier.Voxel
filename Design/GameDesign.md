@@ -1,6 +1,6 @@
 # Outpost:Frontier — game design concept
 
-**Status:** concept, adopted as this repository's design; the decisions in §13 are open · **Date:** 2026-11-22
+**Status:** concept, adopted as this repository's design; the decisions in §13 are partly open · **Date:** 2026-11-22
 
 This is the design document AGENTS.md refers to, at concept depth. It says what the game is, which systems it is made of, where each comes from, and in what order to build them. It does not fix numbers, write the per-system rules or invent a setting; those follow once this direction is accepted.
 
@@ -132,7 +132,7 @@ The state diagram of `Blueprint.md` §3 holds, with these changes.
 | Space: tactical view | New. Entered and left with one key at any time |
 | Space: lane ride, docking sequence | Unchanged. Followers in formation receive the same order (ch. 05 §3.10) |
 | Cutscene | Scripted camera in space only; no acted scenes in rooms |
-| Death | See open decision D1 |
+| Death | Back to the last base with the ship as fitted there, cargo lost (D1, decided) |
 
 ## 6. System mapping
 
@@ -259,7 +259,7 @@ Vertical slices, each playable, after the Frontier blueprint's own order (`Bluep
 | 9. Jobs and a campaign | The trigger language, the job board, generated and scripted missions, checkpoints | 08 | An author builds an escort-and-ambush mission that ends at the outpost, from data alone |
 | 10. Multiplayer | A network transport, observers and replication, accounts | 11 §3.6 to 3.13 | Two players meet, fight the same ships and see the same holes in them |
 
-Slices 1 to 3 prove the feel and carry the largest technical risk. Nothing after them should start until a duel is good.
+The first six slices are the MVP; [ImplementationPlan.md](ImplementationPlan.md) breaks them into work. Slices 1 to 3 prove the feel and carry the largest technical risk. Nothing after them should start until a duel is good.
 
 ## 12. Where this design is weakest
 
@@ -273,22 +273,24 @@ Slices 1 to 3 prove the feel and carry the largest technical risk. Nothing after
 
 ## 13. Open decisions
 
+*D1, D2, D5, D6 and D12 were decided by the owner on 2026-11-22, as recommended, for the MVP plan ([ImplementationPlan.md](ImplementationPlan.md)). The others remain open.*
+
 Each is the owner's. The recommendation is what the rest of this document assumes.
 
 | # | Decision | Recommendation |
 |---|---|---|
-| D1 | What death costs | One rule for both modes, the blueprint's multiplayer rule (ch. 11 §3.12): back to the last base with the ship as it was fitted there, cargo lost. Reloading a save then stays a convenience and is not a rule |
-| D2 | Can the outpost be lost | No. The command block is the blueprint's indestructible solar: everything attached to it can be shot off, the claim itself survives |
+| D1 | What death costs — *decided* | One rule for both modes, the blueprint's multiplayer rule (ch. 11 §3.12): back to the last base with the ship as it was fitted there, cargo lost. Reloading a save then stays a convenience and is not a rule |
+| D2 | Can the outpost be lost — *decided* | No. The command block is the blueprint's indestructible solar: everything attached to it can be shot off, the claim itself survives |
 | D3 | One claim or several | One in the first release. Forward claims further out as campaign rewards, to answer weakness 2 |
 | D4 | What sizes a raid | The place and the owner's standings, as for all population. Not the outpost's worth: the blueprint keeps danger a property of the map |
-| D5 | The HUD's DESIGN tab | Rename it YARD: build and refit ships from bought hull plans. With no ship designer it has nothing to design |
-| D6 | Which ships the player may fly | Fighters and freighters. Frigates are owned and commanded, not piloted: cursor flight is tuned for hulls that turn at 23 to 96 degrees a second |
+| D5 | The HUD's DESIGN tab — *decided* | Rename it YARD: build and refit ships from bought hull plans. With no ship designer it has nothing to design |
+| D6 | Which ships the player may fly — *decided* | Fighters and freighters. Frigates are owned and commanded, not piloted: cursor flight is tuned for hulls that turn at 23 to 96 degrees a second |
 | D7 | Can the outpost sell to visiting traffic | No. Surplus is hauled to a base, by the player or a tug. Profit stays a matter of knowing the map |
 | D8 | The setting | Not part of this document. The sample's names (Kessler Reach, Shipyard Command, F-317) are working titles |
 | D9 | Campaign in the first release | A short one (§10), since worth gates and locked jump points are what pace the open game |
 | D10 | Where the tactical view is available | Anywhere, limited to owned sensors |
 | D11 | Voice | None at first. Comms are text; the rules of chatter (ch. 06 §3.12) are kept |
-| D12 | Wing size | About three, capped by crew |
+| D12 | Wing size — *decided* | About three, capped by crew |
 
 ## 14. Basis
 
