@@ -1,11 +1,12 @@
 // Shared declarations for every Outpost:Frontier shader. The C++ mirrors are in GpuTypes.h; the
 // root signature is built in Renderer.cpp:
-//   b0 FrameConstants, b1 per-draw constants, t0 / t1 root SRVs, t2 shadow map, t3 HUD atlas.
+//   b0 FrameConstants, b1 per-draw constants, t0 / t1 root SRVs, t2 shadow map, t3.. HUD textures.
 
 #ifndef OUTPOST_COMMON_HLSLI
 #define OUTPOST_COMMON_HLSLI
 
 #define MAX_POINT_LIGHTS 16
+#define HUD_TEXTURE_COUNT 4
 
 struct PointLight
 {
@@ -42,7 +43,8 @@ cbuffer FrameConstants : register(b0)
 };
 
 Texture2D<float> g_shadowMap : register(t2);
-Texture2D<float> g_hudAtlas : register(t3);
+// Slot 0 is the font atlas (R8); the others are sprite atlases, R8 masks or sRGB colour (ADR-023).
+Texture2D<float4> g_hudTextures[HUD_TEXTURE_COUNT] : register(t3);
 SamplerComparisonState g_shadowSampler : register(s0);
 SamplerState g_linearClamp : register(s1);
 

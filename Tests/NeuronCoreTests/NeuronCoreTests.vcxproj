@@ -95,6 +95,7 @@
     <ClInclude Include="TestSupport.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="DdsFileTests.cpp" />
     <ClCompile Include="LoopbackTransportTests.cpp" />
     <ClCompile Include="ModelAxesTests.cpp" />
     <ClCompile Include="TestSupport.cpp" />

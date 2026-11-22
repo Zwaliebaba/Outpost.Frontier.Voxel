@@ -109,13 +109,20 @@ static_assert(sizeof(GpuEffect) == 80);
 inline constexpr std::uint32_t EFFECT_WIDTH_IN_PIXELS = 1u;
 inline constexpr std::uint32_t EFFECT_GLOW = 2u;
 
-/// A HUD vertex in pixels. Colour is sRGB-encoded RGBA8, alpha straight.
+/// How a HUD vertex samples (ADR-023): the low byte is the HUD texture slot (0 is the font atlas),
+/// and HUD_SAMPLE_COLOR asks for the texel's RGBA rather than its first channel as coverage.
+inline constexpr std::uint32_t HUD_SLOT_MASK = 0xffu;
+inline constexpr std::uint32_t HUD_SAMPLE_COLOR = 0x100u;
+
+/// A HUD vertex in pixels. Colour is sRGB-encoded RGBA8, alpha straight. Coverage sampling (text,
+/// solid fills, mask sprites) multiplies the colour's alpha by the texel's red channel; colour
+/// sampling (colour sprites, sRGB-decoded by the texture) multiplies the colour by the texel.
 struct GpuHudVertex
 {
   DirectX::XMFLOAT2 position;
   DirectX::XMFLOAT2 uv;
   std::uint32_t color;
-  std::uint32_t padding;
+  std::uint32_t sampling; // slot | HUD_SAMPLE_COLOR
 };
 static_assert(sizeof(GpuHudVertex) == 24);
 

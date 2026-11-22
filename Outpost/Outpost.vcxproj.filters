@@ -16,6 +16,9 @@
     <Filter Include="Assets\Palettes">
       <UniqueIdentifier>{D24BDE7F-748B-5FE1-9ACD-39D0A5885847}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Assets\Ui">
+      <UniqueIdentifier>{E3A91F5C-2B76-4D08-9C1E-6F4B7A2D8C30}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Application">
       <UniqueIdentifier>{3B6548F8-A7F0-540B-A8FE-998FD0F9C7F2}</UniqueIdentifier>
     </Filter>
@@ -153,6 +156,15 @@
     </CopyFileToFolders>
     <CopyFileToFolders Include="..\Assets\Content\System.txt">
       <Filter>Assets\Content</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Ui\Sprites.txt">
+      <Filter>Assets\Ui</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Ui\UiFrames.dds">
+      <Filter>Assets\Ui</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Ui\UiMasks.dds">
+      <Filter>Assets\Ui</Filter>
     </CopyFileToFolders>
     <CopyFileToFolders Include="..\Assets\Scene.txt">
       <Filter>Assets</Filter>

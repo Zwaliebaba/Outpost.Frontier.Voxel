@@ -272,6 +272,18 @@
       <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)Assets\Content</DestinationFolders>
       <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)Assets\Content</DestinationFolders>
     </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Ui\Sprites.txt">
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)Assets\Ui</DestinationFolders>
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)Assets\Ui</DestinationFolders>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Ui\UiFrames.dds">
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)Assets\Ui</DestinationFolders>
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)Assets\Ui</DestinationFolders>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Ui\UiMasks.dds">
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)Assets\Ui</DestinationFolders>
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)Assets\Ui</DestinationFolders>
+    </CopyFileToFolders>
     <CopyFileToFolders Include="..\Assets\Scene.txt">
       <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)Assets</DestinationFolders>
       <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)Assets</DestinationFolders>
