@@ -50,7 +50,7 @@ constexpr float HEIGHT = 1080.0f;
 TEST_CLASS(SelectionTests)
 {
 public:
-  TEST_METHOD(BoxAheadProjectsAroundTheScreenCentre)
+  TEST_METHOD(BoxAheadProjectsAroundTheScreenCenter)
   {
     const Neuron::ProjectedBounds bounds =
       Neuron::ProjectBox(Neuron::BoxCorners(Box(XMFLOAT3{0, 0, 100}, 5)), ViewProjection(), WIDTH, HEIGHT);
@@ -89,7 +89,7 @@ public:
     Assert::IsTrue(bounds.rect.bottom > HEIGHT, L"the part below the eye extends past the bottom edge");
   }
 
-  TEST_METHOD(PickRayThroughTheCentreHitsTheBoxAhead)
+  TEST_METHOD(PickRayThroughTheCenterHitsTheBoxAhead)
   {
     const XMMATRIX inverse = XMMatrixInverse(nullptr, ViewProjection());
     const Neuron::Ray ray = Neuron::PickRay(WIDTH * 0.5f - 0.5f, HEIGHT * 0.5f - 0.5f, inverse, WIDTH, HEIGHT);

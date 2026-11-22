@@ -108,6 +108,12 @@ Every file carries the identical canonical RGBA palette chunk. Index 0 is empty,
 
 # Smoke test: fixed timeline on WARP, image checks, debug layer on; exit code 0 on success
 .\x64\Debug\Outpost.exe --smoke-test --warp --capture smoke.png --report smoke.txt --compare "Design\Space Station HUD Without Navigation Path.png"
+
+# The checkers CI runs (AGENTS.md §6). The pinned tools: pip install clang-format==18.1.3 clang-tidy==22.1.8
+python Build\CheckProjectFiles.py    # build shape, registration, Debug/Release alignment, R2, R7, R11, R14
+python Build\CheckFormat.py          # clang-format over every .h/.cpp; --fix rewrites
+python Build\RunClangTidy.py         # after a build, in a Developer PowerShell; --dry-run prints the commands
+python Build\TestCheckers.py         # the checkers' own tests
 ```
 
 Every library has its own test project under `Tests\`. In Visual Studio, *Test › Test Explorer* runs them all.
@@ -153,7 +159,7 @@ All of the following passed on 2026-11-21, on Windows 11 with an RTX 3070 Ti Lap
 
 Not run here:
 - the GitHub Actions workflow itself;
-- `Build/CheckFormat.py`, `Build/CheckProjectFiles.py` and `Build/RunClangTidy.py`, which AGENTS.md calls for but which do not exist yet, so CI skips those gates.
+- `Build/CheckFormat.py`, `Build/CheckProjectFiles.py` and `Build/RunClangTidy.py`, which did not exist yet. They were added on 2026-11-22 and CI runs them; see *Tests and checks*.
 
 ## Scope
 
