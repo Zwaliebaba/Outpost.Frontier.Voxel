@@ -174,17 +174,13 @@ def Validate(_assets, _baseline=None):
   for record in records.get("build", []):
     if record["model"] not in models:
       raise ValueError(f"Missing build model: {record}")
-  # Every shipped VOX must still be copied in both configurations and registered in its filter.
+  # Every shipped VOX reaches the executable through the post-build copy of Assets (ADR-024), which
+  # both configurations must run.
   namespace = {"m": "http://schemas.microsoft.com/developer/msbuild/2003"}
-  for relative in ("Outpost/Outpost.vcxproj", "Outpost/Outpost.vcxproj.filters"):
-    tree = ET.parse(ROOT / relative)
-    copied = {Path(node.attrib["Include"].replace("\\", "/")).stem: node
-              for node in tree.findall(".//m:CopyFileToFolders", namespace)}
-    for name in grids:
-      if name not in copied:
-        raise ValueError(f"{name}.vox missing in {relative}")
-      if relative.endswith(".vcxproj") and len(copied[name].findall("m:DestinationFolders", namespace)) != 2:
-        raise ValueError(f"{name}.vox must be copied in Debug and Release")
+  tree = ET.parse(ROOT / "Outpost/Outpost.vcxproj")
+  commands = [node.text or "" for node in tree.findall(".//m:ItemDefinitionGroup/m:PostBuildEvent/m:Command", namespace)]
+  if len(commands) != 2 or not all('"$(SolutionDir)Assets" "$(OutDir)Assets"' in command for command in commands):
+    raise ValueError("Outpost/Outpost.vcxproj must copy Assets to the output directory in Debug and Release")
   report["station"] = StationContacts(instances, models, grids, matrices)
   report["sceneInstances"] = len(instances)
   sceneText = (_assets / "Scene.txt").read_text(encoding="utf-8")

@@ -146,7 +146,7 @@ keeps its original model files; live damage and repair integration remain the MV
 
 Edit the committed files under `Assets/Models/` directly in MagicaVoxel. Keep one model per file and preserve its palette indices. Rebuild Debug or Release to copy saved edits beside the executable, or launch with `--assets Assets` from the repository root. If geometry moves relative to its origin, check its sockets, lights and engines in `Assets/Scene.txt`.
 
-A **new** asset file must also be added to the `Outpost` project in Visual Studio (*Add › Existing Item*, Item Type *Copy file*, destination `$(OutDir)Assets\Models`), or the build will not copy it next to the executable.
+A **new** asset file only has to be put under `Assets\`: a post-build step copies the whole folder next to the executable on every build ([ADR-024](Design/ADR/ADR-024-assets-deployed-by-a-post-build-copy.md)). Visual Studio does not notice an asset-only edit, so after changing only assets, build from the command line or *Rebuild* `Outpost`.
 
 Every file carries the identical canonical RGBA palette chunk. Index 0 is empty, and voxel colour `c` is chunk entry `c−1`.
 The [signal and glazing guide](Design/SignalMaterials.md) describes bright yellow strobes (224)

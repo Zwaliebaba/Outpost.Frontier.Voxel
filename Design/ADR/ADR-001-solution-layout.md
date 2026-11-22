@@ -41,6 +41,8 @@ The edges run one way. `GameLogic` (server) and `GameApp` (client) share `GameCo
 
 ### Asset deployment
 
+*Superseded by [ADR-024](ADR-024-assets-deployed-by-a-post-build-copy.md): one post-build copy of `Assets\` replaces the per-file items described here. The asset search at startup is unchanged.*
+
 `Assets/` at the repository root is the single source: models, `Scene.txt`. Each asset file is listed in `Outpost.vcxproj` as a Visual Studio *Copy file* item (`CopyFileToFolders`, filter `Assets`) with `$(OutDir)Assets` as its destination. The build copies it when it changes, and Visual Studio's up-to-date check sees the edit, so F5 picks up a changed scene. A new asset file is added to the project the same way, like any source file. At startup the executable resolves assets from **its own module directory**, walking up until it finds `Assets/Scene.txt`. The working directory is never consulted. So the same binary runs under F5, from `x64\Debug\`, or from a copied folder; `--assets <dir>` overrides the search. The test DLL uses the same search from its own location.
 
 ### Toolchain, as built and verified
