@@ -122,7 +122,7 @@ Every library has its own test project under `Tests\`. In Visual Studio, *Test â
 |---|---|---|
 | `Tests\NeuronCoreTests` | 20 | VOX read/write and a hand-authored fixture that pins the palette offset; rejection of bad magic, truncated chunks, invalid dimensions and out-of-bounds voxels; meshing of single and adjacent voxels; wireframes and the side profile; VOX-to-world axes, handedness and socket mating |
 | `Tests\NeuronClientTests` | 8 | Selection maths: ships ahead, beside the view, straddling the near plane and behind the camera; pick rays; click versus drag; orbit-camera limits |
-| `Tests\NeuronServerTests` | 4 | The tick clock: whole ticks, carried remainders, stall catch-up, interpolation |
+| `Tests\NeuronServerTests` | 5 | The tick clock at 60 Hz (ADR-007): whole ticks, carried remainders, ten minutes exactly 36,000 ticks, stall catch-up, interpolation |
 | `Tests\GameCoreTests` | 12 | The canonical palette, including byte equality across every generated file; scene parsing and validation; the shipped blueprint landing on its dock |
 | `Tests\GameLogicTests` | 5 | The world: the first snapshot, exact income per minute, fractional income, capacity, reloading |
 | `Tests\GameAppTests` | 6 | The HUD: every vertex on screen at 720p, 1080p and 4K with ships off screen and behind the camera; build slots; scaling; fonts. The draw constants the voxel shader unprojects through |
