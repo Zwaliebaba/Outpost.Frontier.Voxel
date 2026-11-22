@@ -127,11 +127,14 @@ def Validate(_assets, _baseline=None):
       report["models"][path.stem] = statistics
   records = ParseScene(_assets / "Scene.txt")
   allowed = {"camera", "keylight", "stars", "model", "socket", "instance", "ship", "engine", "light",
-             "objective", "resource", "build", "select"}
+             "objective", "resource", "build", "select", "player"}
   if set(records) - allowed:
     raise ValueError(f"Unknown record types: {set(records) - allowed}")
   models = {key[0]: value for key, value in Unique(records["model"], ("name",)).items()}
   instances = {key[0]: value for key, value in Unique(records["instance"], ("name",)).items()}
+  for player in records.get("player", []):
+    if player.get("instance") not in instances:
+      raise ValueError(f"Player references a missing instance: {player}")
   sockets = Unique(records.get("socket", []), ("model", "name"))
   for model in models.values():
     if not (_assets / model["file"]).is_file() or Path(model["file"]).stem not in grids:
