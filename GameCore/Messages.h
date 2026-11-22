@@ -19,7 +19,7 @@ namespace Outpost
 // kind has a fixed route: reliable on a named stream, or a datagram whose newest copy wins.
 
 /// Raised whenever a message is added, removed or changes its encoding.
-inline constexpr std::uint16_t CATALOGUE_VERSION = 3;
+inline constexpr std::uint16_t CATALOGUE_VERSION = 4;
 
 /// Every encoded message begins with: catalogue version (16 bits), kind (16 bits), payload length
 /// in bytes (32 bits).
@@ -40,7 +40,9 @@ enum class MessageKind : std::uint16_t
   ObjectState = 6,
   FlightInput = 7,
   OwnShip = 8,
-  ShipMotion = 9
+  ShipMotion = 9,
+  DockCommand = 10,
+  DockStatus = 11
 };
 
 /// The server's tick, so the client knows how current its picture is. Newest wins.
@@ -131,8 +133,30 @@ struct ShipMotionMessage
   friend bool operator==(const ShipMotionMessage&, const ShipMotionMessage&) = default;
 };
 
+/// Client to server: dock at the nearest station, cancel the approach, or launch (plan tasks 2.3 and
+/// 2.4). Reliable, on the commands stream: each one is acted on once, in order.
+struct DockCommandMessage
+{
+  std::uint64_t tick = 0; // the client's tick when it asked
+  ObjectId ship = NO_OBJECT;
+  DockCommand command = DockCommand::Dock;
+
+  friend bool operator==(const DockCommandMessage&, const DockCommandMessage&) = default;
+};
+
+/// Server to client: where the ship this client flies is in docking, and the answer to its last
+/// command. Sent whenever either changes. While the phase is not None the server flies the ship and
+/// the client draws it where the server says. Reliable, on the world stream.
+struct DockStatusMessage
+{
+  ObjectId ship = NO_OBJECT;
+  DockStatusState status;
+
+  friend bool operator==(const DockStatusMessage&, const DockStatusMessage&) = default;
+};
+
 using Message = std::variant<TickMessage, ShipMessage, ObjectiveMessage, ResourceMessage, ObjectSpawnMessage, ObjectStateMessage,
-                             FlightInputMessage, OwnShipMessage, ShipMotionMessage>;
+                             FlightInputMessage, OwnShipMessage, ShipMotionMessage, DockCommandMessage, DockStatusMessage>;
 
 /// How a kind of message travels.
 struct Route

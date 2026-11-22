@@ -30,6 +30,9 @@
     <ClInclude Include="SaveRecord.h">
       <Filter>Persistence</Filter>
     </ClInclude>
+    <ClInclude Include="SpaceSupport.h">
+      <Filter>World</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Observer.cpp">
@@ -49,6 +52,9 @@
     </ClCompile>
     <ClCompile Include="SaveRecord.cpp">
       <Filter>Persistence</Filter>
+    </ClCompile>
+    <ClCompile Include="SpaceSupport.cpp">
+      <Filter>World</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

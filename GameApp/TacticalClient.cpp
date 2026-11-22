@@ -326,6 +326,18 @@ void TacticalClient::ProcessCommands()
       {
         SetView(m_view == ClientView::Flight ? ClientView::Tactical : ClientView::Flight);
       }
+      else if (name == "Dock")
+      {
+        RequestDock(DockCommand::Dock);
+      }
+      else if (name == "Launch")
+      {
+        RequestDock(DockCommand::Launch);
+      }
+      else if (name == "Cancel" && m_world.ownDock.phase != DockPhase::None)
+      {
+        RequestDock(DockCommand::Cancel);
+      }
       else if (name == "Quit")
       {
         m_quitRequested = true;
@@ -388,7 +400,22 @@ void TacticalClient::ResetChaseCamera()
 
 void TacticalClient::TakeOwnShipNews(std::uint32_t _ticksPerSecond)
 {
-  if (m_world.ownShip == NO_OBJECT || m_world.ownShipRevision == m_seenOwnShipRevision)
+  if (m_world.ownShip == NO_OBJECT)
+  {
+    return;
+  }
+  if (m_world.ownDock.phase != DockPhase::None)
+  {
+    // The server flies the ship from the Dock command until the launch releases it; its release
+    // states the whole flight state again, and prediction starts from that.
+    if (m_prediction.Active())
+    {
+      m_prediction.Stop();
+    }
+    m_seenOwnShipRevision = m_world.ownShipRevision;
+    return;
+  }
+  if (m_world.ownShipRevision == m_seenOwnShipRevision)
   {
     return;
   }
@@ -414,6 +441,17 @@ bool TacticalClient::SendTick(Neuron::LoopbackTransport& _transport, std::uint32
 {
   m_ticksPerSecond = _ticksPerSecond;
   ProcessCommands();
+  if (m_pendingDock.has_value() && m_world.ownShip != NO_OBJECT)
+  {
+    const Message message = DockCommandMessage{m_world.tick, m_world.ownShip, *m_pendingDock};
+    const Route route = RouteOf(KindOf(message));
+    m_pendingDock.reset();
+    if (!_transport.Send(Neuron::Peer::Client, route.delivery, route.stream, Encode(message)))
+    {
+      m_protocolError = "a docking command could not be sent";
+      return false;
+    }
+  }
   TakeOwnShipNews(_ticksPerSecond);
   if (!m_prediction.Active())
   {

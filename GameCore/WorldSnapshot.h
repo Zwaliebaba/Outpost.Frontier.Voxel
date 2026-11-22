@@ -1,5 +1,6 @@
 #pragma once
 
+#include "DockingPoint.h"
 #include "FlightModel.h"
 #include "WorldObject.h"
 
@@ -69,6 +70,18 @@ struct ShipMotionState
   friend bool operator==(const ShipMotionState&, const ShipMotionState&) = default;
 };
 
+/// Where the client's own ship is in docking and launching, as the server last stated it.
+struct DockStatusState
+{
+  std::uint64_t tick = 0; // the tick the server stated it
+  DockPhase phase = DockPhase::None;
+  DockAnswer answer = DockAnswer::None; // the answer this statement carries, or None for a change of phase
+  std::string station;                  // the station docked at or asked, by name (R24)
+  std::string reason;                   // why a launch was refused
+
+  friend bool operator==(const DockStatusState&, const DockStatusState&) = default;
+};
+
 struct WorldSnapshot
 {
   std::uint64_t tick = 0;
@@ -89,6 +102,9 @@ struct WorldSnapshot
   std::uint64_t ownShipTick = 0;
   FlightState ownShipState;
   std::uint64_t ownShipRevision = 0;
+  // Its docking, as the server last stated it (DockStatusMessage); raised with every statement.
+  DockStatusState ownDock;
+  std::uint64_t ownDockRevision = 0;
 
   [[nodiscard]] const ShipState* FindShip(std::string_view _instance) const noexcept;
   [[nodiscard]] const WorldObject* FindObject(ObjectId _id) const noexcept;

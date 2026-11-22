@@ -1,14 +1,23 @@
 #pragma once
 
+#include "Character.h"
 #include "Collision.h"
 #include "Messages.h"
+#include "SaveGame.h"
 #include "SceneDefinition.h"
 #include "ShipArchetype.h"
 #include "ShipFlight.h"
+#include "SpaceSupport.h"
+#include "SystemContent.h"
 #include "WorldSnapshot.h"
+
+#include <DirectXMath.h>
+
+#include <array>
 
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -37,6 +46,17 @@ struct ContactRecord
 /// (Design/GameDesign.md §7.2), and flies every ship whose model has a ship archetype (plan task
 /// 1.4): the ship a player flies on the command its session sent for the tick, every other ship on
 /// its directive. Each ship's tick is StepShip, the one function the client's prediction runs too.
+///
+/// Docking (plan tasks 2.3 and 2.4, blueprint ch. 04 §3.2 to §3.5): the Dock command picks the
+/// nearest station in range (D20), flies the ship there and asks space support for a point. Once the
+/// ship holds one, the server flies it to the point's entry and then carries it along the approach to
+/// the pad with collisions off. A docked ship stays in its berth, protected (D16). Launching carries
+/// it back out to the entry and releases it there. From the Dock command until that release the
+/// server flies the ship, the player's commands are set aside, and the client draws the ship where
+/// the server says; the release states the ship's whole flight state again, and prediction resumes.
+///
+/// What the player owns is a character record (R23), and the world saves it with the world's own
+/// state when the save rule says (D17); TakeSaveRequest tells the executable when.
 class World
 {
 public:
@@ -44,14 +64,52 @@ public:
   // Commands for ticks further ahead than this are refused, so a client cannot fill the queue.
   static constexpr std::uint64_t MAX_COMMAND_LEAD_TICKS = 120;
 
-  /// Loads Scene.txt, the model sizes, and Content/Ships.txt from the asset root. On broken content,
-  /// false and why.
-  [[nodiscard]] bool LoadContent(const std::filesystem::path& _assetRoot, std::string& _outError);
+  /// The scripted mover's speeds: the approach peaks at this (ch. 04 §3.3's 18 m/s cap) ...
+  static constexpr float DOCKING_PEAK_METRES_PER_SECOND = 18.0f;
+  /// ... and a launch leaves the entry at this, accelerating evenly from the pad.
+  static constexpr float LAUNCH_RELEASE_METRES_PER_SECOND = 30.0f;
+  /// When a station's body lies between a cleared ship and its entry, the ship first flies to the
+  /// point this far out along the docking axis, then in along the axis to the entry.
+  static constexpr float AXIS_STANDOFF_METRES = 250.0f;
 
+  /// Loads Scene.txt, the model sizes, Content/Ships.txt and Content/System.txt from the asset root.
+  /// On broken content, false and why.
+  [[nodiscard]] bool LoadContent(const std::filesystem::path& _assetRoot, std::string& _outError);
   /// Builds the world from parsed content. Attached instances need their models' sizes set
   /// (LoadSceneContent); without them their poses use a pivot at the origin, and the bodies are
-  /// empty boxes.
-  void Load(const SceneDefinition& _scene, const ShipContent& _ships = {});
+  /// empty boxes. The player's ship starts where the scene places it, flying; NewGame or Restore
+  /// then puts it where a game starts.
+  void Load(const SceneDefinition& _scene, const ShipContent& _ships = {}, const SystemContent& _system = {});
+
+  /// A new game (GameDesign.md D18): the player's ship docked at a free point of the start station,
+  /// with a fresh character. False, with the reason, when the station has no free point for it.
+  [[nodiscard]] bool NewGame(std::string& _outError);
+  /// The world and the character as a save left them. False, with the reason, for a save that does
+  /// not fit the content: another player ship, an unknown station, point, resource or objective.
+  [[nodiscard]] bool Restore(const SaveGame& _save, std::string& _outError);
+  /// The character and the world as they stand. A ship carried in or out is saved docked, where the
+  /// carrying started or ends.
+  [[nodiscard]] SaveGame MakeSave() const;
+  /// Whether the save rule (D17) asked for a save since the last call: the player docked or launched.
+  /// Quitting is the executable's to save on.
+  [[nodiscard]] bool TakeSaveRequest() noexcept;
+
+  /// A docking command from the session that flies the player's ship (plan tasks 2.3 and 2.4). The
+  /// answer reaches the client as the ship's dock status. False for another ship, or for a command
+  /// that does not apply in the ship's phase.
+  bool Command(const DockCommandMessage& _command);
+  /// Where a ship is in docking, and the answer to its last command.
+  [[nodiscard]] DockStatusState DockStatus(ObjectId _ship) const noexcept;
+  /// Whether nothing may harm the ship: while it is carried in, docked, or carried out (D16).
+  [[nodiscard]] bool Protected(ObjectId _ship) const noexcept;
+  [[nodiscard]] const SystemContent& System() const noexcept
+  {
+    return m_system;
+  }
+  [[nodiscard]] const SpaceSupport& Support() const noexcept
+  {
+    return m_support;
+  }
 
   void Tick();
 
@@ -106,25 +164,63 @@ private:
     std::int64_t remainder = 0; // income owed but not yet whole, in 1/ticks-per-minute units
   };
 
+  /// The scripted mover (ch. 04 §2): the ship's pose set each tick along three points, collisions off.
+  struct Mover
+  {
+    std::array<WorldPosition, 3> points{};
+    double lengthMetres = 0.0;
+    std::uint64_t startTick = 0;
+    std::uint64_t durationTicks = 1;
+    DirectX::XMFLOAT4 fromOrientation{0.0f, 0.0f, 0.0f, 1.0f};
+    DirectX::XMFLOAT4 toOrientation{0.0f, 0.0f, 0.0f, 1.0f};
+    bool outward = false; // a launch: from rest, leaving at speed; otherwise eased in and out
+  };
+
   struct Flyer
   {
     std::size_t objectIndex = 0;
     ShipBody body;
     CollisionBox localBox; // in the ship's frame: the centre is its offset from the pivot
     float massKilograms = 0.0f;
+    DockKind dockingClass = DockKind::Berth;
     FlightState state;
     Manoeuvre manoeuvre;
     bool arrived = false;
     std::uint64_t divergedAt = 0;
+    DockStatusState dock;
+    std::size_t dockStation = SpaceSupport::NO_POINT;
+    std::size_t dockPoint = SpaceSupport::NO_POINT;
+    WorldPosition farTarget; // the far approach's goal: the nearest fitting entry
+    WorldPosition holdAnchor;
+    std::optional<WorldPosition> axisPoint; // staging's first leg, when the way to the entry is blocked
+    Mover mover;
   };
 
   void PayIncome();
   void FlyShips();
+  void BeatSupport();
+  void StateDock(Flyer& _flyer, DockPhase _phase, DockAnswer _answer, std::string _reason = {});
+  void AskForPoint(Flyer& _flyer);
+  void Clear(Flyer& _flyer, std::size_t _point);
+  void StartMover(Flyer& _flyer, const WorldPosition& _from, const WorldPosition& _via, const WorldPosition& _to,
+                  const DirectX::XMFLOAT4& _toOrientation, bool _outward);
+  /// One tick of the mover; true when it has reached its last point.
+  bool StepMover(Flyer& _flyer);
+  void PlaceDocked(Flyer& _flyer, std::size_t _station, std::size_t _point);
+  void Release(Flyer& _flyer);
+  void SetPose(Flyer& _flyer);
+  [[nodiscard]] ShipState* ShipStateOf(ObjectId _ship) noexcept;
+  [[nodiscard]] const ShipState* ShipStateOf(ObjectId _ship) const noexcept;
+  [[nodiscard]] CharacterShip ShipRecordOf(ObjectId _ship) const;
   void RecordContact(const Flyer& _flyer, const ShipTickResult& _result, float _bodyMass);
   [[nodiscard]] Flyer* FindFlyer(ObjectId _ship) noexcept;
   [[nodiscard]] const Flyer* FindFlyer(ObjectId _ship) const noexcept;
 
   WorldSnapshot m_state;
+  SystemContent m_system;
+  SpaceSupport m_support;
+  Character m_character; // the player's record; location and ship are read from the world when saved
+  bool m_saveRequested = false;
   std::vector<Income> m_income;
   std::vector<Flyer> m_flyers;
   std::vector<CollisionBox> m_staticBodies;

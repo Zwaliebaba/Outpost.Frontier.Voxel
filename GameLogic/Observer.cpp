@@ -43,6 +43,12 @@ bool Observer::Publish(const World& _world, Neuron::LoopbackTransport& _transpor
 
   if (m_ownShip != NO_OBJECT)
   {
+    const DockStatusState dock = _world.DockStatus(m_ownShip);
+    if (!m_sentDock.has_value() || !(*m_sentDock == dock))
+    {
+      ok = Send(DockStatusMessage{m_ownShip, dock}, _transport) && ok;
+      m_sentDock = dock;
+    }
     const FlightState* flight = _world.Flight(m_ownShip);
     const bool behind = !m_ownShipSentTick.has_value() || _world.DivergedAt(m_ownShip) > *m_ownShipSentTick;
     if (flight != nullptr && behind)

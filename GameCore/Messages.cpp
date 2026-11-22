@@ -199,6 +199,24 @@ void WritePayload(Neuron::WireWriter& _writer, const ShipMotionMessage& _message
   _writer.Uint8(static_cast<std::uint8_t>(motion.cruise));
 }
 
+void WritePayload(Neuron::WireWriter& _writer, const DockCommandMessage& _message)
+{
+  _writer.Uint64(_message.tick);
+  _writer.Uint32(_message.ship);
+  _writer.Uint8(static_cast<std::uint8_t>(_message.command));
+}
+
+void WritePayload(Neuron::WireWriter& _writer, const DockStatusMessage& _message)
+{
+  const DockStatusState& status = _message.status;
+  _writer.Uint32(_message.ship);
+  _writer.Uint64(status.tick);
+  _writer.Uint8(static_cast<std::uint8_t>(status.phase));
+  _writer.Uint8(static_cast<std::uint8_t>(status.answer));
+  _writer.String(status.station);
+  _writer.String(status.reason);
+}
+
 [[nodiscard]] std::expected<Message, DecodeError> ReadPayload(MessageKind _kind, Neuron::WireReader& _reader)
 {
   bool wellFormed = true;
@@ -328,6 +346,27 @@ void WritePayload(Neuron::WireWriter& _writer, const ShipMotionMessage& _message
     message = motion;
     break;
   }
+  case MessageKind::DockCommand:
+  {
+    DockCommandMessage command;
+    command.tick = _reader.Uint64();
+    command.ship = _reader.Uint32();
+    wellFormed = ReadEnum(_reader, DockCommand::Launch, command.command);
+    message = command;
+    break;
+  }
+  case MessageKind::DockStatus:
+  {
+    DockStatusMessage status;
+    status.ship = _reader.Uint32();
+    status.status.tick = _reader.Uint64();
+    wellFormed = ReadEnum(_reader, DockPhase::Launching, status.status.phase);
+    wellFormed = ReadEnum(_reader, DockAnswer::LaunchRefused, status.status.answer) && wellFormed;
+    status.status.station = _reader.String();
+    status.status.reason = _reader.String();
+    message = status;
+    break;
+  }
   default:
     return std::unexpected(DecodeError::UnknownKind);
   }
@@ -340,7 +379,7 @@ void WritePayload(Neuron::WireWriter& _writer, const ShipMotionMessage& _message
 
 [[nodiscard]] bool IsKnownKind(std::uint16_t _kind) noexcept
 {
-  return _kind >= static_cast<std::uint16_t>(MessageKind::Tick) && _kind <= static_cast<std::uint16_t>(MessageKind::ShipMotion);
+  return _kind >= static_cast<std::uint16_t>(MessageKind::Tick) && _kind <= static_cast<std::uint16_t>(MessageKind::DockStatus);
 }
 
 } // namespace
@@ -383,10 +422,18 @@ MessageKind KindOf(const Message& _message)
       {
         return MessageKind::OwnShip;
       }
+      else if constexpr (std::is_same_v<T, ShipMotionMessage>)
+      {
+        return MessageKind::ShipMotion;
+      }
+      else if constexpr (std::is_same_v<T, DockCommandMessage>)
+      {
+        return MessageKind::DockCommand;
+      }
       else
       {
-        static_assert(std::is_same_v<T, ShipMotionMessage>);
-        return MessageKind::ShipMotion;
+        static_assert(std::is_same_v<T, DockStatusMessage>);
+        return MessageKind::DockStatus;
       }
     },
     _message);
@@ -403,6 +450,8 @@ Route RouteOf(MessageKind _kind) noexcept
     return Route{Neuron::Delivery::Datagram, STREAM_WORLD};
   case MessageKind::FlightInput:
     return Route{Neuron::Delivery::Datagram, STREAM_COMMANDS};
+  case MessageKind::DockCommand:
+    return Route{Neuron::Delivery::Reliable, STREAM_COMMANDS};
   case MessageKind::Ship:
   case MessageKind::Objective:
   case MessageKind::ObjectSpawn:
@@ -549,10 +598,15 @@ void ApplyMessage(const Message& _message, WorldSnapshot& _world)
         }
         _world.motions.push_back(_value.motion);
       }
+      else if constexpr (std::is_same_v<T, DockStatusMessage>)
+      {
+        _world.ownDock = _value.status;
+        ++_world.ownDockRevision;
+      }
       else
       {
         // A command is the server's to act on; a client's picture of the world has no place for one.
-        static_assert(std::is_same_v<T, FlightInputMessage>);
+        static_assert(std::is_same_v<T, FlightInputMessage> || std::is_same_v<T, DockCommandMessage>);
       }
     },
     _message);

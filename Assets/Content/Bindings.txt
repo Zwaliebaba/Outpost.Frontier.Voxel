@@ -46,6 +46,11 @@ command name=MouseFlightLock
 # Tactical.
 command name=ResetView
 
+# Docking (plan tasks 2.3 and 2.4): Dock asks the nearest station within 10 km; Cancel leaves the
+# approach or the waiting list; Launch leaves the berth.
+command name=Dock
+command name=Launch
+
 # Every view.
 command name=Cancel
 command name=ToggleTacticalView
@@ -79,6 +84,8 @@ bind command=MouseFlightLock context=Flying key=Space
 bind command=ResetView context=Tactical key=Home
 bind command=ResetView context=Tactical key=R
 
+bind command=Dock context=Always key=G
+bind command=Launch context=Always key=L
 bind command=Cancel context=Always key=Escape
 bind command=ToggleTacticalView context=Always key=F9
 bind command=Quit context=Always key=F10

@@ -22,6 +22,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -102,6 +103,12 @@ public:
   /// Before the server runs its next tick: samples the input, flies the tick ahead of the server
   /// and sends the command for it. False, with ProtocolError() saying why, if it could not be sent.
   [[nodiscard]] bool SendTick(Neuron::LoopbackTransport& _transport, std::uint32_t _ticksPerSecond);
+  /// Asks the server to dock, cancel or launch; sent with the next tick. While the server says the
+  /// ship is docking, docked or launching, it flies the ship and the client draws it where it says.
+  void RequestDock(DockCommand _command) noexcept
+  {
+    m_pendingDock = _command;
+  }
 
   /// Decodes every message waiting for the client and applies it to the client's world. False,
   /// with ProtocolError() saying why, if a message did not decode: a defect, never a normal event.
@@ -194,6 +201,7 @@ private:
   std::uint64_t m_builtRevision = 0;
   std::uint64_t m_bodiesRevision = ~0ull;
   std::uint64_t m_seenOwnShipRevision = 0;
+  std::optional<DockCommand> m_pendingDock; // asked by a key or the services panel, sent with the next tick
   float m_maxBankDegrees = 0.0f;
   std::uint32_t m_ticksPerSecond = 60;
   float m_lastFrameTime = -1.0f;

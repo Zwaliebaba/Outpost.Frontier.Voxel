@@ -88,7 +88,10 @@ namespace
           Outpost::ObjectStateMessage{10, 12, SampleObject().pose},
           SampleInput(),
           SampleOwnShip(),
-          Outpost::ShipMotionMessage{{7, 50, 0.4f, 33.0f, true, false, Outpost::CruiseState::Charging}}};
+          Outpost::ShipMotionMessage{{7, 50, 0.4f, 33.0f, true, false, Outpost::CruiseState::Charging}},
+          Outpost::DockCommandMessage{88, 7, Outpost::DockCommand::Launch},
+          Outpost::DockStatusMessage{
+            7, {90, Outpost::DockPhase::Docked, Outpost::DockAnswer::LaunchRefused, "Shipyard", "the ship has no power plant"}}};
 }
 
 /// The decoded message; fails the test if the bytes do not decode.
@@ -235,6 +238,22 @@ public:
       Outpost::Encode(Outpost::ShipMotionMessage{{1, 1, 0.0f, 0.0f, false, true, Outpost::CruiseState::Off}});
     motion.back() = 4;
     AssertError(motion, Outpost::DecodeError::Malformed, L"cruise state 4 is not in the catalogue");
+    // The last byte of a dock command is the command.
+    std::vector<std::uint8_t> dock = Outpost::Encode(Outpost::DockCommandMessage{1, 7, Outpost::DockCommand::Dock});
+    dock.back() = 3;
+    AssertError(dock, Outpost::DecodeError::Malformed, L"dock command 3 is not in the catalogue");
+  }
+
+  TEST_METHOD(DockingTravelsReliablyAndTheClientKeepsItsStatus)
+  {
+    Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::DockCommand) ==
+                   Outpost::Route{Neuron::Delivery::Reliable, Outpost::STREAM_COMMANDS});
+    Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::DockStatus) == Outpost::Route{Neuron::Delivery::Reliable, Outpost::STREAM_WORLD});
+    Outpost::WorldSnapshot world;
+    const Outpost::DockStatusMessage status{7, {90, Outpost::DockPhase::Final, Outpost::DockAnswer::None, "Shipyard", ""}};
+    Outpost::ApplyMessage(status, world);
+    Assert::IsTrue(world.ownDock == status.status);
+    Assert::AreEqual(std::uint64_t{1}, world.ownDockRevision);
   }
 
   TEST_METHOD(FlightInputTravelsAsACommandDatagram)

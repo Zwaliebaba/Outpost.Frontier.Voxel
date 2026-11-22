@@ -25,11 +25,13 @@ public:
   [[nodiscard]] bool Publish(const World& _world, Neuron::LoopbackTransport& _transport);
 
   /// The ship this session flies. The next Publish tells the client, with the ship's whole flight
-  /// state, and Publish tells it again after any tick whose state it could not have predicted.
+  /// state and its dock status; Publish tells it the flight state again after any tick whose state it
+  /// could not have predicted, and the dock status whenever it changes, ahead of the flight state.
   void AssignShip(ObjectId _ship) noexcept
   {
     m_ownShip = _ship;
     m_ownShipSentTick.reset();
+    m_sentDock.reset();
   }
 
   /// Messages sent by the last Publish, for tests and the smoke report.
@@ -49,6 +51,7 @@ private:
   std::vector<ShipMotionState> m_sentMotions;
   ObjectId m_ownShip = NO_OBJECT;
   std::optional<std::uint64_t> m_ownShipSentTick;
+  std::optional<DockStatusState> m_sentDock;
   std::size_t m_lastMessageCount = 0;
 };
 

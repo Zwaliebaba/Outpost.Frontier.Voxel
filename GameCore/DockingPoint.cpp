@@ -33,6 +33,54 @@ std::string_view DockKindName(DockKind _kind) noexcept
   return "berth";
 }
 
+std::string_view DockPhaseName(DockPhase _phase) noexcept
+{
+  switch (_phase)
+  {
+  case DockPhase::FarApproach:
+    return "approaching";
+  case DockPhase::Waiting:
+    return "waiting";
+  case DockPhase::Staging:
+    return "staging";
+  case DockPhase::Final:
+    return "docking";
+  case DockPhase::Docked:
+    return "docked";
+  case DockPhase::Launching:
+    return "launching";
+  case DockPhase::None:
+    break;
+  }
+  return "free";
+}
+
+std::string_view DockAnswerName(DockAnswer _answer) noexcept
+{
+  switch (_answer)
+  {
+  case DockAnswer::Proceed:
+    return "proceed";
+  case DockAnswer::Wait:
+    return "wait";
+  case DockAnswer::CannotDock:
+    return "cannot dock";
+  case DockAnswer::NoDock:
+    return "no dock";
+  case DockAnswer::OutOfRange:
+    return "out of range";
+  case DockAnswer::TimedOut:
+    return "timed out";
+  case DockAnswer::Canceled:
+    return "canceled";
+  case DockAnswer::LaunchRefused:
+    return "launch refused";
+  case DockAnswer::None:
+    break;
+  }
+  return "none";
+}
+
 std::optional<DockKind> ParseDockKind(std::string_view _text) noexcept
 {
   for (const DockKind kind : {DockKind::Berth, DockKind::Medium, DockKind::Large})

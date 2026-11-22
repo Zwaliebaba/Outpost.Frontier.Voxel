@@ -18,6 +18,11 @@ bool ReceiveCommands(Neuron::LoopbackTransport& _transport, World& _world, std::
       _outError = "a message from the client did not decode (error " + std::to_string(static_cast<int>(message.error())) + ")";
       return false;
     }
+    if (const auto* dock = std::get_if<DockCommandMessage>(&*message))
+    {
+      static_cast<void>(_world.Command(*dock));
+      continue;
+    }
     const auto* input = std::get_if<FlightInputMessage>(&*message);
     if (input == nullptr)
     {
