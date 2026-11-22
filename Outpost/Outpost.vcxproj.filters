@@ -37,6 +37,9 @@
     <CopyFileToFolders Include="..\Assets\Models\Raider.vox">
       <Filter>Assets\Models</Filter>
     </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Models\RadiatorArray.vox">
+      <Filter>Assets\Models</Filter>
+    </CopyFileToFolders>
     <CopyFileToFolders Include="..\Assets\Models\Reactor.vox">
       <Filter>Assets\Models</Filter>
     </CopyFileToFolders>

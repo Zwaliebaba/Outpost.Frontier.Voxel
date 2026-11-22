@@ -15,6 +15,15 @@ What is on screen:
 
 The HUD shows objectives, resources, a radar, the selected ship's panel with its damaged modules, and a build panel with live module thumbnails.
 
+### Expanded station art pass
+
+The editable station kit now has a larger connected assembly: a capital-ship drydock, stacked habitats,
+processing and reactor blocks, a command crown and an external radiator array. Thirteen station models
+were reauthored and one was added. The solid station is 2.30 times wider and 1.92 times taller than the
+original assembly shown above. See [the art review](Design/StationArt.md) for previews, measurements,
+authoring tools and validation limits. The previews are offline renders; the Windows GPU sample has
+not been recaptured for this art pass.
+
 **The sample is the starting point of a game, not the game.** [Design/GameDesign.md](Design/GameDesign.md) says what the game is: the player flies one ship with a cursor, owns an outpost built module by module on an asteroid, and commands a small fleet from this tactical view. Every solid thing is voxels, and removing voxels is the damage model. The design's build order starts from this scene, and its first six slices make the three objectives on the HUD things a player can complete.
 
 How the code is written is in [AGENTS.md](AGENTS.md); the engineering decisions behind it are in [Design/ADR/](Design/ADR/).

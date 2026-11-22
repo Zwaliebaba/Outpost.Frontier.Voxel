@@ -1,0 +1,3 @@
+/workspace/outputs/FrontierStation.vox: 14 scene-graph tiles, 3,027,096 voxels
+PASS: exact tiled reconstruction, canonical palette, 256-voxel maximum dimension; 12,114,290 bytes
+SHA256: 91f953901c8edfe707f409455c6290b54065d0a84c90fa33b8a1e6546dd46ea6
