@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ShipArchetype.h"
-#include "WorldObject.h"
+#include "UniverseObject.h"
 
 #include <DirectXMath.h>
 
@@ -87,7 +87,7 @@ struct FlightControls
 /// One ship's flight state: its pose and motion, its pools and its engine's modes.
 struct FlightState
 {
-  WorldPosition position;
+  UniversePosition position;
   DirectX::XMFLOAT4 orientation{0.0f, 0.0f, 0.0f, 1.0f}; // ship frame to world
   DirectX::XMFLOAT3 velocityMetresPerSecond{};           // world frame
   DirectX::XMFLOAT3 angularVelocityRadiansPerSecond{};   // ship frame

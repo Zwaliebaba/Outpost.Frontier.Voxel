@@ -10,11 +10,11 @@ namespace Outpost
 namespace
 {
 
-[[nodiscard]] WorldPosition Origin(const XMMATRIX& _frame) noexcept
+[[nodiscard]] UniversePosition Origin(const XMMATRIX& _frame) noexcept
 {
   XMFLOAT3 origin{};
   XMStoreFloat3(&origin, _frame.r[3]);
-  return WorldPosition{origin.x, origin.y, origin.z};
+  return UniversePosition{origin.x, origin.y, origin.z};
 }
 
 } // namespace
@@ -102,7 +102,7 @@ DockingPath PathFor(const SceneDefinition& _scene, std::size_t _instanceIndex, c
   {
     return path;
   }
-  const auto frame = [&](std::string_view _socket, WorldPosition& _out)
+  const auto frame = [&](std::string_view _socket, UniversePosition& _out)
   {
     const Neuron::Socket* socket = model->FindSocket(_socket);
     if (socket == nullptr)

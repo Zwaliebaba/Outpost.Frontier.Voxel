@@ -3,7 +3,7 @@
 #include "Renderer.h"
 #include "SceneAssets.h"
 #include "ScreenProjection.h"
-#include "WorldSnapshot.h"
+#include "UniverseSnapshot.h"
 
 #include <DirectXMath.h>
 
@@ -15,7 +15,7 @@
 namespace Outpost
 {
 
-/// What the view draws for one world object it has been told about: its transforms and its bounds
+/// What the view draws for one universe object it has been told about: its transforms and its bounds
 /// for picking and HUD anchoring, in render space (see TacticalScene), and what kind of thing it is.
 /// They are placed again every frame.
 struct InstanceView
@@ -36,7 +36,7 @@ struct InstanceView
   const ModelAsset* asset = nullptr;
   const LoadedModel* model = nullptr;
   Kind kind = Kind::Station;
-  Pose pose;                        // where it is drawn this frame, in the world
+  Pose pose;                        // where it is drawn this frame, in the universe
   DirectX::XMFLOAT4X4 voxToWorld{}; // to render space
   DirectX::XMFLOAT4X4 worldToVox{};
   float voxelWorldSize = 1.0f;
@@ -58,11 +58,11 @@ struct ViewSetup
 
 /// The 3D half of both views: transforms and bounds for the objects the client was told about, the
 /// key light's shadow camera, and the draw calls for voxels, the blueprint wireframe and the light
-/// effects. It draws only what the world snapshot holds (AGENTS.md R25); the scene's assets give
+/// effects. It draws only what the universe snapshot holds (AGENTS.md R25); the scene's assets give
 /// each object its model and presentation.
 ///
-/// **Render space** is the world moved so that a render origin near the camera is at zero (ADR-010):
-/// the world is double precision and the GPU is not, so every transform here is taken relative to
+/// **Render space** is the universe moved so that a render origin near the camera is at zero (ADR-010):
+/// the universe is double precision and the GPU is not, so every transform here is taken relative to
 /// that origin before it becomes a float. The origin is the camera's position snapped to a grid of
 /// ORIGIN_CELL_METRES, so that it changes rarely and nothing near the camera is ever far from it.
 class TacticalScene
@@ -75,18 +75,18 @@ public:
   static constexpr float SHADOW_RANGE_METRES = 1500.0f;
 
   /// Who exists: called when the snapshot's objects change. Places them at their poses.
-  void Build(const SceneAssets& _assets, const WorldSnapshot& _world);
+  void Build(const SceneAssets& _assets, const UniverseSnapshot& _universe);
   /// Where everything is this frame: _poses holds one pose per snapshot object, or is empty for the
   /// snapshot's own poses. The render origin follows _camera.
-  void Update(const WorldSnapshot& _world, std::span<const Pose> _poses, const WorldPosition& _camera);
+  void Update(const UniverseSnapshot& _universe, std::span<const Pose> _poses, const UniversePosition& _camera);
 
-  [[nodiscard]] static WorldPosition RenderOriginFor(const WorldPosition& _camera) noexcept;
-  [[nodiscard]] const WorldPosition& RenderOrigin() const noexcept
+  [[nodiscard]] static UniversePosition RenderOriginFor(const UniversePosition& _camera) noexcept;
+  [[nodiscard]] const UniversePosition& RenderOrigin() const noexcept
   {
     return m_origin;
   }
-  [[nodiscard]] DirectX::XMFLOAT3 ToRender(const WorldPosition& _position) const noexcept;
-  [[nodiscard]] WorldPosition FromRender(const DirectX::XMFLOAT3& _position) const noexcept;
+  [[nodiscard]] DirectX::XMFLOAT3 ToRender(const UniversePosition& _position) const noexcept;
+  [[nodiscard]] UniversePosition FromRender(const DirectX::XMFLOAT3& _position) const noexcept;
 
   [[nodiscard]] const std::vector<InstanceView>& Instances() const noexcept
   {
@@ -119,9 +119,9 @@ public:
   }
 
 private:
-  void Place(const WorldSnapshot& _world, std::span<const Pose> _poses);
+  void Place(const UniverseSnapshot& _universe, std::span<const Pose> _poses);
   void BuildBlueprintLines();
-  void BuildEffects(const WorldSnapshot& _world);
+  void BuildEffects(const UniverseSnapshot& _universe);
   void BuildStars();
   void BuildShadowCamera(const DirectX::XMFLOAT3& _camera);
 
@@ -141,8 +141,8 @@ private:
   std::vector<Plume> m_plumes;
   std::vector<DirectX::XMFLOAT4> m_starDirections; // xyz direction, w brightness
   std::vector<Neuron::GpuPointLight> m_pointLights;
-  WorldPosition m_origin;
-  WorldPosition m_blueprintOrigin;
+  UniversePosition m_origin;
+  UniversePosition m_blueprintOrigin;
   bool m_blueprintLinesValid = false;
   DirectX::XMFLOAT4X4 m_shadowViewProjection{};
   DirectX::XMFLOAT3 m_sceneCenter{0.0f, 0.0f, 0.0f};

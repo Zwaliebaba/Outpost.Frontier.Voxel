@@ -33,7 +33,7 @@ namespace
   else
   {
     Outpost::FlightState& flight = character.location.flight;
-    flight.position = Outpost::WorldPosition{-87.98123456789012, 1.0e7 / 3.0, -234.63};
+    flight.position = Outpost::UniversePosition{-87.98123456789012, 1.0e7 / 3.0, -234.63};
     flight.orientation = DirectX::XMFLOAT4{0.1f / 3.0f, -0.7071068f, 0.2f, 0.67f};
     flight.velocityMetresPerSecond = DirectX::XMFLOAT3{79.93f, -1.0f / 3.0f, 1.0e-7f};
     flight.angularVelocityRadiansPerSecond = DirectX::XMFLOAT3{0.01f, -0.25f, 2.0f / 3.0f};
@@ -49,9 +49,9 @@ namespace
   character.money = -9'000'000'000'123;
   character.baseSnapshot = Outpost::CharacterShip{"Lancer", 100, {{"Engines", 100}}};
   character.interfaceState = {{"selected", "Tug"}, {"note", "two words"}};
-  save.world.tick = 123'456'789'012ull;
-  save.world.resources = {{"Alloy", 12'400, 37}, {"Water", 0, 3599}};
-  save.world.objectives = {{"Defend the shipyard", true}, {"Escort tug T-041 to dock", false}};
+  save.universe.tick = 123'456'789'012ull;
+  save.universe.resources = {{"Alloy", 12'400, 37}, {"Water", 0, 3599}};
+  save.universe.objectives = {{"Defend the shipyard", true}, {"Escort tug T-041 to dock", false}};
   return save;
 }
 
@@ -143,8 +143,8 @@ public:
     Assert::IsTrue(broken("character money=", "character cash=").find("Character line 4: unknown key 'cash'") != std::string::npos);
     Assert::IsTrue(broken("kind=docked", "kind=orbit").find("'kind' must be docked or space") != std::string::npos);
     Assert::IsTrue(broken("health=34", "health=lots").find("'health' must be a whole number") != std::string::npos);
-    Assert::IsTrue(broken("world tick", "planet tick").find("unknown record 'planet'") != std::string::npos);
-    Assert::IsTrue(broken("section name=World", "section name=Universe").find("no World section") != std::string::npos);
+    Assert::IsTrue(broken("universe tick", "planet tick").find("unknown record 'planet'") != std::string::npos);
+    Assert::IsTrue(broken("section name=Universe", "section name=Cosmos").find("no Universe section") != std::string::npos);
   }
 };
 

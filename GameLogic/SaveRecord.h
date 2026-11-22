@@ -1,7 +1,7 @@
 #pragma once
 
 #include "RecordFile.h"
-#include "WorldObject.h"
+#include "UniverseObject.h"
 
 #include <DirectXMath.h>
 
@@ -22,7 +22,7 @@ namespace Outpost
 [[nodiscard]] std::string SaveText(std::uint64_t _value);
 [[nodiscard]] std::string SaveText(int _value);
 [[nodiscard]] std::string SaveText(bool _value);
-[[nodiscard]] std::string SaveText(const WorldPosition& _value);
+[[nodiscard]] std::string SaveText(const UniversePosition& _value);
 [[nodiscard]] std::string SaveText(const DirectX::XMFLOAT3& _value);
 [[nodiscard]] std::string SaveText(const DirectX::XMFLOAT4& _value);
 
@@ -46,7 +46,7 @@ public:
   void Read(std::string_view _key, std::uint64_t& _out);
   void Read(std::string_view _key, std::int32_t& _out);
   void Read(std::string_view _key, bool& _out);
-  void Read(std::string_view _key, WorldPosition& _out);
+  void Read(std::string_view _key, UniversePosition& _out);
   void Read(std::string_view _key, DirectX::XMFLOAT3& _out);
   void Read(std::string_view _key, DirectX::XMFLOAT4& _out);
   [[nodiscard]] bool Fail(std::string_view _message);

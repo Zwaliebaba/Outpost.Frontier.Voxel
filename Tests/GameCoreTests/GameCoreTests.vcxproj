@@ -102,7 +102,7 @@
     <ClCompile Include="SceneTests.cpp" />
     <ClCompile Include="ShipArchetypeTests.cpp" />
     <ClCompile Include="TestSupport.cpp" />
-    <ClCompile Include="WorldObjectTests.cpp" />
+    <ClCompile Include="UniverseObjectTests.cpp" />
     <ClCompile Include="ShipFlightTests.cpp" />
     <ClCompile Include="ZoneTests.cpp" />
     <ClCompile Include="DockingContentTests.cpp" />

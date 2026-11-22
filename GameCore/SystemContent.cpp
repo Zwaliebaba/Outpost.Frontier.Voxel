@@ -103,7 +103,7 @@ template <typename T> [[nodiscard]] const T* FindNamed(const std::vector<T>& _it
   rotation.r[1] = XMVector3Normalize(toWorld.r[1]);
   rotation.r[2] = XMVector3Normalize(toWorld.r[2]);
   XMStoreFloat4(&_zone.orientation, XMQuaternionNormalize(XMQuaternionRotationMatrix(rotation)));
-  _zone.position = WorldPosition{position.x, position.y, position.z};
+  _zone.position = UniversePosition{position.x, position.y, position.z};
   return true;
 }
 

@@ -23,8 +23,8 @@ Pose BlendPoses(const Pose& _from, const Pose& _to, double _share) noexcept
   const double t = std::clamp(_share, 0.0, 1.0);
   Pose pose;
   pose.position =
-    WorldPosition{_from.position.x + (_to.position.x - _from.position.x) * t, _from.position.y + (_to.position.y - _from.position.y) * t,
-                  _from.position.z + (_to.position.z - _from.position.z) * t};
+    UniversePosition{_from.position.x + (_to.position.x - _from.position.x) * t, _from.position.y + (_to.position.y - _from.position.y) * t,
+                     _from.position.z + (_to.position.z - _from.position.z) * t};
   XMStoreFloat4(&pose.orientation, XMQuaternionNormalize(XMQuaternionSlerp(XMLoadFloat4(&_from.orientation), XMLoadFloat4(&_to.orientation),
                                                                            static_cast<float>(t))));
   return pose;
@@ -119,14 +119,14 @@ Pose Prediction::Interpolated(float _alpha) const noexcept
   return BlendPoses(PoseOf(m_previous), PoseOf(m_state), static_cast<double>(_alpha));
 }
 
-void PoseInterpolation::Update(const WorldSnapshot& _world)
+void PoseInterpolation::Update(const UniverseSnapshot& _universe)
 {
-  if (_world.posesRevision == m_seenRevision && m_tracks.size() == _world.objects.size())
+  if (_universe.posesRevision == m_seenRevision && m_tracks.size() == _universe.objects.size())
   {
     return;
   }
-  m_seenRevision = _world.posesRevision;
-  for (const WorldObject& object : _world.objects)
+  m_seenRevision = _universe.posesRevision;
+  for (const UniverseObject& object : _universe.objects)
   {
     auto [found, inserted] = m_tracks.try_emplace(object.id);
     Track& track = found->second;
@@ -144,7 +144,7 @@ void PoseInterpolation::Update(const WorldSnapshot& _world)
   }
 }
 
-Pose PoseInterpolation::At(const WorldObject& _object, double _tick) const noexcept
+Pose PoseInterpolation::At(const UniverseObject& _object, double _tick) const noexcept
 {
   const auto found = m_tracks.find(_object.id);
   if (found == m_tracks.end())

@@ -32,7 +32,7 @@ struct QuicEvent
     ConnectionClosed,    // shutdown is complete and the handle may be closed
     CertificateReceived, // client: the server certificate's fingerprint, awaiting a verdict
     DatagramsReady,      // datagram sending changed; maxSendBytes is what the path carries
-    StreamBytes,         // received bytes of the world stream, in order
+    StreamBytes,         // received bytes of the universe stream, in order
     StreamSendDone,      // a stream send finished; its buffer may be freed
     StreamClosed,        // the stream's shutdown is complete and the handle may be closed
     Datagram,            // one received datagram

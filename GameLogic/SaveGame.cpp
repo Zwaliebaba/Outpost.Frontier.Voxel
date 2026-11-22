@@ -5,41 +5,41 @@
 namespace Outpost
 {
 
-void WriteWorld(const WorldSave& _world, Neuron::SaveWriter& _writer)
+void WriteUniverse(const UniverseSave& _universe, Neuron::SaveWriter& _writer)
 {
-  _writer.BeginSection(WORLD_SECTION);
-  _writer.Add("world").Field("tick", SaveText(_world.tick));
-  for (const ResourceSave& resource : _world.resources)
+  _writer.BeginSection(UNIVERSE_SECTION);
+  _writer.Add("universe").Field("tick", SaveText(_universe.tick));
+  for (const ResourceSave& resource : _universe.resources)
   {
     _writer.Add("resource")
       .Field("name", resource.name)
       .Field("amount", SaveText(resource.amount))
       .Field("remainder", SaveText(resource.remainder));
   }
-  for (const ObjectiveSave& objective : _world.objectives)
+  for (const ObjectiveSave& objective : _universe.objectives)
   {
     _writer.Add("objective").Field("text", objective.text).Field("complete", SaveText(objective.complete));
   }
 }
 
-bool ReadWorld(const Neuron::SaveSection& _section, WorldSave& _outWorld, std::string& _outError)
+bool ReadUniverse(const Neuron::SaveSection& _section, UniverseSave& _outUniverse, std::string& _outError)
 {
-  WorldSave world;
-  bool sawWorld = false;
+  UniverseSave universe;
+  bool sawUniverse = false;
   for (const Neuron::Record& record : _section.records)
   {
-    SaveRecord reader(record, WORLD_SECTION, _outError);
-    if (record.keyword == "world")
+    SaveRecord reader(record, UNIVERSE_SECTION, _outError);
+    if (record.keyword == "universe")
     {
-      if (sawWorld)
+      if (sawUniverse)
       {
-        static_cast<void>(reader.Fail("a second 'world' record"));
+        static_cast<void>(reader.Fail("a second 'universe' record"));
       }
       else if (reader.AllowOnly({"tick"}))
       {
-        reader.Read("tick", world.tick);
+        reader.Read("tick", universe.tick);
       }
-      sawWorld = true;
+      sawUniverse = true;
     }
     else if (record.keyword == "resource")
     {
@@ -49,7 +49,7 @@ bool ReadWorld(const Neuron::SaveSection& _section, WorldSave& _outWorld, std::s
         reader.Read("name", resource.name);
         reader.Read("amount", resource.amount);
         reader.Read("remainder", resource.remainder);
-        world.resources.push_back(resource);
+        universe.resources.push_back(resource);
       }
     }
     else if (record.keyword == "objective")
@@ -59,7 +59,7 @@ bool ReadWorld(const Neuron::SaveSection& _section, WorldSave& _outWorld, std::s
       {
         reader.Read("text", objective.text);
         reader.Read("complete", objective.complete);
-        world.objectives.push_back(objective);
+        universe.objectives.push_back(objective);
       }
     }
     else
@@ -71,12 +71,12 @@ bool ReadWorld(const Neuron::SaveSection& _section, WorldSave& _outWorld, std::s
       return false;
     }
   }
-  if (!sawWorld)
+  if (!sawUniverse)
   {
-    _outError = std::string(WORLD_SECTION) + ": no 'world' record";
+    _outError = std::string(UNIVERSE_SECTION) + ": no 'universe' record";
     return false;
   }
-  _outWorld = std::move(world);
+  _outUniverse = std::move(universe);
   return true;
 }
 
@@ -84,7 +84,7 @@ bool FormatSaveGame(const SaveGame& _save, std::string& _outText, std::string& _
 {
   Neuron::SaveWriter writer;
   WriteCharacter(_save.character, writer);
-  WriteWorld(_save.world, writer);
+  WriteUniverse(_save.universe, writer);
   for (const Neuron::SaveSection& section : _save.kept)
   {
     writer.AddSection(section);
@@ -101,7 +101,7 @@ bool ParseSaveGame(std::string_view _text, SaveGame& _outSave, std::string& _out
   }
   SaveGame save;
   bool sawCharacter = false;
-  bool sawWorld = false;
+  bool sawUniverse = false;
   for (const Neuron::SaveSection& section : sections)
   {
     if (section.name == CHARACTER_SECTION)
@@ -112,22 +112,22 @@ bool ParseSaveGame(std::string_view _text, SaveGame& _outSave, std::string& _out
       }
       sawCharacter = true;
     }
-    else if (section.name == WORLD_SECTION)
+    else if (section.name == UNIVERSE_SECTION)
     {
-      if (!ReadWorld(section, save.world, _outError))
+      if (!ReadUniverse(section, save.universe, _outError))
       {
         return false;
       }
-      sawWorld = true;
+      sawUniverse = true;
     }
     else
     {
       save.kept.push_back(section);
     }
   }
-  if (!sawCharacter || !sawWorld)
+  if (!sawCharacter || !sawUniverse)
   {
-    _outError = std::string("the save has no ") + std::string(!sawCharacter ? CHARACTER_SECTION : WORLD_SECTION) + " section";
+    _outError = std::string("the save has no ") + std::string(!sawCharacter ? CHARACTER_SECTION : UNIVERSE_SECTION) + " section";
     return false;
   }
   _outSave = std::move(save);

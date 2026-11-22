@@ -1,7 +1,7 @@
 #pragma once
 
 #include "DockingPoint.h"
-#include "WorldObject.h"
+#include "UniverseObject.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -77,7 +77,7 @@ public:
   /// A ship asks to dock (ch. 04 §3.2). Proceed puts it on the docking list with the free fitting
   /// point nearest it; Wait puts it on the waiting list, a player ahead of every ship that is not
   /// one and behind the players already waiting. A ship already on either list is answered from it.
-  [[nodiscard]] Answer Request(ObjectId _ship, DockKind _class, const WorldPosition& _position, std::size_t _station, bool _player,
+  [[nodiscard]] Answer Request(ObjectId _ship, DockKind _class, const UniversePosition& _position, std::size_t _station, bool _player,
                                std::uint64_t _tick);
 
   /// The cleared ship reached its point: it now holds it as a docked ship, until Release.
@@ -119,12 +119,12 @@ private:
   {
     ObjectId ship = NO_OBJECT;
     DockKind dockingClass = DockKind::Berth;
-    WorldPosition position;
+    UniversePosition position;
     std::size_t station = 0;
     bool player = false;
   };
 
-  [[nodiscard]] Answer Check(DockKind _class, const WorldPosition& _position, std::size_t _station) const noexcept;
+  [[nodiscard]] Answer Check(DockKind _class, const UniversePosition& _position, std::size_t _station) const noexcept;
   [[nodiscard]] bool Held(std::size_t _station, std::size_t _point) const noexcept;
 
   std::vector<Station> m_stations;

@@ -2,7 +2,7 @@
 
 #include "FlightModel.h"
 #include "SaveFile.h"
-#include "WorldSnapshot.h"
+#include "UniverseSnapshot.h"
 
 #include <cstdint>
 #include <string>
@@ -12,7 +12,7 @@
 namespace Outpost
 {
 
-// The character record (plan task 2.6, ADR-011): what belongs to a player rather than to the world
+// The character record (plan task 2.6, ADR-011): what belongs to a player rather than to the universe
 // or the process (AGENTS.md R23). It is what a save keeps of the player, and a second player is a
 // second record. Content is named by its text identifiers, never by an index (R24).
 

@@ -93,7 +93,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ObserverTests.cpp" />
-    <ClCompile Include="WorldTests.cpp" />
+    <ClCompile Include="UniverseTests.cpp" />
     <ClCompile Include="FlightTests.cpp" />
     <ClCompile Include="SaveGameTests.cpp" />
     <ClCompile Include="SpaceSupportTests.cpp" />

@@ -68,7 +68,7 @@ std::string SaveText(bool _value)
   return _value ? "1" : "0";
 }
 
-std::string SaveText(const WorldPosition& _value)
+std::string SaveText(const UniversePosition& _value)
 {
   return Shortest(_value.x) + "," + Shortest(_value.y) + "," + Shortest(_value.z);
 }
@@ -191,7 +191,7 @@ void SaveRecord::Read(std::string_view _key, bool& _out)
   }
 }
 
-void SaveRecord::Read(std::string_view _key, WorldPosition& _out)
+void SaveRecord::Read(std::string_view _key, UniversePosition& _out)
 {
   if (const std::string* value = Value(_key))
   {
@@ -202,7 +202,7 @@ void SaveRecord::Read(std::string_view _key, WorldPosition& _out)
       Malformed(_key, "three numbers");
       return;
     }
-    _out = WorldPosition{parts[0], parts[1], parts[2]};
+    _out = UniversePosition{parts[0], parts[1], parts[2]};
   }
 }
 

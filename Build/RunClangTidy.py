@@ -13,7 +13,7 @@ QuicSpike the headers of a package only a restore puts under packages/.
 
 Usage:
   python Build/RunClangTidy.py                         every translation unit
-  python Build/RunClangTidy.py GameLogic/World.cpp ... only these files
+  python Build/RunClangTidy.py GameLogic/Universe.cpp ... only these files
   python Build/RunClangTidy.py --dry-run               print the commands instead of running them
   python Build/RunClangTidy.py --jobs N --clang-tidy PATH --any-version
 

@@ -1,4 +1,4 @@
-// Outpost.exe: the client with the server's logic in-process (ADR-001). The server half — World and
+// Outpost.exe: the client with the server's logic in-process (ADR-001). The server half — Universe and
 // TickClock — owns the game state and publishes it through an Observer; the client half —
 // TacticalClient — builds its own picture from those messages and draws it, and sends its flight
 // commands back. The two meet only in the loopback transport (ADR-008, plan tasks F4 and 1.4).
@@ -21,7 +21,7 @@
 #include "TickClock.h"
 #include "VoxFile.h"
 #include "VoxelMesher.h"
-#include "World.h"
+#include "Universe.h"
 
 #include <shellapi.h>
 
@@ -127,7 +127,7 @@ struct Session
   Outpost::MainWindow window;
   Neuron::GraphicsDevice device;
   Outpost::TacticalClient client;
-  Outpost::World world;
+  Outpost::Universe universe;
   Outpost::Observer observer;
   Neuron::LoopbackTransport transport;
 };
@@ -145,7 +145,7 @@ struct PredictionTally
 /// after every tick. False, with the reason, if a message failed.
 [[nodiscard]] bool Exchange(Session& _session, std::string& _outError)
 {
-  if (!_session.observer.Publish(_session.world, _session.transport))
+  if (!_session.observer.Publish(_session.universe, _session.transport))
   {
     _outError = "the server could not encode or send a message";
     return false;
@@ -169,27 +169,27 @@ struct PredictionTally
     _outError = _session.client.ProtocolError();
     return false;
   }
-  if (!Outpost::ReceiveCommands(_session.transport, _session.world, _outError))
+  if (!Outpost::ReceiveCommands(_session.transport, _session.universe, _outError))
   {
     return false;
   }
-  _session.world.Tick();
-  const Outpost::ObjectId ship = _session.world.PlayerShip();
-  const Outpost::FlightState* server = _session.world.Flight(ship);
-  const Outpost::FlightState* predicted = _session.client.OwnShip().StateAt(_session.world.TickCount());
+  _session.universe.Tick();
+  const Outpost::ObjectId ship = _session.universe.PlayerShip();
+  const Outpost::FlightState* server = _session.universe.Flight(ship);
+  const Outpost::FlightState* predicted = _session.client.OwnShip().StateAt(_session.universe.TickCount());
   if (_tally != nullptr && server != nullptr && predicted != nullptr && _session.client.OwnShip().Active())
   {
     if (*predicted == *server)
     {
       ++_tally->matched;
     }
-    else if (_session.world.DivergedAt(ship) == _session.world.TickCount())
+    else if (_session.universe.DivergedAt(ship) == _session.universe.TickCount())
     {
       ++_tally->corrected;
     }
     else
     {
-      _tally->firstMismatchTick = _tally->mismatched == 0 ? _session.world.TickCount() : _tally->firstMismatchTick;
+      _tally->firstMismatchTick = _tally->mismatched == 0 ? _session.universe.TickCount() : _tally->firstMismatchTick;
       ++_tally->mismatched;
     }
   }
@@ -392,7 +392,7 @@ void ReportSurfaceExtraction(const Outpost::SceneDefinition& _scene, const std::
   {
     // A tick's input happens at that tick's time, before the client samples it, so gestures time
     // out as they would live.
-    const std::uint64_t tick = _session.world.TickCount() + 1;
+    const std::uint64_t tick = _session.universe.TickCount() + 1;
     for (const Outpost::InputEvent& event : script.EventsAt(tick))
     {
       _session.client.Apply(event, tick * 1000 / Neuron::TickClock::TICKS_PER_SECOND);
@@ -427,7 +427,7 @@ void ReportSurfaceExtraction(const Outpost::SceneDefinition& _scene, const std::
     previous = now;
   }
   _session.device.WaitIdle();
-  _report.Line("rendered " + std::to_string(frames) + " frame(s), server tick " + std::to_string(_session.world.TickCount()));
+  _report.Line("rendered " + std::to_string(frames) + " frame(s), server tick " + std::to_string(_session.universe.TickCount()));
   _report.Line(std::string("view: ") + (_session.client.View() == Outpost::ClientView::Flight ? "flight" : "tactical"));
   if (!_session.client.Selected().empty())
   {
@@ -437,11 +437,11 @@ void ReportSurfaceExtraction(const Outpost::SceneDefinition& _scene, const std::
   // tick it predicted must be the server's, bit for bit, unless the server diverged and said so.
   _report.Line("prediction: " + std::to_string(tally.matched) + " tick(s) matched the server, " + std::to_string(tally.corrected) +
                " corrected after a divergence, " + std::to_string(tally.mismatched) + " mismatched");
-  if (const Outpost::FlightState* own = _session.world.Flight(_session.world.PlayerShip()))
+  if (const Outpost::FlightState* own = _session.universe.Flight(_session.universe.PlayerShip()))
   {
     char flight[160]{};
     std::snprintf(flight, sizeof(flight), "own ship: at %.2f, %.2f, %.2f, %.2f m/s, %zu contact(s)", own->position.x, own->position.y,
-                  own->position.z, static_cast<double>(own->SpeedMetresPerSecond()), _session.world.Contacts().size());
+                  own->position.z, static_cast<double>(own->SpeedMetresPerSecond()), _session.universe.Contacts().size());
     _report.Line(flight);
     const Outpost::Manoeuvre& order = _session.client.Input().Order();
     if (order.kind == Outpost::ManoeuvreKind::GoTo)
@@ -451,14 +451,14 @@ void ReportSurfaceExtraction(const Outpost::SceneDefinition& _scene, const std::
       const double dz = order.target.z - own->position.z;
       std::snprintf(flight, sizeof(flight), "  order: go to %.1f, %.1f, %.1f, %.1f m away, %s", order.target.x, order.target.y,
                     order.target.z, std::sqrt(dx * dx + dy * dy + dz * dz),
-                    _session.world.Arrived(_session.world.PlayerShip()) ? "arrived" : "flying");
+                    _session.universe.Arrived(_session.universe.PlayerShip()) ? "arrived" : "flying");
       _report.Line(flight);
     }
     constexpr std::size_t CONTACTS_REPORTED = 4;
-    for (std::size_t i = 0; i < std::min(CONTACTS_REPORTED, _session.world.Contacts().size()); ++i)
+    for (std::size_t i = 0; i < std::min(CONTACTS_REPORTED, _session.universe.Contacts().size()); ++i)
     {
-      const Outpost::ContactRecord& contact = _session.world.Contacts()[i];
-      const Outpost::WorldObject* body = _session.world.State().FindObject(contact.body);
+      const Outpost::ContactRecord& contact = _session.universe.Contacts()[i];
+      const Outpost::UniverseObject* body = _session.universe.State().FindObject(contact.body);
       std::snprintf(flight, sizeof(flight), "  contact at tick %llu with %s at %.1f m/s, damage %.1f",
                     static_cast<unsigned long long>(contact.tick), body != nullptr ? body->name.c_str() : "?",
                     static_cast<double>(contact.relativeSpeedMetresPerSecond), static_cast<double>(contact.damageToShip));
@@ -470,7 +470,7 @@ void ReportSurfaceExtraction(const Outpost::SceneDefinition& _scene, const std::
     _report.Line("FAIL prediction: the client's own ship left the server's at tick " + std::to_string(tally.firstMismatchTick));
     return ExitCode::Prediction;
   }
-  const Outpost::WorldSnapshot& told = _session.client.World();
+  const Outpost::UniverseSnapshot& told = _session.client.Universe();
   _report.Line("client told of " + std::to_string(told.objects.size()) + " object(s), " + std::to_string(told.ships.size()) + " ship(s), " +
                std::to_string(told.objectives.size()) + " objective(s), " + std::to_string(told.resources.size()) +
                " resource(s), as of tick " + std::to_string(told.tick));
@@ -725,17 +725,17 @@ int WINAPI wWinMain(_In_ HINSTANCE _instance, _In_opt_ HINSTANCE /*_previous*/, 
                       std::to_string(session->client.Assets().ModelCount()) + " models, " +
                       std::to_string(session->client.Assets().SurfaceVoxelCount()) + " surface voxels");
           // The server loads its own content; it is never handed the client's (ADR-009).
-          if (!session->world.LoadContent(assetRoot, error))
+          if (!session->universe.LoadContent(assetRoot, error))
           {
             report.Line("FAIL server content: " + error);
             result = ExitCode::Scene;
           }
           else
           {
-            report.Line("server: " + std::to_string(session->world.State().objects.size()) + " objects");
+            report.Line("server: " + std::to_string(session->universe.State().objects.size()) + " objects");
             // The client is the observer that flies the player's ship, and is told what exists
             // before the first tick so that it can predict that tick.
-            session->observer.AssignShip(session->world.PlayerShip());
+            session->observer.AssignShip(session->universe.PlayerShip());
             if (!Exchange(*session, error))
             {
               report.Line("FAIL protocol: " + error + " before the first tick");
@@ -754,7 +754,7 @@ int WINAPI wWinMain(_In_ HINSTANCE _instance, _In_opt_ HINSTANCE /*_previous*/, 
           else if (result == ExitCode::Success)
           {
             result = RunInteractive(*session);
-            report.Line("interactive session ended after server tick " + std::to_string(session->world.TickCount()));
+            report.Line("interactive session ended after server tick " + std::to_string(session->universe.TickCount()));
             if (ReportDebugLayer(*session, options, report) > 0 && result == ExitCode::Success)
             {
               result = ExitCode::DebugLayerErrors;

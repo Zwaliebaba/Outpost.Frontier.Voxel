@@ -1,6 +1,6 @@
 #pragma once
 
-#include "WorldObject.h"
+#include "UniverseObject.h"
 
 #include <DirectXMath.h>
 
@@ -83,12 +83,12 @@ struct DockingPoint
   float radiusMetres = 4.0f; // the ship is docked once its pivot is this close to the pad (ch. 04 §3.4)
 };
 
-/// A docking point in the world: where its three sockets are, and how a docked ship is turned.
+/// A docking point in the universe: where its three sockets are, and how a docked ship is turned.
 struct DockingPath
 {
-  WorldPosition entry;
-  WorldPosition approach;
-  WorldPosition pad;
+  UniversePosition entry;
+  UniversePosition approach;
+  UniversePosition pad;
   DirectX::XMFLOAT4 orientation{0.0f, 0.0f, 0.0f, 1.0f}; // a docked ship's, ship frame to world
   float radiusMetres = 4.0f;
 };

@@ -1,6 +1,6 @@
 #include "SceneDefinition.h"
 #include "TickClock.h"
-#include "World.h"
+#include "Universe.h"
 
 #include "CppUnitTest.h"
 
@@ -25,34 +25,34 @@ ship instance=B callsign=X-2 class=Escort hull=100
 objective text="Hold the line" done=true
 )";
 
-[[nodiscard]] Outpost::World LoadedWorld(std::string_view _resources)
+[[nodiscard]] Outpost::Universe LoadedUniverse(std::string_view _resources)
 {
   Outpost::SceneDefinition scene;
   std::string error;
   const std::string text = std::string(BASE_SCENE) + std::string(_resources);
   Assert::IsTrue(Outpost::ParseScene(text, scene, error), std::wstring(error.begin(), error.end()).c_str());
-  Outpost::World world;
-  world.Load(scene);
-  return world;
+  Outpost::Universe universe;
+  universe.Load(scene);
+  return universe;
 }
 
-void Run(Outpost::World& _world, std::uint32_t _ticks)
+void Run(Outpost::Universe& _universe, std::uint32_t _ticks)
 {
   for (std::uint32_t i = 0; i < _ticks; ++i)
   {
-    _world.Tick();
+    _universe.Tick();
   }
 }
 
 } // namespace
 
-TEST_CLASS(WorldTests)
+TEST_CLASS(UniverseTests)
 {
 public:
   TEST_METHOD(TheFirstSnapshotIsTheScene)
   {
-    const Outpost::World world = LoadedWorld("resource name=Ore amount=100 perminute=120\n");
-    const Outpost::WorldSnapshot& snapshot = world.State();
+    const Outpost::Universe universe = LoadedUniverse("resource name=Ore amount=100 perminute=120\n");
+    const Outpost::UniverseSnapshot& snapshot = universe.State();
     Assert::AreEqual(std::uint64_t{0}, snapshot.tick);
     Assert::AreEqual(std::size_t{2}, snapshot.ships.size());
     Assert::AreEqual(std::size_t{1}, snapshot.objectives.size());
@@ -68,38 +68,38 @@ public:
 
   TEST_METHOD(IncomeIsExactPerMinute)
   {
-    Outpost::World world = LoadedWorld("resource name=Ore amount=100 perminute=120\n");
-    Run(world, TICKS_PER_MINUTE);
-    Assert::AreEqual(std::int64_t{220}, world.State().resources[0].amount, L"100 + 120 after exactly one minute");
-    Assert::AreEqual(std::uint64_t{TICKS_PER_MINUTE}, world.TickCount());
+    Outpost::Universe universe = LoadedUniverse("resource name=Ore amount=100 perminute=120\n");
+    Run(universe, TICKS_PER_MINUTE);
+    Assert::AreEqual(std::int64_t{220}, universe.State().resources[0].amount, L"100 + 120 after exactly one minute");
+    Assert::AreEqual(std::uint64_t{TICKS_PER_MINUTE}, universe.TickCount());
   }
 
   TEST_METHOD(FractionalIncomeIsCarriedNotLost)
   {
-    Outpost::World world = LoadedWorld("resource name=Ore amount=0 perminute=7\n");
-    Run(world, TICKS_PER_MINUTE / 2);
-    Assert::AreEqual(std::int64_t{3}, world.State().resources[0].amount, L"3.5 earned, 3 whole");
-    Run(world, TICKS_PER_MINUTE / 2);
-    Assert::AreEqual(std::int64_t{7}, world.State().resources[0].amount, L"the half carried over is paid");
+    Outpost::Universe universe = LoadedUniverse("resource name=Ore amount=0 perminute=7\n");
+    Run(universe, TICKS_PER_MINUTE / 2);
+    Assert::AreEqual(std::int64_t{3}, universe.State().resources[0].amount, L"3.5 earned, 3 whole");
+    Run(universe, TICKS_PER_MINUTE / 2);
+    Assert::AreEqual(std::int64_t{7}, universe.State().resources[0].amount, L"the half carried over is paid");
   }
 
   TEST_METHOD(CapacityCapsIncome)
   {
-    Outpost::World world = LoadedWorld("resource name=Crew amount=90 capacity=100 perminute=1200\n");
-    Run(world, 40);
-    Assert::AreEqual(std::int64_t{100}, world.State().resources[0].amount);
+    Outpost::Universe universe = LoadedUniverse("resource name=Crew amount=90 capacity=100 perminute=1200\n");
+    Run(universe, 40);
+    Assert::AreEqual(std::int64_t{100}, universe.State().resources[0].amount);
   }
 
   TEST_METHOD(LoadingAgainStartsOver)
   {
-    Outpost::World world = LoadedWorld("resource name=Ore amount=100 perminute=120\n");
-    Run(world, 50);
+    Outpost::Universe universe = LoadedUniverse("resource name=Ore amount=100 perminute=120\n");
+    Run(universe, 50);
     Outpost::SceneDefinition scene;
     std::string error;
     Assert::IsTrue(Outpost::ParseScene(std::string(BASE_SCENE), scene, error));
-    world.Load(scene);
-    Assert::AreEqual(std::uint64_t{0}, world.TickCount());
-    Assert::IsTrue(world.State().resources.empty());
+    universe.Load(scene);
+    Assert::AreEqual(std::uint64_t{0}, universe.TickCount());
+    Assert::IsTrue(universe.State().resources.empty());
   }
 };
 

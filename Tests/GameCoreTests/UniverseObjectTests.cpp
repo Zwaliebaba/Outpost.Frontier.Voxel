@@ -1,7 +1,7 @@
 #include "TestSupport.h"
 
 #include "SceneDefinition.h"
-#include "WorldObject.h"
+#include "UniverseObject.h"
 
 #include <algorithm>
 #include <cmath>
@@ -44,7 +44,7 @@ namespace
 
 } // namespace
 
-TEST_CLASS(WorldObjectTests)
+TEST_CLASS(UniverseObjectTests)
 {
 public:
   TEST_METHOD(EveryInstancesPoseReproducesItsPlacement)
@@ -53,7 +53,7 @@ public:
     const Outpost::SceneDefinition scene = LoadRealScene();
     for (std::size_t i = 0; i < scene.instances.size(); ++i)
     {
-      const Outpost::WorldObject object = Outpost::ObjectFromInstance(scene, i, static_cast<Outpost::ObjectId>(i + 1));
+      const Outpost::UniverseObject object = Outpost::ObjectFromInstance(scene, i, static_cast<Outpost::ObjectId>(i + 1));
       const std::wstring name(scene.instances[i].name.begin(), scene.instances[i].name.end());
       Assert::IsTrue(NearMatrix(Outpost::ObjectToWorld(object), Outpost::ModelToWorld(scene, i)), name.c_str());
     }
@@ -64,12 +64,12 @@ public:
     Outpost::SceneDefinition scene;
     std::string error;
     Assert::IsTrue(Parses("instance name=Mine model=Box position=10,20,30 owner=player", scene, error));
-    const Outpost::WorldObject object = Outpost::ObjectFromInstance(scene, 0, 7);
+    const Outpost::UniverseObject object = Outpost::ObjectFromInstance(scene, 0, 7);
     Assert::AreEqual(Outpost::ObjectId{7}, object.id);
     Assert::AreEqual(std::string("Mine"), object.name);
     Assert::AreEqual(std::string("Box"), object.model);
     Assert::IsTrue(object.owner == Outpost::Owner::Player);
-    Assert::IsTrue(object.pose.position == Outpost::WorldPosition{10.0, 20.0, 30.0});
+    Assert::IsTrue(object.pose.position == Outpost::UniversePosition{10.0, 20.0, 30.0});
   }
 
   TEST_METHOD(TheOwnerTagIsParsed)

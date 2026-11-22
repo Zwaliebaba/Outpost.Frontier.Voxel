@@ -4,7 +4,7 @@
 
 ## Context
 
-The server hands the client a `WorldSnapshot` by reference, once a frame, in one process. AGENTS.md R18 says the two halves exchange data and never call each other; R19 says the server decides; R25 says world state leaves the server only through an observer. The design's §8.1 sends networked play over QUIC with MsQuic, with reliable streams for facts and datagrams for state. §8.2 needs damage ordered per object rather than globally, so that 100 players' traffic is not stalled behind one lost packet.
+The server hands the client a `UniverseSnapshot` by reference, once a frame, in one process. AGENTS.md R18 says the two halves exchange data and never call each other; R19 says the server decides; R25 says world state leaves the server only through an observer. The design's §8.1 sends networked play over QUIC with MsQuic, with reliable streams for facts and datagrams for state. §8.2 needs damage ordered per object rather than globally, so that 100 players' traffic is not stalled behind one lost packet.
 
 This ADR fixes what a message is, how it becomes bytes, how each kind travels, and what carries it while both halves share a process. It is plan task F3. Moving the snapshot onto this path is task F4, together with the observer that R25 requires.
 
@@ -66,7 +66,7 @@ Catalogue version 2 adds two kinds under the rules above, and the by-reference h
 - `ObjectSpawn` (reliable, world stream) introduces an object: its `ObjectId`, its content names (ADR-009), its owner, its scale and its pose. Later messages name it by id alone.
 - `ObjectState` (datagram, newest wins) carries an object's pose as of a tick. A pose is a position in three doubles (ADR-007) and an orientation as a float quaternion: 40 bytes. With the tick and the id the payload is 52 bytes, and 60 with the header.
 - `Ship` now names the object it is, and the receiver keys ships by that id rather than by name.
-- `ApplyMessage` (`GameCore/Messages`) is the one function that turns a decoded message into the receiver's `WorldSnapshot`. It drops newest-wins messages older than the copy it holds, and state for an object it was never told of.
+- `ApplyMessage` (`GameCore/Messages`) is the one function that turns a decoded message into the receiver's `UniverseSnapshot`. It drops newest-wins messages older than the copy it holds, and state for an object it was never told of.
 - `GameLogic/Observer` is the observer of the decision above. It remembers what its client was told and sends only what changed: a spawn for an object the client has not seen, a pose when one moved, a ship, objective or resource when it differs. In single player it passes every object.
 - The executable runs `Observer::Publish` and `TacticalClient::Receive` once a frame, after the ticks. A message that fails to encode, send or decode ends a smoke run with exit code 8 (`Protocol`).
 - The client builds its scene from the objects it was told about, at the poses it received, and rebuilds when an object appears or moves. Until the first messages arrive it draws nothing. The first build after F4 asserted in `XMMatrixLookAtLH`, because an empty scene gave the shadow camera infinite bounds; the shadow camera now falls back to the origin when there is nothing to bound.

@@ -57,7 +57,7 @@ struct ShipTickResult
 /// client's prediction both build it here, so they sweep the same sphere. _outLocalBox, when given,
 /// receives the box in the ship's own frame, its centre an offset from the pivot.
 [[nodiscard]] ShipBody ShipBodyFor(const SceneDefinition& _scene, const ShipContent& _content, const ShipArchetype& _archetype,
-                                   const WorldObject& _object, CollisionBox* _outLocalBox = nullptr);
+                                   const UniverseObject& _object, CollisionBox* _outLocalBox = nullptr);
 
 [[nodiscard]] ShipTickResult StepShip(const ShipBody& _ship, const ShipCommand& _command, std::span<const CollisionBox> _bodies,
                                       std::uint32_t _ticksPerSecond, FlightState& _state) noexcept;

@@ -33,10 +33,10 @@
     <ClInclude Include="SceneDefinition.h">
       <Filter>Scene</Filter>
     </ClInclude>
-    <ClInclude Include="WorldObject.h">
+    <ClInclude Include="UniverseObject.h">
       <Filter>Messages</Filter>
     </ClInclude>
-    <ClInclude Include="WorldSnapshot.h">
+    <ClInclude Include="UniverseSnapshot.h">
       <Filter>Scene</Filter>
     </ClInclude>
     <ClInclude Include="Messages.h">
@@ -77,10 +77,10 @@
     <ClCompile Include="SceneDefinition.cpp">
       <Filter>Scene</Filter>
     </ClCompile>
-    <ClCompile Include="WorldObject.cpp">
+    <ClCompile Include="UniverseObject.cpp">
       <Filter>Messages</Filter>
     </ClCompile>
-    <ClCompile Include="WorldSnapshot.cpp">
+    <ClCompile Include="UniverseSnapshot.cpp">
       <Filter>Scene</Filter>
     </ClCompile>
     <ClCompile Include="Messages.cpp">

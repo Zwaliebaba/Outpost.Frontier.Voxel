@@ -40,7 +40,7 @@ ship name=Fighter model=Fighter mass=100 inertia=2800,2800,1000 drag=1 torque=24
 {
   Outpost::CollisionBox wall;
   wall.object = 9;
-  wall.center = Outpost::WorldPosition{0.0, 0.0, 302.0};
+  wall.center = Outpost::UniversePosition{0.0, 0.0, 302.0};
   wall.halfExtentsMetres = DirectX::XMFLOAT3{100.0f, 100.0f, 2.0f};
   return wall;
 }
@@ -121,29 +121,29 @@ public:
 
   TEST_METHOD(OtherObjectsMoveBetweenTheirLastTwoPoses)
   {
-    Outpost::WorldSnapshot world;
-    Outpost::WorldObject object;
+    Outpost::UniverseSnapshot universe;
+    Outpost::UniverseObject object;
     object.id = 4;
-    object.pose.position = Outpost::WorldPosition{0.0, 0.0, 0.0};
+    object.pose.position = Outpost::UniversePosition{0.0, 0.0, 0.0};
     object.poseTick = 10;
-    world.objects.push_back(object);
+    universe.objects.push_back(object);
     Outpost::PoseInterpolation interpolation;
-    interpolation.Update(world);
-    Assert::AreEqual(0.0, interpolation.At(world.objects[0], 10.5).position.z, L"one pose: it stays there");
+    interpolation.Update(universe);
+    Assert::AreEqual(0.0, interpolation.At(universe.objects[0], 10.5).position.z, L"one pose: it stays there");
 
-    world.objects[0].pose.position.z = 8.0;
-    world.objects[0].poseTick = 11;
-    ++world.posesRevision;
-    interpolation.Update(world);
-    Assert::AreEqual(2.0, interpolation.At(world.objects[0], 10.25).position.z, 1.0e-9, L"a quarter of the way through tick 11");
-    Assert::AreEqual(8.0, interpolation.At(world.objects[0], 12.0).position.z, L"never past the last pose");
+    universe.objects[0].pose.position.z = 8.0;
+    universe.objects[0].poseTick = 11;
+    ++universe.posesRevision;
+    interpolation.Update(universe);
+    Assert::AreEqual(2.0, interpolation.At(universe.objects[0], 10.25).position.z, 1.0e-9, L"a quarter of the way through tick 11");
+    Assert::AreEqual(8.0, interpolation.At(universe.objects[0], 12.0).position.z, L"never past the last pose");
   }
 
   TEST_METHOD(APoseBlendKeepsDoublePrecisionFarOut)
   {
     // 100 km out, a millimetre's motion still shows: the blend is in double precision.
     Outpost::Pose from;
-    from.position = Outpost::WorldPosition{100'000.0, 0.0, 0.0};
+    from.position = Outpost::UniversePosition{100'000.0, 0.0, 0.0};
     Outpost::Pose to = from;
     to.position.x += 0.004;
     const Outpost::Pose half = Outpost::BlendPoses(from, to, 0.5);

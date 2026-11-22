@@ -196,7 +196,7 @@ public:
   TEST_METHOD(AnOrderIsFlownUntilThePlayerFliesAgain)
   {
     Rig rig;
-    rig.input.GoTo(Outpost::WorldPosition{100.0, 0.0, 500.0}, 10.0f);
+    rig.input.GoTo(Outpost::UniversePosition{100.0, 0.0, 500.0}, 10.0f);
     Outpost::ShipCommand command = rig.Tick();
     Assert::IsTrue(command.manoeuvre.kind == Outpost::ManoeuvreKind::GoTo);
     Assert::AreEqual(10.0f, command.manoeuvre.standOffMetres);
@@ -205,7 +205,7 @@ public:
     Assert::IsTrue(command.manoeuvre.kind == Outpost::ManoeuvreKind::FreeFlight, L"the throttle takes the ship back");
 
     rig.Key('W', false);
-    rig.input.GoTo(Outpost::WorldPosition{}, 0.0f);
+    rig.input.GoTo(Outpost::UniversePosition{}, 0.0f);
     rig.Key(0x1B, true);
     Assert::IsTrue(rig.Tick().manoeuvre.kind == Outpost::ManoeuvreKind::FreeFlight, L"and so does Cancel");
   }

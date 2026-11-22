@@ -41,15 +41,15 @@ constexpr float PLUME_IDLE = 0.2f;
 
 } // namespace
 
-void TacticalScene::Build(const SceneAssets& _assets, const WorldSnapshot& _world)
+void TacticalScene::Build(const SceneAssets& _assets, const UniverseSnapshot& _universe)
 {
   m_assets = &_assets;
   m_instances.clear();
   m_blueprintLinesValid = false;
   const SceneDefinition& scene = _assets.Scene();
-  for (std::size_t i = 0; i < _world.objects.size(); ++i)
+  for (std::size_t i = 0; i < _universe.objects.size(); ++i)
   {
-    const WorldObject& object = _world.objects[i];
+    const UniverseObject& object = _universe.objects[i];
     InstanceView view;
     view.object = object.id;
     view.objectIndex = i;
@@ -62,7 +62,7 @@ void TacticalScene::Build(const SceneAssets& _assets, const WorldSnapshot& _worl
       continue;
     }
     bool isShip = false;
-    for (const ShipState& ship : _world.ships)
+    for (const ShipState& ship : _universe.ships)
     {
       isShip = isShip || ship.object == object.id;
     }
@@ -86,52 +86,52 @@ void TacticalScene::Build(const SceneAssets& _assets, const WorldSnapshot& _worl
   }
   BuildStars();
   // Placed at the snapshot's poses until the first Update says where the camera is.
-  Update(_world, {}, m_origin);
+  Update(_universe, {}, m_origin);
 }
 
-WorldPosition TacticalScene::RenderOriginFor(const WorldPosition& _camera) noexcept
+UniversePosition TacticalScene::RenderOriginFor(const UniversePosition& _camera) noexcept
 {
   const auto snap = [](double _value) { return std::floor(_value / ORIGIN_CELL_METRES + 0.5) * ORIGIN_CELL_METRES; };
-  return WorldPosition{snap(_camera.x), snap(_camera.y), snap(_camera.z)};
+  return UniversePosition{snap(_camera.x), snap(_camera.y), snap(_camera.z)};
 }
 
-XMFLOAT3 TacticalScene::ToRender(const WorldPosition& _position) const noexcept
+XMFLOAT3 TacticalScene::ToRender(const UniversePosition& _position) const noexcept
 {
   return XMFLOAT3{static_cast<float>(_position.x - m_origin.x), static_cast<float>(_position.y - m_origin.y),
                   static_cast<float>(_position.z - m_origin.z)};
 }
 
-WorldPosition TacticalScene::FromRender(const XMFLOAT3& _position) const noexcept
+UniversePosition TacticalScene::FromRender(const XMFLOAT3& _position) const noexcept
 {
-  return WorldPosition{m_origin.x + static_cast<double>(_position.x), m_origin.y + static_cast<double>(_position.y),
-                       m_origin.z + static_cast<double>(_position.z)};
+  return UniversePosition{m_origin.x + static_cast<double>(_position.x), m_origin.y + static_cast<double>(_position.y),
+                          m_origin.z + static_cast<double>(_position.z)};
 }
 
-void TacticalScene::Update(const WorldSnapshot& _world, std::span<const Pose> _poses, const WorldPosition& _camera)
+void TacticalScene::Update(const UniverseSnapshot& _universe, std::span<const Pose> _poses, const UniversePosition& _camera)
 {
   if (m_assets == nullptr)
   {
     return;
   }
   m_origin = RenderOriginFor(_camera);
-  Place(_world, _poses);
+  Place(_universe, _poses);
   if (!m_blueprintLinesValid || !(m_blueprintOrigin == m_origin))
   {
     BuildBlueprintLines();
   }
-  BuildEffects(_world);
+  BuildEffects(_universe);
   BuildShadowCamera(ToRender(_camera));
 }
 
-void TacticalScene::Place(const WorldSnapshot& _world, std::span<const Pose> _poses)
+void TacticalScene::Place(const UniverseSnapshot& _universe, std::span<const Pose> _poses)
 {
   for (InstanceView& view : m_instances)
   {
-    if (view.objectIndex >= _world.objects.size())
+    if (view.objectIndex >= _universe.objects.size())
     {
       continue;
     }
-    WorldObject object = _world.objects[view.objectIndex];
+    UniverseObject object = _universe.objects[view.objectIndex];
     if (view.objectIndex < _poses.size())
     {
       object.pose = _poses[view.objectIndex];
@@ -139,7 +139,7 @@ void TacticalScene::Place(const WorldSnapshot& _world, std::span<const Pose> _po
     view.pose = object.pose;
     // The pose relative to the render origin, so that the float matrix stays precise (ADR-010).
     object.pose.position =
-      WorldPosition{object.pose.position.x - m_origin.x, object.pose.position.y - m_origin.y, object.pose.position.z - m_origin.z};
+      UniversePosition{object.pose.position.x - m_origin.x, object.pose.position.y - m_origin.y, object.pose.position.z - m_origin.z};
     const XMMATRIX voxToWorld = Neuron::VoxToModelMatrix(view.asset->pivotVox, view.asset->voxelSize) * ObjectToWorld(object);
     XMStoreFloat4x4(&view.voxToWorld, voxToWorld);
     XMStoreFloat4x4(&view.worldToVox, XMMatrixInverse(nullptr, voxToWorld));
@@ -185,7 +185,7 @@ void TacticalScene::BuildBlueprintLines()
   m_blueprintLinesValid = true;
 }
 
-void TacticalScene::BuildEffects(const WorldSnapshot& _world)
+void TacticalScene::BuildEffects(const UniverseSnapshot& _universe)
 {
   const SceneDefinition& scene = m_assets->Scene();
   m_staticGlows.clear();
@@ -225,7 +225,7 @@ void TacticalScene::BuildEffects(const WorldSnapshot& _world)
     }
     // A ship that flies shows its engine as the server last told it; anything else burns steadily.
     float strength = 1.0f;
-    if (const ShipMotionState* motion = _world.FindMotion(view->object))
+    if (const ShipMotionState* motion = _universe.FindMotion(view->object))
     {
       const float throttle = std::clamp(std::abs(motion->throttle), 0.0f, 1.0f);
       strength = !motion->engineOn ? 0.0f : (motion->thruster ? 1.6f : PLUME_IDLE + (1.0f - PLUME_IDLE) * throttle);
@@ -248,8 +248,8 @@ void TacticalScene::BuildEffects(const WorldSnapshot& _world)
 
   for (const PointLightDef& light : scene.lights)
   {
-    XMFLOAT3 position = ToRender(
-      WorldPosition{static_cast<double>(light.position.x), static_cast<double>(light.position.y), static_cast<double>(light.position.z)});
+    XMFLOAT3 position = ToRender(UniversePosition{static_cast<double>(light.position.x), static_cast<double>(light.position.y),
+                                                  static_cast<double>(light.position.z)});
     if (!light.instance.empty())
     {
       const InstanceView* view = FindInstance(light.instance);

@@ -10,7 +10,7 @@ namespace Outpost
 namespace
 {
 
-[[nodiscard]] double DistanceSquared(const WorldPosition& _a, const WorldPosition& _b) noexcept
+[[nodiscard]] double DistanceSquared(const UniversePosition& _a, const UniversePosition& _b) noexcept
 {
   const double x = _a.x - _b.x;
   const double y = _a.y - _b.y;
@@ -56,7 +56,7 @@ bool SpaceSupport::Held(std::size_t _station, std::size_t _point) const noexcept
                              [&](const Hold& _hold) { return _hold.clearance.station == _station && _hold.clearance.point == _point; });
 }
 
-SpaceSupport::Answer SpaceSupport::Check(DockKind _class, const WorldPosition& _position, std::size_t _station) const noexcept
+SpaceSupport::Answer SpaceSupport::Check(DockKind _class, const UniversePosition& _position, std::size_t _station) const noexcept
 {
   const Station& station = m_stations[_station];
   // Checks 1 to 3 need missions, locks and factions, which the MVP does not have.
@@ -95,7 +95,7 @@ SpaceSupport::Answer SpaceSupport::Check(DockKind _class, const WorldPosition& _
   return Answer{DockAnswer::Proceed, nearest};
 }
 
-SpaceSupport::Answer SpaceSupport::Request(ObjectId _ship, DockKind _class, const WorldPosition& _position, std::size_t _station,
+SpaceSupport::Answer SpaceSupport::Request(ObjectId _ship, DockKind _class, const UniversePosition& _position, std::size_t _station,
                                            bool _player, std::uint64_t _tick)
 {
   if (const Clearance* held = HeldBy(_ship))

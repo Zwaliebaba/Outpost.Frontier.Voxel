@@ -19,15 +19,15 @@ namespace
   Outpost::Zone zone;
   zone.name = std::move(_name);
   zone.shape = Outpost::ZoneShape::Sphere;
-  zone.position = Outpost::WorldPosition{_x, 0.0, 0.0};
+  zone.position = Outpost::UniversePosition{_x, 0.0, 0.0};
   zone.sizeMetres = DirectX::XMFLOAT3{_radius, 0.0f, 0.0f};
   zone.edgeFraction = _edge;
   return zone;
 }
 
-[[nodiscard]] Outpost::WorldPosition At(double _x, double _y = 0.0, double _z = 0.0)
+[[nodiscard]] Outpost::UniversePosition At(double _x, double _y = 0.0, double _z = 0.0)
 {
-  return Outpost::WorldPosition{_x, _y, _z};
+  return Outpost::UniversePosition{_x, _y, _z};
 }
 
 } // namespace

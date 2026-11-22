@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ShipFlight.h"
-#include "WorldSnapshot.h"
+#include "UniverseSnapshot.h"
 
 #include <cstdint>
 #include <deque>
@@ -87,15 +87,15 @@ private:
 };
 
 /// The poses of the objects the client does not fly, between the last two the server sent: the
-/// client draws the world a tick behind the latest so that every object moves smoothly between
+/// client draws the universe a tick behind the latest so that every object moves smoothly between
 /// ticks it has been told of, at any frame rate (plan task 1.7).
 class PoseInterpolation
 {
 public:
   /// Takes in whatever poses arrived since the last call.
-  void Update(const WorldSnapshot& _world);
+  void Update(const UniverseSnapshot& _universe);
   /// Where an object is at a fractional server tick, between its previous and its last pose.
-  [[nodiscard]] Pose At(const WorldObject& _object, double _tick) const noexcept;
+  [[nodiscard]] Pose At(const UniverseObject& _object, double _tick) const noexcept;
 
 private:
   struct Track

@@ -51,10 +51,10 @@ constexpr float MAX_FRAME_SECONDS = 0.1f;
   }
 }
 
-[[nodiscard]] WorldPosition Offset(const WorldPosition& _position, const XMFLOAT3& _offset) noexcept
+[[nodiscard]] UniversePosition Offset(const UniversePosition& _position, const XMFLOAT3& _offset) noexcept
 {
-  return WorldPosition{_position.x + static_cast<double>(_offset.x), _position.y + static_cast<double>(_offset.y),
-                       _position.z + static_cast<double>(_offset.z)};
+  return UniversePosition{_position.x + static_cast<double>(_offset.x), _position.y + static_cast<double>(_offset.y),
+                          _position.z + static_cast<double>(_offset.z)};
 }
 
 } // namespace
@@ -116,8 +116,8 @@ bool TacticalClient::Initialize(Neuron::GraphicsDevice& _device, const std::file
   SetView(ClientView::Flight);
 
   // Nothing is drawn until the server has said what exists (R25); the selection waits for it.
-  m_scene.Build(m_assets, m_world);
-  m_builtRevision = m_world.objectsRevision;
+  m_scene.Build(m_assets, m_universe);
+  m_builtRevision = m_universe.objectsRevision;
   ResetView();
   m_initialSelection = m_assets.Scene().selectedShip;
   m_flightInput.SetCursor(static_cast<float>(_device.Width()) * 0.5f, static_cast<float>(_device.Height()) * 0.5f,
@@ -309,7 +309,7 @@ void TacticalClient::OrderAt(float _x, float _y)
     Neuron::PickRay(_x, _y, XMMatrixInverse(nullptr, viewProjection), m_lastView.viewportSize.x, m_lastView.viewportSize.y);
   // On a ship: to it, stopping short. Anywhere else: to the point on the own ship's level.
   const InstanceView* picked = m_scene.PickShip(ray);
-  if (picked != nullptr && picked->object != m_world.ownShip)
+  if (picked != nullptr && picked->object != m_universe.ownShip)
   {
     const float radius = std::max({picked->bounds.radius.x, picked->bounds.radius.y, picked->bounds.radius.z});
     m_flightInput.GoTo(picked->pose.position, radius * ORDER_STAND_OFF_RADII);
@@ -348,7 +348,7 @@ void TacticalClient::ProcessCommands()
       {
         RequestDock(DockCommand::Launch);
       }
-      else if (name == "Cancel" && m_world.ownDock.phase != DockPhase::None)
+      else if (name == "Cancel" && m_universe.ownDock.phase != DockPhase::None)
       {
         RequestDock(DockCommand::Cancel);
       }
@@ -399,7 +399,7 @@ bool TacticalClient::TakeCaptureRequest() noexcept
 void TacticalClient::ResetChaseCamera()
 {
   Neuron::ChaseCameraDesc desc;
-  const WorldObject* object = m_world.FindObject(m_world.ownShip);
+  const UniverseObject* object = m_universe.FindObject(m_universe.ownShip);
   const ShipArchetype* archetype = object != nullptr ? FlyingArchetype(m_ships, *object) : nullptr;
   if (const ChaseCameraRecord* record = archetype != nullptr ? m_ships.FindChaseCamera(archetype->name) : nullptr)
   {
@@ -414,11 +414,11 @@ void TacticalClient::ResetChaseCamera()
 
 void TacticalClient::TakeOwnShipNews(std::uint32_t _ticksPerSecond)
 {
-  if (m_world.ownShip == NO_OBJECT)
+  if (m_universe.ownShip == NO_OBJECT)
   {
     return;
   }
-  if (m_world.ownDock.phase != DockPhase::None)
+  if (m_universe.ownDock.phase != DockPhase::None)
   {
     // The server flies the ship from the Dock command until the launch releases it; its release
     // states the whole flight state again, and prediction starts from that.
@@ -426,27 +426,27 @@ void TacticalClient::TakeOwnShipNews(std::uint32_t _ticksPerSecond)
     {
       m_prediction.Stop();
     }
-    m_seenOwnShipRevision = m_world.ownShipRevision;
+    m_seenOwnShipRevision = m_universe.ownShipRevision;
     return;
   }
-  if (m_world.ownShipRevision == m_seenOwnShipRevision)
+  if (m_universe.ownShipRevision == m_seenOwnShipRevision)
   {
     return;
   }
-  m_seenOwnShipRevision = m_world.ownShipRevision;
-  if (m_prediction.Active() && m_prediction.Body().object == m_world.ownShip)
+  m_seenOwnShipRevision = m_universe.ownShipRevision;
+  if (m_prediction.Active() && m_prediction.Body().object == m_universe.ownShip)
   {
-    static_cast<void>(m_prediction.Rebase(m_world.ownShipTick, m_world.ownShipState, _ticksPerSecond));
+    static_cast<void>(m_prediction.Rebase(m_universe.ownShipTick, m_universe.ownShipState, _ticksPerSecond));
     return;
   }
   // A ship the client's content cannot fly is drawn where the server says, and not predicted.
-  const WorldObject* object = m_world.FindObject(m_world.ownShip);
+  const UniverseObject* object = m_universe.FindObject(m_universe.ownShip);
   const ShipArchetype* archetype = object != nullptr ? FlyingArchetype(m_ships, *object) : nullptr;
   if (archetype == nullptr)
   {
     return;
   }
-  m_prediction.Begin(ShipBodyFor(m_assets.Scene(), m_ships, *archetype, *object), m_world.ownShipTick, m_world.ownShipState);
+  m_prediction.Begin(ShipBodyFor(m_assets.Scene(), m_ships, *archetype, *object), m_universe.ownShipTick, m_universe.ownShipState);
   m_maxBankDegrees = archetype->maxBankDegrees;
   ResetChaseCamera();
 }
@@ -455,9 +455,9 @@ bool TacticalClient::SendTick(Neuron::LoopbackTransport& _transport, std::uint32
 {
   m_ticksPerSecond = _ticksPerSecond;
   ProcessCommands();
-  if (m_pendingDock.has_value() && m_world.ownShip != NO_OBJECT)
+  if (m_pendingDock.has_value() && m_universe.ownShip != NO_OBJECT)
   {
-    const Message message = DockCommandMessage{m_world.tick, m_world.ownShip, *m_pendingDock};
+    const Message message = DockCommandMessage{m_universe.tick, m_universe.ownShip, *m_pendingDock};
     const Route route = RouteOf(KindOf(message));
     m_pendingDock.reset();
     if (!_transport.Send(Neuron::Peer::Client, route.delivery, route.stream, Encode(message)))
@@ -471,10 +471,10 @@ bool TacticalClient::SendTick(Neuron::LoopbackTransport& _transport, std::uint32
   {
     return true;
   }
-  if (m_world.objectsRevision != m_bodiesRevision)
+  if (m_universe.objectsRevision != m_bodiesRevision)
   {
-    m_prediction.SetBodies(StaticBodies(m_assets.Scene(), m_ships, m_world.objects));
-    m_bodiesRevision = m_world.objectsRevision;
+    m_prediction.SetBodies(StaticBodies(m_assets.Scene(), m_ships, m_universe.objects));
+    m_bodiesRevision = m_universe.objectsRevision;
   }
   const ShipCommand command = m_flightInput.Sample(m_commands, m_prediction.State(), m_chase.Up(), m_maxBankDegrees, _ticksPerSecond);
   const ShipTickResult& result = m_prediction.Step(command, _ticksPerSecond);
@@ -483,7 +483,7 @@ bool TacticalClient::SendTick(Neuron::LoopbackTransport& _transport, std::uint32
     m_flightInput.RefuseCruise();
   }
   m_lastCommand = command;
-  const Message message = FlightInputMessage{m_prediction.Tick(), m_world.ownShip, command};
+  const Message message = FlightInputMessage{m_prediction.Tick(), m_universe.ownShip, command};
   const Route route = RouteOf(KindOf(message));
   if (!_transport.Send(Neuron::Peer::Client, route.delivery, route.stream, Encode(message)))
   {
@@ -499,12 +499,12 @@ ViewSetup TacticalClient::TacticalView() const
   const float width = static_cast<float>(m_device->Width());
   const float height = static_cast<float>(m_device->Height());
   // The orbit camera works in world coordinates; render space is the world less the render origin.
-  const WorldPosition& origin = m_scene.RenderOrigin();
+  const UniversePosition& origin = m_scene.RenderOrigin();
   const XMMATRIX toWorld = XMMatrixTranslation(static_cast<float>(origin.x), static_cast<float>(origin.y), static_cast<float>(origin.z));
   XMStoreFloat4x4(&view.view, toWorld * m_camera.View());
   XMStoreFloat4x4(&view.projection, m_camera.Projection(width / std::max(height, 1.0f)));
   const XMFLOAT3 position = m_camera.Position();
-  view.position = m_scene.ToRender(WorldPosition{position.x, position.y, position.z});
+  view.position = m_scene.ToRender(UniversePosition{position.x, position.y, position.z});
   view.forward = m_camera.Forward();
   view.viewportSize = XMFLOAT2{width, height};
   view.nearZ = Neuron::OrbitCamera::NEAR_Z;
@@ -620,19 +620,19 @@ bool TacticalClient::Receive(Neuron::LoopbackTransport& _transport)
       m_protocolError = "a message from the server did not decode (error " + std::to_string(static_cast<int>(message.error())) + ")";
       return false;
     }
-    ApplyMessage(*message, m_world);
+    ApplyMessage(*message, m_universe);
   }
   return true;
 }
 
 void TacticalClient::RebuildSceneIfChanged()
 {
-  if (m_world.objectsRevision == m_builtRevision)
+  if (m_universe.objectsRevision == m_builtRevision)
   {
     return;
   }
-  m_scene.Build(m_assets, m_world);
-  m_builtRevision = m_world.objectsRevision;
+  m_scene.Build(m_assets, m_universe);
+  m_builtRevision = m_universe.objectsRevision;
   if (!m_initialSelection.empty() && m_scene.FindInstance(m_initialSelection) != nullptr)
   {
     Select(std::exchange(m_initialSelection, std::string()));
@@ -653,7 +653,7 @@ std::string TacticalClient::StatusLine(float _framesPerSecond) const
 
 HudInput TacticalClient::MakeHudInput(const ViewSetup& _view, float _timeSeconds, float _framesPerSecond) const
 {
-  const WorldSnapshot& snapshot = m_world;
+  const UniverseSnapshot& snapshot = m_universe;
   HudInput input;
   input.width = _view.viewportSize.x;
   input.height = _view.viewportSize.y;
@@ -668,7 +668,7 @@ HudInput TacticalClient::MakeHudInput(const ViewSetup& _view, float _timeSeconds
 
   const XMMATRIX viewProjection = XMLoadFloat4x4(&_view.view) * XMLoadFloat4x4(&_view.projection);
   const XMFLOAT3& target = m_camera.Pose().target;
-  const XMFLOAT3 radarCenter = m_scene.ToRender(WorldPosition{target.x, target.y, target.z});
+  const XMFLOAT3 radarCenter = m_scene.ToRender(UniversePosition{target.x, target.y, target.z});
   for (const InstanceView& view : m_scene.Instances())
   {
     RadarBlip blip;
@@ -719,9 +719,9 @@ FlightHudInput TacticalClient::MakeFlightHudInput(float _timeSeconds, float _fra
   input.height = static_cast<float>(m_device->Height());
   input.scale = m_hudScale;
   input.timeSeconds = _timeSeconds;
-  for (const ShipState& ship : m_world.ships)
+  for (const ShipState& ship : m_universe.ships)
   {
-    if (ship.object == m_world.ownShip)
+    if (ship.object == m_universe.ownShip)
     {
       input.callsign = ship.callsign;
     }
@@ -838,17 +838,17 @@ bool TacticalClient::Render(float _timeSeconds, float _interpolation, bool _capt
 
   // Every object between the last two ticks it was told of, and the own ship between the last two
   // it predicted: the same fraction of the same tick.
-  m_interpolation.Update(m_world);
+  m_interpolation.Update(m_universe);
   const float alpha = std::clamp(_interpolation, 0.0f, 1.0f);
-  const double renderTick = static_cast<double>(m_world.tick) - 1.0 + static_cast<double>(alpha);
-  const bool predicted = m_prediction.Active() && m_prediction.Body().object == m_world.ownShip;
-  m_poses.resize(m_world.objects.size());
+  const double renderTick = static_cast<double>(m_universe.tick) - 1.0 + static_cast<double>(alpha);
+  const bool predicted = m_prediction.Active() && m_prediction.Body().object == m_universe.ownShip;
+  m_poses.resize(m_universe.objects.size());
   Pose ship;
-  for (std::size_t i = 0; i < m_world.objects.size(); ++i)
+  for (std::size_t i = 0; i < m_universe.objects.size(); ++i)
   {
-    const WorldObject& object = m_world.objects[i];
-    m_poses[i] = predicted && object.id == m_world.ownShip ? m_prediction.Interpolated(alpha) : m_interpolation.At(object, renderTick);
-    if (object.id == m_world.ownShip)
+    const UniverseObject& object = m_universe.objects[i];
+    m_poses[i] = predicted && object.id == m_universe.ownShip ? m_prediction.Interpolated(alpha) : m_interpolation.At(object, renderTick);
+    if (object.id == m_universe.ownShip)
     {
       ship = m_poses[i];
     }
@@ -866,7 +866,7 @@ bool TacticalClient::Render(float _timeSeconds, float _interpolation, bool _capt
     m_chase.Update(chase);
   }
   const bool flying = m_view == ClientView::Flight && predicted;
-  WorldPosition camera;
+  UniversePosition camera;
   if (flying)
   {
     camera = Offset(ship.position, m_chase.OffsetFromShip());
@@ -874,9 +874,9 @@ bool TacticalClient::Render(float _timeSeconds, float _interpolation, bool _capt
   else
   {
     const XMFLOAT3 position = m_camera.Position();
-    camera = WorldPosition{position.x, position.y, position.z};
+    camera = UniversePosition{position.x, position.y, position.z};
   }
-  m_scene.Update(m_world, m_poses, camera);
+  m_scene.Update(m_universe, m_poses, camera);
   const ViewSetup view = flying ? FlightView(ship) : TacticalView();
   m_lastView = view;
 

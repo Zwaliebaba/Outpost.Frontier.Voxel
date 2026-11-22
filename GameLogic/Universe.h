@@ -9,7 +9,7 @@
 #include "ShipFlight.h"
 #include "SpaceSupport.h"
 #include "SystemContent.h"
-#include "WorldSnapshot.h"
+#include "UniverseSnapshot.h"
 
 #include <DirectXMath.h>
 
@@ -38,7 +38,7 @@ struct ContactRecord
 };
 
 /// The authoritative game state: the server half of the game (AGENTS.md R18, R19). It loads its
-/// own content, gives every placed instance a world object with an identity and a pose (ADR-009),
+/// own content, gives every placed instance a universe object with an identity and a pose (ADR-009),
 /// and advances in whole ticks. Nothing but an Observer reads it on a client's behalf (R25): the
 /// client builds its own picture from the messages the observer sends.
 ///
@@ -55,9 +55,9 @@ struct ContactRecord
 /// server flies the ship, the player's commands are set aside, and the client draws the ship where
 /// the server says; the release states the ship's whole flight state again, and prediction resumes.
 ///
-/// What the player owns is a character record (R23), and the world saves it with the world's own
+/// What the player owns is a character record (R23), and the universe saves it with the universe's own
 /// state when the save rule says (D17); TakeSaveRequest tells the executable when.
-class World
+class Universe
 {
 public:
   static constexpr std::size_t MAX_CONTACT_RECORDS = 256;
@@ -75,7 +75,7 @@ public:
   /// Loads Scene.txt, the model sizes, Content/Ships.txt and Content/System.txt from the asset root.
   /// On broken content, false and why.
   [[nodiscard]] bool LoadContent(const std::filesystem::path& _assetRoot, std::string& _outError);
-  /// Builds the world from parsed content. Attached instances need their models' sizes set
+  /// Builds the universe from parsed content. Attached instances need their models' sizes set
   /// (LoadSceneContent); without them their poses use a pivot at the origin, and the bodies are
   /// empty boxes. The player's ship starts where the scene places it, flying; NewGame or Restore
   /// then puts it where a game starts.
@@ -84,10 +84,10 @@ public:
   /// A new game (GameDesign.md D18): the player's ship docked at a free point of the start station,
   /// with a fresh character. False, with the reason, when the station has no free point for it.
   [[nodiscard]] bool NewGame(std::string& _outError);
-  /// The world and the character as a save left them. False, with the reason, for a save that does
+  /// The universe and the character as a save left them. False, with the reason, for a save that does
   /// not fit the content: another player ship, an unknown station, point, resource or objective.
   [[nodiscard]] bool Restore(const SaveGame& _save, std::string& _outError);
-  /// The character and the world as they stand. A ship carried in or out is saved docked, where the
+  /// The character and the universe as they stand. A ship carried in or out is saved docked, where the
   /// carrying started or ends.
   [[nodiscard]] SaveGame MakeSave() const;
   /// Whether the save rule (D17) asked for a save since the last call: the player docked or launched.
@@ -119,7 +119,7 @@ public:
   }
 
   /// The server's own state. Only the observer encodes it for a client; no client is handed it.
-  [[nodiscard]] const WorldSnapshot& State() const noexcept
+  [[nodiscard]] const UniverseSnapshot& State() const noexcept
   {
     return m_state;
   }
@@ -167,7 +167,7 @@ private:
   /// The scripted mover (ch. 04 §2): the ship's pose set each tick along three points, collisions off.
   struct Mover
   {
-    std::array<WorldPosition, 3> points{};
+    std::array<UniversePosition, 3> points{};
     double lengthMetres = 0.0;
     std::uint64_t startTick = 0;
     std::uint64_t durationTicks = 1;
@@ -190,9 +190,9 @@ private:
     DockStatusState dock;
     std::size_t dockStation = SpaceSupport::NO_POINT;
     std::size_t dockPoint = SpaceSupport::NO_POINT;
-    WorldPosition farTarget; // the far approach's goal: the nearest fitting entry
-    WorldPosition holdAnchor;
-    std::optional<WorldPosition> axisPoint; // staging's first leg, when the way to the entry is blocked
+    UniversePosition farTarget; // the far approach's goal: the nearest fitting entry
+    UniversePosition holdAnchor;
+    std::optional<UniversePosition> axisPoint; // staging's first leg, when the way to the entry is blocked
     Mover mover;
   };
 
@@ -202,7 +202,7 @@ private:
   void StateDock(Flyer& _flyer, DockPhase _phase, DockAnswer _answer, std::string _reason = {});
   void AskForPoint(Flyer& _flyer);
   void Clear(Flyer& _flyer, std::size_t _point);
-  void StartMover(Flyer& _flyer, const WorldPosition& _from, const WorldPosition& _via, const WorldPosition& _to,
+  void StartMover(Flyer& _flyer, const UniversePosition& _from, const UniversePosition& _via, const UniversePosition& _to,
                   const DirectX::XMFLOAT4& _toOrientation, bool _outward);
   /// One tick of the mover; true when it has reached its last point.
   bool StepMover(Flyer& _flyer);
@@ -216,17 +216,17 @@ private:
   [[nodiscard]] Flyer* FindFlyer(ObjectId _ship) noexcept;
   [[nodiscard]] const Flyer* FindFlyer(ObjectId _ship) const noexcept;
 
-  WorldSnapshot m_state;
+  UniverseSnapshot m_state;
   SystemContent m_system;
   SpaceSupport m_support;
-  Character m_character; // the player's record; location and ship are read from the world when saved
+  Character m_character; // the player's record; location and ship are read from the universe when saved
   bool m_saveRequested = false;
   std::vector<Income> m_income;
   std::vector<Flyer> m_flyers;
   std::vector<CollisionBox> m_staticBodies;
   ObjectId m_playerShip = NO_OBJECT;
   // The player's commands by the tick they are for, in tick order. Vectors rather than maps here
-  // and below: MSVC's node containers allocate even when moved, so a map would make World's move
+  // and below: MSVC's node containers allocate even when moved, so a map would make Universe's move
   // throw.
   std::vector<std::pair<std::uint64_t, ShipCommand>> m_commands;
   ShipCommand m_heldCommand; // the newest command already run, reused for a tick whose command is missing

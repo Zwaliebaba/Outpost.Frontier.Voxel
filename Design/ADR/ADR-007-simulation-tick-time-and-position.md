@@ -27,7 +27,7 @@ Two facts about the sample shaped the decision:
 
 These parts arrive with the code that first needs them: world objects in plan task F4, moving ships in slice 1.
 
-- **World positions are `double`,** on both halves. That covers everything a system's coordinates locate: ships, solars, zones, munitions and the camera.
+- **Universe positions are `double`,** on both halves. That covers everything a system's coordinates locate: ships, solars, zones, munitions and the camera.
 - **Smaller quantities are `float`:** velocities, orientations, offsets inside a model, and anything relative to an object.
 - **Rendering is camera-relative.** Each instance's transform is built from its position minus the camera's, subtracted in `double` and then converted to `float`. The GPU never sees a coordinate the size of a system.
 - **On the wire** (slice 10), positions are quantized relative to a coarse cell, not sent as raw doubles.
@@ -36,10 +36,10 @@ These parts arrive with the code that first needs them: world objects in plan ta
 
 - Rules count durations in ticks of 1/60 s. A rate change is a change to `TICKS_PER_SECOND` and to whatever tests pin the rate. `TickClockTests` asserts 60 with a `static_assert`, so such a change cannot happen silently.
 - `MICROSECONDS_PER_TICK` is gone. A tick is not a whole number of microseconds at 60 Hz, and code that needs a tick's length in seconds computes it from `TICKS_PER_SECOND`.
-- Income per minute stays exact: `World` spreads it over `TICKS_PER_SECOND × 60` ticks with the remainder carried, which no rate changes.
+- Income per minute stays exact: `Universe` spreads it over `TICKS_PER_SECOND × 60` ticks with the remainder carried, which no rate changes.
 - A `float` at 100 km resolves to about 8 mm (2⁻⁷ m), which is visible as jitter in motion and shading. Holding positions in `double` keeps a ship at the rim of a system as smooth as one at the centre. The cost is 24 bytes per position instead of 12, on a few thousand objects.
 
 ## Verified
 
 - `TickClockTests` (five tests: whole ticks, carried remainder, ten minutes exactly 36,000 ticks, stall cap, interpolation) compiled with g++ 13.3.0 at `-std=c++23 -Wall -Wextra -Werror -Wconversion -Wsign-conversion` against a stand-in for the unit-test header, and all five passed. That is not the MSVC build: CI's Debug|x64 build and vstest run are the gate.
-- `WorldTests` were read for rate assumptions. The income tests use `TICKS_PER_SECOND × 60` and still hold. The capacity test runs 40 ticks at 1,200 per minute, which is 13 at 60 Hz, still over the cap of 100.
+- `UniverseTests` were read for rate assumptions. The income tests use `TICKS_PER_SECOND × 60` and still hold. The capacity test runs 40 ticks at 1,200 per minute, which is 13 at 60 Hz, still over the cap of 100.

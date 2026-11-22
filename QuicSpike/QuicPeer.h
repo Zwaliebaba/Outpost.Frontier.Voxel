@@ -12,7 +12,7 @@
 namespace Outpost
 {
 
-/// One end of one QUIC connection on localhost: the server, which listens and opens the world
+/// One end of one QUIC connection on localhost: the server, which listens and opens the universe
 /// stream, or the client, which connects and pins the server's certificate. Only the thread that
 /// drains the event queue calls its methods; its callbacks only copy and enqueue (ADR-017).
 class QuicPeer
@@ -32,7 +32,7 @@ public:
   /// event, and the handshake waits for CompleteCertificate.
   [[nodiscard]] bool Connect(std::uint16_t _port, std::string& _outError);
 
-  /// The bookkeeping every event needs: handles, the world stream, buffers, counters.
+  /// The bookkeeping every event needs: handles, the universe stream, buffers, counters.
   void Handle(const QuicEvent& _event);
 
   void CompleteCertificate(bool _accept);

@@ -23,7 +23,7 @@
 
 #include "LoopbackTransport.h"
 #include "Messages.h"
-#include "WorldSnapshot.h"
+#include "UniverseSnapshot.h"
 
 #include <algorithm>
 #include <array>
@@ -102,7 +102,7 @@ struct ClientTraffic
   std::uint64_t staleMaxTicks = 0;
   std::optional<bool> certificateAccepted;
   bool pinnedHere = false;
-  WorldSnapshot world;
+  UniverseSnapshot universe;
 };
 
 struct RunSpec
@@ -138,7 +138,7 @@ Pose PoseAt(std::uint64_t _tick, int _object)
   const double radiusMetres = 100.0 + 10.0 * _object;
   const double angleRadians = 0.01 * static_cast<double>(_tick) + 0.7 * _object;
   Pose pose;
-  pose.position = WorldPosition{radiusMetres * std::cos(angleRadians), 5.0 * _object, radiusMetres * std::sin(angleRadians)};
+  pose.position = UniversePosition{radiusMetres * std::cos(angleRadians), 5.0 * _object, radiusMetres * std::sin(angleRadians)};
   const float half = static_cast<float>(angleRadians * 0.5);
   pose.orientation = DirectX::XMFLOAT4{0.0f, std::sin(half), 0.0f, std::cos(half)};
   return pose;
@@ -177,7 +177,7 @@ void SendFacts(QuicPeer& _server, std::uint64_t _tick, int _objects, ServerTraff
   {
     for (int i = 0; i < _objects; ++i)
     {
-      WorldObject object;
+      UniverseObject object;
       object.id = IdOf(i);
       object.name = "Object" + std::to_string(i);
       object.model = i % 2 == 0 ? "EscortLancer" : "EscortTalon";
@@ -235,14 +235,14 @@ void Receive(std::span<const std::uint8_t> _bytes, Neuron::Delivery _arrivedBy, 
     ++_traffic.datagramByKind[KindIndex(kind)];
     if (const auto* state = std::get_if<ObjectStateMessage>(&*decoded))
     {
-      const WorldObject* held = _traffic.world.FindObject(state->id);
+      const UniverseObject* held = _traffic.universe.FindObject(state->id);
       if (held != nullptr && state->tick < held->poseTick)
       {
         ++_traffic.olderThanHeld;
       }
     }
   }
-  ApplyMessage(*decoded, _traffic.world);
+  ApplyMessage(*decoded, _traffic.universe);
 }
 
 /// The stream is bytes; each message's header says how long it is.
@@ -269,7 +269,7 @@ void ReceiveStreamBytes(const std::vector<std::uint8_t>& _bytes, ClientTraffic& 
 
 void SampleStaleness(std::uint64_t _serverTick, ClientTraffic& _traffic)
 {
-  for (const WorldObject& object : _traffic.world.objects)
+  for (const UniverseObject& object : _traffic.universe.objects)
   {
     if (object.poseTick == 0 || object.poseTick > _serverTick)
     {
@@ -419,7 +419,7 @@ void RunConnection(const QUIC_API_TABLE& _api, HQUIC _registration, const Option
       return session.client.Connected() && session.server.Connected() && session.server.StreamReady() && session.server.DatagramsEnabled();
     },
     CONNECT_TIMEOUT);
-  Check(ready, "connected, with the world stream open and datagrams enabled");
+  Check(ready, "connected, with the universe stream open and datagrams enabled");
   if (!ready)
   {
     session.client.Shutdown();

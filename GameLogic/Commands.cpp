@@ -8,7 +8,7 @@
 namespace Outpost
 {
 
-bool ReceiveCommands(Neuron::LoopbackTransport& _transport, World& _world, std::string& _outError)
+bool ReceiveCommands(Neuron::LoopbackTransport& _transport, Universe& _universe, std::string& _outError)
 {
   while (std::optional<Neuron::Packet> packet = _transport.Receive(Neuron::Peer::Server))
   {
@@ -20,7 +20,7 @@ bool ReceiveCommands(Neuron::LoopbackTransport& _transport, World& _world, std::
     }
     if (const auto* dock = std::get_if<DockCommandMessage>(&*message))
     {
-      static_cast<void>(_world.Command(*dock));
+      static_cast<void>(_universe.Command(*dock));
       continue;
     }
     const auto* input = std::get_if<FlightInputMessage>(&*message);
@@ -30,7 +30,7 @@ bool ReceiveCommands(Neuron::LoopbackTransport& _transport, World& _world, std::
         "the client sent a message of kind " + std::to_string(static_cast<int>(KindOf(*message))) + ", which only the server sends";
       return false;
     }
-    static_cast<void>(_world.SubmitCommand(*input));
+    static_cast<void>(_universe.SubmitCommand(*input));
   }
   return true;
 }

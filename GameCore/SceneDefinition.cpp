@@ -612,10 +612,10 @@ XMMATRIX ModelToWorld(const SceneDefinition& _scene, std::size_t _instanceIndex)
   return ModelToWorldRecursive(_scene, _instanceIndex, 0);
 }
 
-WorldObject ObjectFromInstance(const SceneDefinition& _scene, std::size_t _instanceIndex, ObjectId _id)
+UniverseObject ObjectFromInstance(const SceneDefinition& _scene, std::size_t _instanceIndex, ObjectId _id)
 {
   const SceneInstance& instance = _scene.instances[_instanceIndex];
-  WorldObject object;
+  UniverseObject object;
   object.id = _id;
   object.name = instance.name;
   object.model = instance.model;
@@ -629,7 +629,7 @@ WorldObject ObjectFromInstance(const SceneDefinition& _scene, std::size_t _insta
     XMStoreFloat4(&object.pose.orientation, XMQuaternionNormalize(rotation));
     XMFLOAT3 position{};
     XMStoreFloat3(&position, translation);
-    object.pose.position = WorldPosition{position.x, position.y, position.z};
+    object.pose.position = UniversePosition{position.x, position.y, position.z};
   }
   return object;
 }

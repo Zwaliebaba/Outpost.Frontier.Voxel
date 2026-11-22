@@ -24,13 +24,13 @@ using Outpost::SpaceSupport;
   point.instance = "Station";
   point.name = "Point" + std::to_string(static_cast<int>(_x));
   point.kind = _kind;
-  point.path.entry = Outpost::WorldPosition{_x, 0.0, -100.0};
-  point.path.approach = Outpost::WorldPosition{_x, 0.0, -20.0};
-  point.path.pad = Outpost::WorldPosition{_x, 0.0, 0.0};
+  point.path.entry = Outpost::UniversePosition{_x, 0.0, -100.0};
+  point.path.approach = Outpost::UniversePosition{_x, 0.0, -20.0};
+  point.path.pad = Outpost::UniversePosition{_x, 0.0, 0.0};
   return point;
 }
 
-const Outpost::WorldPosition HERE{0.0, 0.0, -500.0};
+const Outpost::UniversePosition HERE{0.0, 0.0, -500.0};
 
 } // namespace
 

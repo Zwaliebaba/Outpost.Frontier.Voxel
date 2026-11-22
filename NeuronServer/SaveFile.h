@@ -19,7 +19,7 @@ namespace Neuron
 //   save version=1
 //   section name=Character
 //   ...records of that section...
-//   section name=World
+//   section name=Universe
 //   ...
 //   end sections=2 records=14
 //

@@ -57,7 +57,7 @@ instance name=Rock model=Plain position=500,0,0
 }
 
 /// How far a point lies outside an oriented box; 0 inside.
-[[nodiscard]] float DistanceOutside(const Outpost::CollisionBox& _box, const Outpost::WorldPosition& _point)
+[[nodiscard]] float DistanceOutside(const Outpost::CollisionBox& _box, const Outpost::UniversePosition& _point)
 {
   const XMVECTOR offset = XMVectorSet(static_cast<float>(_point.x - _box.center.x), static_cast<float>(_point.y - _box.center.y),
                                       static_cast<float>(_point.z - _box.center.z), 0.0f);
@@ -181,7 +181,7 @@ public:
     Assert::IsNotNull(start);
 
     // Every hull's docking class is offered by a point of the station a new game starts at.
-    std::vector<Outpost::WorldObject> objects;
+    std::vector<Outpost::UniverseObject> objects;
     for (std::size_t i = 0; i < scene.instances.size(); ++i)
     {
       objects.push_back(Outpost::ObjectFromInstance(scene, i, static_cast<Outpost::ObjectId>(i + 1)));

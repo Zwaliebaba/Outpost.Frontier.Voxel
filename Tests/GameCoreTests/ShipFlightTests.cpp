@@ -28,7 +28,7 @@ constexpr float RADIUS = 20.0f;
 {
   Outpost::CollisionBox wall;
   wall.object = 9;
-  wall.center = Outpost::WorldPosition{0.0, 0.0, 1002.0};
+  wall.center = Outpost::UniversePosition{0.0, 0.0, 1002.0};
   wall.halfExtentsMetres = DirectX::XMFLOAT3{100.0f, 100.0f, 2.0f};
   return wall;
 }
@@ -113,8 +113,9 @@ public:
     const Outpost::CollisionBox wall = Wall();
     Outpost::SweepHit hit;
     Assert::IsFalse(
-      Outpost::SweepSphere(Outpost::WorldPosition{0.0, 0.0, 1002.0}, DirectX::XMFLOAT3{0.0f, 0.0f, -50.0f}, RADIUS, wall, hit));
-    Assert::IsTrue(Outpost::SweepSphere(Outpost::WorldPosition{0.0, 0.0, 900.0}, DirectX::XMFLOAT3{0.0f, 0.0f, 200.0f}, RADIUS, wall, hit));
+      Outpost::SweepSphere(Outpost::UniversePosition{0.0, 0.0, 1002.0}, DirectX::XMFLOAT3{0.0f, 0.0f, -50.0f}, RADIUS, wall, hit));
+    Assert::IsTrue(
+      Outpost::SweepSphere(Outpost::UniversePosition{0.0, 0.0, 900.0}, DirectX::XMFLOAT3{0.0f, 0.0f, 200.0f}, RADIUS, wall, hit));
     Assert::AreEqual((1000.0f - RADIUS - 900.0f) / 200.0f, hit.fraction, 1.0e-5f);
     Assert::AreEqual(-1.0f, hit.normal.z, L"the near face faces the ship");
   }
@@ -123,10 +124,11 @@ public:
   {
     // The wall turned a quarter about Y: now thin along X, its near face at x = 1,000.
     Outpost::CollisionBox wall = Wall();
-    wall.center = Outpost::WorldPosition{1002.0, 0.0, 0.0};
+    wall.center = Outpost::UniversePosition{1002.0, 0.0, 0.0};
     DirectX::XMStoreFloat4(&wall.orientation, DirectX::XMQuaternionRotationRollPitchYaw(0.0f, DirectX::XM_PIDIV2, 0.0f));
     Outpost::SweepHit hit;
-    Assert::IsTrue(Outpost::SweepSphere(Outpost::WorldPosition{900.0, 0.0, 0.0}, DirectX::XMFLOAT3{200.0f, 0.0f, 0.0f}, RADIUS, wall, hit));
+    Assert::IsTrue(
+      Outpost::SweepSphere(Outpost::UniversePosition{900.0, 0.0, 0.0}, DirectX::XMFLOAT3{200.0f, 0.0f, 0.0f}, RADIUS, wall, hit));
     Assert::AreEqual((1000.0f - RADIUS - 900.0f) / 200.0f, hit.fraction, 1.0e-4f);
     Assert::AreEqual(-1.0f, hit.normal.x, 1.0e-5f);
   }
@@ -160,7 +162,7 @@ public:
     Assert::IsTrue(Outpost::LoadSceneContent(AssetRoot(), scene, error), std::wstring(error.begin(), error.end()).c_str());
     Outpost::ShipContent ships;
     Assert::IsTrue(Outpost::LoadShipContent(AssetRoot() / "Content" / "Ships.txt", ships, error));
-    std::vector<Outpost::WorldObject> objects;
+    std::vector<Outpost::UniverseObject> objects;
     std::size_t flying = 0;
     std::size_t blueprints = 0;
     for (std::size_t i = 0; i < scene.instances.size(); ++i)

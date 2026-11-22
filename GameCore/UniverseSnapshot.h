@@ -2,7 +2,7 @@
 
 #include "DockingPoint.h"
 #include "FlightModel.h"
-#include "WorldObject.h"
+#include "UniverseObject.h"
 
 #include <cstdint>
 #include <string>
@@ -12,7 +12,7 @@
 namespace Outpost
 {
 
-// The world as plain data. The server keeps its state in one; the client builds its own from the
+// The universe as plain data. The server keeps its state in one; the client builds its own from the
 // messages the server's observer sends (plan task F4, ADR-008), and never sees the server's.
 
 struct ShipModuleState
@@ -30,7 +30,7 @@ struct ShipState
   std::string shipClass;
   int hullPercent = 100;
   std::vector<ShipModuleState> modules;
-  ObjectId object = NO_OBJECT; // the world object this ship is
+  ObjectId object = NO_OBJECT; // the universe object this ship is
 
   /// Modules below full health, worst first.
   [[nodiscard]] std::vector<ShipModuleState> DamagedModules() const;
@@ -82,10 +82,10 @@ struct DockStatusState
   friend bool operator==(const DockStatusState&, const DockStatusState&) = default;
 };
 
-struct WorldSnapshot
+struct UniverseSnapshot
 {
   std::uint64_t tick = 0;
-  std::vector<WorldObject> objects; // in the order the server created them
+  std::vector<UniverseObject> objects; // in the order the server created them
   std::vector<ShipState> ships;
   std::vector<ObjectiveState> objectives;
   std::vector<ResourceState> resources;
@@ -97,7 +97,7 @@ struct WorldSnapshot
   std::uint64_t posesRevision = 0;
 
   // The ship this client flies, as the server last stated it (OwnShipMessage). The server's own
-  // snapshot leaves these empty: which ship a session flies is the session's, not the world's.
+  // snapshot leaves these empty: which ship a session flies is the session's, not the universe's.
   ObjectId ownShip = NO_OBJECT;
   std::uint64_t ownShipTick = 0;
   FlightState ownShipState;
@@ -107,8 +107,8 @@ struct WorldSnapshot
   std::uint64_t ownDockRevision = 0;
 
   [[nodiscard]] const ShipState* FindShip(std::string_view _instance) const noexcept;
-  [[nodiscard]] const WorldObject* FindObject(ObjectId _id) const noexcept;
-  [[nodiscard]] WorldObject* FindObject(ObjectId _id) noexcept;
+  [[nodiscard]] const UniverseObject* FindObject(ObjectId _id) const noexcept;
+  [[nodiscard]] UniverseObject* FindObject(ObjectId _id) noexcept;
   [[nodiscard]] const ShipMotionState* FindMotion(ObjectId _id) const noexcept;
 };
 

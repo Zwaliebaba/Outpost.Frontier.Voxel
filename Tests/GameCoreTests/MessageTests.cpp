@@ -31,15 +31,15 @@ namespace
   return message;
 }
 
-[[nodiscard]] Outpost::WorldObject SampleObject()
+[[nodiscard]] Outpost::UniverseObject SampleObject()
 {
-  Outpost::WorldObject object;
+  Outpost::UniverseObject object;
   object.id = 12;
   object.name = "Frigate";
   object.model = "Frigate";
   object.owner = Outpost::Owner::Hostile;
   object.scale = 1.25f;
-  object.pose.position = Outpost::WorldPosition{1.0e9 + 0.25, -3.5, 42.0};
+  object.pose.position = Outpost::UniversePosition{1.0e9 + 0.25, -3.5, 42.0};
   object.pose.orientation = DirectX::XMFLOAT4{0.0f, 0.70710677f, 0.0f, 0.70710677f};
   object.poseTick = 9;
   return object;
@@ -50,7 +50,7 @@ namespace
   Outpost::FlightInputMessage input;
   input.tick = 1'234;
   input.ship = 7;
-  input.command.manoeuvre = Outpost::Manoeuvre::GoTo(Outpost::WorldPosition{1.0e8 + 0.5, -20.0, 3.25}, 45.0f);
+  input.command.manoeuvre = Outpost::Manoeuvre::GoTo(Outpost::UniversePosition{1.0e8 + 0.5, -20.0, 3.25}, 45.0f);
   input.command.wishes.throttle = 0.75f;
   input.command.wishes.steering = DirectX::XMFLOAT3{-0.25f, 0.5f, 1.0f};
   input.command.wishes.strafe = Outpost::StrafeDirection::Down;
@@ -65,7 +65,7 @@ namespace
   Outpost::OwnShipMessage own;
   own.tick = 99;
   own.ship = 7;
-  own.state.position = Outpost::WorldPosition{-1.0e7 + 0.125, 4.0, 8.0};
+  own.state.position = Outpost::UniversePosition{-1.0e7 + 0.125, 4.0, 8.0};
   own.state.orientation = DirectX::XMFLOAT4{0.0f, 0.70710677f, 0.0f, 0.70710677f};
   own.state.velocityMetresPerSecond = DirectX::XMFLOAT3{1.5f, -2.5f, 80.0f};
   own.state.angularVelocityRadiansPerSecond = DirectX::XMFLOAT3{0.1f, 0.2f, -0.3f};
@@ -187,12 +187,13 @@ public:
   {
     Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::Tick).delivery == Neuron::Delivery::Datagram);
     Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::Resource).delivery == Neuron::Delivery::Datagram);
-    Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::Ship) == Outpost::Route{Neuron::Delivery::Reliable, Outpost::STREAM_WORLD});
-    Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::Objective) == Outpost::Route{Neuron::Delivery::Reliable, Outpost::STREAM_WORLD});
+    Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::Ship) == Outpost::Route{Neuron::Delivery::Reliable, Outpost::STREAM_UNIVERSE});
+    Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::Objective) ==
+                   Outpost::Route{Neuron::Delivery::Reliable, Outpost::STREAM_UNIVERSE});
     Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::ObjectSpawn) ==
-                   Outpost::Route{Neuron::Delivery::Reliable, Outpost::STREAM_WORLD});
+                   Outpost::Route{Neuron::Delivery::Reliable, Outpost::STREAM_UNIVERSE});
     Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::ObjectState) ==
-                   Outpost::Route{Neuron::Delivery::Datagram, Outpost::STREAM_WORLD});
+                   Outpost::Route{Neuron::Delivery::Datagram, Outpost::STREAM_UNIVERSE});
   }
 
   TEST_METHOD(APositionKeepsDoublePrecision)
@@ -248,93 +249,94 @@ public:
   {
     Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::DockCommand) ==
                    Outpost::Route{Neuron::Delivery::Reliable, Outpost::STREAM_COMMANDS});
-    Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::DockStatus) == Outpost::Route{Neuron::Delivery::Reliable, Outpost::STREAM_WORLD});
-    Outpost::WorldSnapshot world;
+    Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::DockStatus) ==
+                   Outpost::Route{Neuron::Delivery::Reliable, Outpost::STREAM_UNIVERSE});
+    Outpost::UniverseSnapshot universe;
     const Outpost::DockStatusMessage status{7, {90, Outpost::DockPhase::Final, Outpost::DockAnswer::None, "Shipyard", ""}};
-    Outpost::ApplyMessage(status, world);
-    Assert::IsTrue(world.ownDock == status.status);
-    Assert::AreEqual(std::uint64_t{1}, world.ownDockRevision);
+    Outpost::ApplyMessage(status, universe);
+    Assert::IsTrue(universe.ownDock == status.status);
+    Assert::AreEqual(std::uint64_t{1}, universe.ownDockRevision);
   }
 
   TEST_METHOD(FlightInputTravelsAsACommandDatagram)
   {
     Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::FlightInput) ==
                    Outpost::Route{Neuron::Delivery::Datagram, Outpost::STREAM_COMMANDS});
-    Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::OwnShip) == Outpost::Route{Neuron::Delivery::Reliable, Outpost::STREAM_WORLD});
+    Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::OwnShip) == Outpost::Route{Neuron::Delivery::Reliable, Outpost::STREAM_UNIVERSE});
     Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::ShipMotion).delivery == Neuron::Delivery::Datagram);
   }
 
   TEST_METHOD(TheOwnShipAndTheNewestMotionAreKept)
   {
-    Outpost::WorldSnapshot world;
-    Outpost::ApplyMessage(SampleOwnShip(), world);
-    Assert::AreEqual(std::uint32_t{7}, world.ownShip);
-    Assert::IsTrue(world.ownShipState == SampleOwnShip().state);
-    Assert::AreEqual(std::uint64_t{1}, world.ownShipRevision);
+    Outpost::UniverseSnapshot universe;
+    Outpost::ApplyMessage(SampleOwnShip(), universe);
+    Assert::AreEqual(std::uint32_t{7}, universe.ownShip);
+    Assert::IsTrue(universe.ownShipState == SampleOwnShip().state);
+    Assert::AreEqual(std::uint64_t{1}, universe.ownShipRevision);
 
-    Outpost::ApplyMessage(Outpost::ShipMotionMessage{{7, 50, 0.4f, 33.0f, false, true, Outpost::CruiseState::Off}}, world);
-    Outpost::ApplyMessage(Outpost::ShipMotionMessage{{7, 49, 1.0f, 80.0f, false, true, Outpost::CruiseState::Off}}, world);
-    Assert::AreEqual(std::size_t{1}, world.motions.size());
-    Assert::AreEqual(0.4f, world.FindMotion(7)->throttle, L"an older engine state is dropped");
+    Outpost::ApplyMessage(Outpost::ShipMotionMessage{{7, 50, 0.4f, 33.0f, false, true, Outpost::CruiseState::Off}}, universe);
+    Outpost::ApplyMessage(Outpost::ShipMotionMessage{{7, 49, 1.0f, 80.0f, false, true, Outpost::CruiseState::Off}}, universe);
+    Assert::AreEqual(std::size_t{1}, universe.motions.size());
+    Assert::AreEqual(0.4f, universe.FindMotion(7)->throttle, L"an older engine state is dropped");
   }
 
   TEST_METHOD(ASpawnAddsAnObjectAndRaisesTheRevision)
   {
-    Outpost::WorldSnapshot world;
-    Outpost::ApplyMessage(Outpost::ObjectSpawnMessage{SampleObject()}, world);
-    Assert::AreEqual(std::size_t{1}, world.objects.size());
-    Assert::IsTrue(world.objects[0] == SampleObject());
-    Assert::AreEqual(std::uint64_t{1}, world.objectsRevision);
+    Outpost::UniverseSnapshot universe;
+    Outpost::ApplyMessage(Outpost::ObjectSpawnMessage{SampleObject()}, universe);
+    Assert::AreEqual(std::size_t{1}, universe.objects.size());
+    Assert::IsTrue(universe.objects[0] == SampleObject());
+    Assert::AreEqual(std::uint64_t{1}, universe.objectsRevision);
   }
 
   TEST_METHOD(OnlyANewerPoseMovesAnObject)
   {
-    Outpost::WorldSnapshot world;
-    Outpost::ApplyMessage(Outpost::ObjectSpawnMessage{SampleObject()}, world); // pose from tick 9
+    Outpost::UniverseSnapshot universe;
+    Outpost::ApplyMessage(Outpost::ObjectSpawnMessage{SampleObject()}, universe); // pose from tick 9
     Outpost::Pose moved = SampleObject().pose;
     moved.position.y += 10.0;
 
-    Outpost::ApplyMessage(Outpost::ObjectStateMessage{8, 12, moved}, world);
-    Assert::IsTrue(world.objects[0].pose == SampleObject().pose, L"an older pose is dropped");
+    Outpost::ApplyMessage(Outpost::ObjectStateMessage{8, 12, moved}, universe);
+    Assert::IsTrue(universe.objects[0].pose == SampleObject().pose, L"an older pose is dropped");
 
-    Outpost::ApplyMessage(Outpost::ObjectStateMessage{11, 12, moved}, world);
-    Assert::IsTrue(world.objects[0].pose == moved);
-    Assert::AreEqual(std::uint64_t{11}, world.objects[0].poseTick);
-    Assert::AreEqual(std::uint64_t{1}, world.objectsRevision, L"a move is not a spawn: nothing is rebuilt");
-    Assert::AreEqual(std::uint64_t{1}, world.posesRevision);
+    Outpost::ApplyMessage(Outpost::ObjectStateMessage{11, 12, moved}, universe);
+    Assert::IsTrue(universe.objects[0].pose == moved);
+    Assert::AreEqual(std::uint64_t{11}, universe.objects[0].poseTick);
+    Assert::AreEqual(std::uint64_t{1}, universe.objectsRevision, L"a move is not a spawn: nothing is rebuilt");
+    Assert::AreEqual(std::uint64_t{1}, universe.posesRevision);
 
-    Outpost::ApplyMessage(Outpost::ObjectStateMessage{12, 12, moved}, world);
-    Assert::AreEqual(std::uint64_t{12}, world.objects[0].poseTick, L"the same pose, newer, still advances the tick");
-    Assert::AreEqual(std::uint64_t{1}, world.posesRevision, L"... without a move");
+    Outpost::ApplyMessage(Outpost::ObjectStateMessage{12, 12, moved}, universe);
+    Assert::AreEqual(std::uint64_t{12}, universe.objects[0].poseTick, L"the same pose, newer, still advances the tick");
+    Assert::AreEqual(std::uint64_t{1}, universe.posesRevision, L"... without a move");
   }
 
   TEST_METHOD(StateForAnUnknownObjectChangesNothing)
   {
-    Outpost::WorldSnapshot world;
-    Outpost::ApplyMessage(Outpost::ObjectStateMessage{5, 99, SampleObject().pose}, world);
-    Assert::IsTrue(world.objects.empty());
-    Assert::AreEqual(std::uint64_t{0}, world.objectsRevision);
+    Outpost::UniverseSnapshot universe;
+    Outpost::ApplyMessage(Outpost::ObjectStateMessage{5, 99, SampleObject().pose}, universe);
+    Assert::IsTrue(universe.objects.empty());
+    Assert::AreEqual(std::uint64_t{0}, universe.objectsRevision);
   }
 
   TEST_METHOD(AnOlderResourceIsDropped)
   {
-    Outpost::WorldSnapshot world;
-    Outpost::ApplyMessage(Outpost::ResourceMessage{20, 1, {"Ore", 50, 60}}, world);
-    Outpost::ApplyMessage(Outpost::ResourceMessage{19, 1, {"Ore", 40, 60}}, world);
-    Assert::AreEqual(std::size_t{2}, world.resources.size(), L"index 1 makes room for index 0");
-    Assert::AreEqual(std::int64_t{50}, world.resources[1].amount);
+    Outpost::UniverseSnapshot universe;
+    Outpost::ApplyMessage(Outpost::ResourceMessage{20, 1, {"Ore", 50, 60}}, universe);
+    Outpost::ApplyMessage(Outpost::ResourceMessage{19, 1, {"Ore", 40, 60}}, universe);
+    Assert::AreEqual(std::size_t{2}, universe.resources.size(), L"index 1 makes room for index 0");
+    Assert::AreEqual(std::int64_t{50}, universe.resources[1].amount);
   }
 
   TEST_METHOD(AShipIsKeyedByItsObject)
   {
-    Outpost::WorldSnapshot world;
+    Outpost::UniverseSnapshot universe;
     Outpost::ShipMessage ship = SampleShip();
     ship.ship.object = 4;
-    Outpost::ApplyMessage(ship, world);
+    Outpost::ApplyMessage(ship, universe);
     ship.ship.hullPercent = 12;
-    Outpost::ApplyMessage(ship, world);
-    Assert::AreEqual(std::size_t{1}, world.ships.size());
-    Assert::AreEqual(12, world.ships[0].hullPercent);
+    Outpost::ApplyMessage(ship, universe);
+    Assert::AreEqual(std::size_t{1}, universe.ships.size());
+    Assert::AreEqual(12, universe.ships[0].hullPercent);
   }
 
   TEST_METHOD(MessagesCrossTheLoopbackOnTheirRoutes)

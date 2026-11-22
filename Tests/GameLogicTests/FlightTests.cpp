@@ -5,7 +5,7 @@
 #include "SceneDefinition.h"
 #include "ShipArchetype.h"
 #include "TickClock.h"
-#include "World.h"
+#include "Universe.h"
 
 #include "CppUnitTest.h"
 
@@ -75,11 +75,11 @@ constexpr Outpost::ObjectId WALL = 3;
   return content;
 }
 
-[[nodiscard]] Outpost::World LoadedWorld(std::string_view _scene = SCENE)
+[[nodiscard]] Outpost::Universe LoadedUniverse(std::string_view _scene = SCENE)
 {
-  Outpost::World world;
-  world.Load(Scene(_scene), Ships());
-  return world;
+  Outpost::Universe universe;
+  universe.Load(Scene(_scene), Ships());
+  return universe;
 }
 
 /// The player's command for a tick of the scripted flight: throttle up, a turn, the thruster, a
@@ -99,32 +99,32 @@ constexpr Outpost::ObjectId WALL = 3;
   return command;
 }
 
-/// Runs the world as the executable would at a render rate: each frame the clock turns wall time
+/// Runs the universe as the executable would at a render rate: each frame the clock turns wall time
 /// into ticks, and each tick runs on the command for it.
 [[nodiscard]] std::vector<Outpost::Pose> FlyAt(double _framesPerSecond, std::uint64_t _ticks)
 {
-  Outpost::World world = LoadedWorld();
+  Outpost::Universe universe = LoadedUniverse();
   Neuron::TickClock clock;
   std::vector<Outpost::Pose> trajectory;
   double carried = 0.0;
-  while (world.TickCount() < _ticks)
+  while (universe.TickCount() < _ticks)
   {
     carried += 1'000'000.0 / _framesPerSecond;
     const auto whole = static_cast<std::uint64_t>(carried);
     carried -= static_cast<double>(whole);
     const std::uint32_t due = clock.Advance(whole);
-    for (std::uint32_t i = 0; i < due && world.TickCount() < _ticks; ++i)
+    for (std::uint32_t i = 0; i < due && universe.TickCount() < _ticks; ++i)
     {
-      const std::uint64_t next = world.TickCount() + 1;
-      Assert::IsTrue(world.SubmitCommand(Outpost::FlightInputMessage{next, LEAD, Timeline(next)}));
-      world.Tick();
-      trajectory.push_back(world.State().FindObject(LEAD)->pose);
+      const std::uint64_t next = universe.TickCount() + 1;
+      Assert::IsTrue(universe.SubmitCommand(Outpost::FlightInputMessage{next, LEAD, Timeline(next)}));
+      universe.Tick();
+      trajectory.push_back(universe.State().FindObject(LEAD)->pose);
     }
   }
   return trajectory;
 }
 
-[[nodiscard]] double Distance(const Outpost::WorldPosition& _a, const Outpost::WorldPosition& _b)
+[[nodiscard]] double Distance(const Outpost::UniversePosition& _a, const Outpost::UniversePosition& _b)
 {
   const double dx = _a.x - _b.x;
   const double dy = _a.y - _b.y;
@@ -133,7 +133,7 @@ constexpr Outpost::ObjectId WALL = 3;
 }
 
 /// Whether a sphere at _center is clear of a box grown by the radius, to within a millimetre.
-[[nodiscard]] bool Outside(const Outpost::CollisionBox& _box, const Outpost::WorldPosition& _center, float _radius)
+[[nodiscard]] bool Outside(const Outpost::CollisionBox& _box, const Outpost::UniversePosition& _center, float _radius)
 {
   const DirectX::XMVECTOR local = DirectX::XMVector3Rotate(DirectX::XMVectorSet(static_cast<float>(_center.x - _box.center.x),
                                                                                 static_cast<float>(_center.y - _box.center.y),
@@ -148,7 +148,7 @@ constexpr Outpost::ObjectId WALL = 3;
 
 [[nodiscard]] float FighterRadius()
 {
-  Outpost::WorldObject fighter;
+  Outpost::UniverseObject fighter;
   fighter.model = "Fighter";
   return Outpost::BoundingRadius(Outpost::BoxForObject(Scene(), fighter));
 }
@@ -163,19 +163,19 @@ struct WallRun
 
 [[nodiscard]] WallRun FlyIntoWall(const Outpost::ShipCommand& _command, int _ticks)
 {
-  Outpost::World world = LoadedWorld();
-  const Outpost::CollisionBox& wall = world.StaticBodies().front();
-  const float radius = world.Flight(LEAD) != nullptr ? FighterRadius() : 0.0f;
+  Outpost::Universe universe = LoadedUniverse();
+  const Outpost::CollisionBox& wall = universe.StaticBodies().front();
+  const float radius = universe.Flight(LEAD) != nullptr ? FighterRadius() : 0.0f;
   WallRun run;
   for (int i = 0; i < _ticks; ++i)
   {
-    Assert::IsTrue(world.SubmitCommand(Outpost::FlightInputMessage{world.TickCount() + 1, LEAD, _command}));
-    world.Tick();
-    const Outpost::FlightState& flight = *world.Flight(LEAD);
+    Assert::IsTrue(universe.SubmitCommand(Outpost::FlightInputMessage{universe.TickCount() + 1, LEAD, _command}));
+    universe.Tick();
+    const Outpost::FlightState& flight = *universe.Flight(LEAD);
     run.alwaysOutside = run.alwaysOutside && Outside(wall, flight.position, radius);
     run.fastestApproach = std::max(run.fastestApproach, flight.velocityMetresPerSecond.z);
   }
-  run.contact = !world.Contacts().empty();
+  run.contact = !universe.Contacts().empty();
   return run;
 }
 
@@ -198,13 +198,13 @@ TEST_CLASS(FlightTests)
 public:
   TEST_METHOD(EveryShipWithAnArchetypeFliesAndThePlayerHasOne)
   {
-    const Outpost::World world = LoadedWorld();
-    Assert::AreEqual(LEAD, world.PlayerShip());
-    Assert::IsNotNull(world.Flight(LEAD));
-    Assert::IsNotNull(world.Flight(WING));
-    Assert::IsNull(world.Flight(WALL), L"the wall has no archetype: it is a body, not a ship");
-    Assert::AreEqual(std::size_t{1}, world.StaticBodies().size());
-    Assert::AreEqual(std::size_t{2}, world.State().motions.size());
+    const Outpost::Universe universe = LoadedUniverse();
+    Assert::AreEqual(LEAD, universe.PlayerShip());
+    Assert::IsNotNull(universe.Flight(LEAD));
+    Assert::IsNotNull(universe.Flight(WING));
+    Assert::IsNull(universe.Flight(WALL), L"the wall has no archetype: it is a body, not a ship");
+    Assert::AreEqual(std::size_t{1}, universe.StaticBodies().size());
+    Assert::AreEqual(std::size_t{2}, universe.State().motions.size());
   }
 
   TEST_METHOD(AnInputTimelineFliesTheSamePathAtEveryFrameRate)
@@ -223,47 +223,47 @@ public:
 
   TEST_METHOD(AnotherShipFliesToAPointUnderAGoToDirective)
   {
-    Outpost::World world = LoadedWorld();
-    const Outpost::WorldPosition target{200.0, 150.0, -400.0};
-    Assert::IsTrue(world.Direct(WING, Outpost::Manoeuvre::GoTo(target, 30.0f)));
-    Assert::IsFalse(world.Arrived(WING));
-    for (std::uint32_t i = 0; i < 30 * TICKS_PER_SECOND && !world.Arrived(WING); ++i)
+    Outpost::Universe universe = LoadedUniverse();
+    const Outpost::UniversePosition target{200.0, 150.0, -400.0};
+    Assert::IsTrue(universe.Direct(WING, Outpost::Manoeuvre::GoTo(target, 30.0f)));
+    Assert::IsFalse(universe.Arrived(WING));
+    for (std::uint32_t i = 0; i < 30 * TICKS_PER_SECOND && !universe.Arrived(WING); ++i)
     {
-      world.Tick();
+      universe.Tick();
     }
-    Assert::IsTrue(world.Arrived(WING), L"it arrives within 30 s");
-    const double distance = Distance(world.Flight(WING)->position, target);
+    Assert::IsTrue(universe.Arrived(WING), L"it arrives within 30 s");
+    const double distance = Distance(universe.Flight(WING)->position, target);
     Assert::AreEqual(30.0, distance, static_cast<double>(Outpost::ARRIVAL_TOLERANCE_METRES), L"at its stand-off");
-    Assert::IsTrue(world.State().FindObject(WING)->pose.position == world.Flight(WING)->position, L"its object moved with it");
+    Assert::IsTrue(universe.State().FindObject(WING)->pose.position == universe.Flight(WING)->position, L"its object moved with it");
   }
 
   TEST_METHOD(OnlyThePlayersShipTakesCommandsAndOnlyForTicksToCome)
   {
-    Outpost::World world = LoadedWorld();
-    world.Tick();
-    Assert::IsFalse(world.SubmitCommand(Outpost::FlightInputMessage{2, WING, {}}), L"not the player's ship");
-    Assert::IsFalse(world.SubmitCommand(Outpost::FlightInputMessage{1, LEAD, {}}), L"tick 1 has run");
-    Assert::IsFalse(world.SubmitCommand(Outpost::FlightInputMessage{1 + 1 + Outpost::World::MAX_COMMAND_LEAD_TICKS, LEAD, {}}));
-    Assert::IsTrue(world.SubmitCommand(Outpost::FlightInputMessage{2, LEAD, {}}));
-    Assert::IsFalse(world.Direct(LEAD, Outpost::Manoeuvre::Hold({})), L"the player's ship takes its manoeuvre in its commands");
+    Outpost::Universe universe = LoadedUniverse();
+    universe.Tick();
+    Assert::IsFalse(universe.SubmitCommand(Outpost::FlightInputMessage{2, WING, {}}), L"not the player's ship");
+    Assert::IsFalse(universe.SubmitCommand(Outpost::FlightInputMessage{1, LEAD, {}}), L"tick 1 has run");
+    Assert::IsFalse(universe.SubmitCommand(Outpost::FlightInputMessage{1 + 1 + Outpost::Universe::MAX_COMMAND_LEAD_TICKS, LEAD, {}}));
+    Assert::IsTrue(universe.SubmitCommand(Outpost::FlightInputMessage{2, LEAD, {}}));
+    Assert::IsFalse(universe.Direct(LEAD, Outpost::Manoeuvre::Hold({})), L"the player's ship takes its manoeuvre in its commands");
   }
 
   TEST_METHOD(AMissingCommandHoldsTheLastAndMarksTheTickDiverged)
   {
-    Outpost::World world = LoadedWorld();
+    Outpost::Universe universe = LoadedUniverse();
     Outpost::ShipCommand full;
     full.wishes.throttle = 1.0f;
-    Assert::IsTrue(world.SubmitCommand(Outpost::FlightInputMessage{1, LEAD, full}));
-    world.Tick();
-    Assert::AreEqual(std::uint64_t{0}, world.DivergedAt(LEAD));
-    world.Tick(); // no command for tick 2
-    Assert::AreEqual(std::uint64_t{2}, world.DivergedAt(LEAD));
-    Assert::IsTrue(world.State().FindMotion(LEAD)->throttle == 1.0f, L"tick 2 flew on tick 1's command");
+    Assert::IsTrue(universe.SubmitCommand(Outpost::FlightInputMessage{1, LEAD, full}));
+    universe.Tick();
+    Assert::AreEqual(std::uint64_t{0}, universe.DivergedAt(LEAD));
+    universe.Tick(); // no command for tick 2
+    Assert::AreEqual(std::uint64_t{2}, universe.DivergedAt(LEAD));
+    Assert::IsTrue(universe.State().FindMotion(LEAD)->throttle == 1.0f, L"tick 2 flew on tick 1's command");
   }
 
   TEST_METHOD(AShipFlownIntoAWallStopsOutsideItAtEverySpeed)
   {
-    // Plan task 1.11, through the world: the engine at full throttle (80 m/s) and the thruster
+    // Plan task 1.11, through the universe: the engine at full throttle (80 m/s) and the thruster
     // (200 m/s). Every tick the ship's sphere is outside the wall. Cruise speed and the 1,000 m/s
     // limit are swept in GameCoreTests (ShipFlightTests), where a ship can be started at speed.
     Outpost::ShipCommand engine;
@@ -281,53 +281,53 @@ public:
 
   TEST_METHOD(CruiseIsRefusedWhileTheWallIsAhead)
   {
-    Outpost::World world = LoadedWorld();
+    Outpost::Universe universe = LoadedUniverse();
     Outpost::ShipCommand cruise;
     cruise.wishes.throttle = 1.0f;
     cruise.wishes.cruise = true;
     bool everCruised = false;
     for (std::uint64_t tick = 1; tick <= std::uint64_t{20} * TICKS_PER_SECOND; ++tick)
     {
-      Assert::IsTrue(world.SubmitCommand(Outpost::FlightInputMessage{tick, LEAD, cruise}));
-      world.Tick();
-      everCruised = everCruised || world.Flight(LEAD)->cruise != Outpost::CruiseState::Off;
-      Assert::IsTrue(Outside(world.StaticBodies().front(), world.Flight(LEAD)->position, FighterRadius()));
+      Assert::IsTrue(universe.SubmitCommand(Outpost::FlightInputMessage{tick, LEAD, cruise}));
+      universe.Tick();
+      everCruised = everCruised || universe.Flight(LEAD)->cruise != Outpost::CruiseState::Off;
+      Assert::IsTrue(Outside(universe.StaticBodies().front(), universe.Flight(LEAD)->position, FighterRadius()));
     }
     // Charging starts while the wall is more than 600 m ahead, and is dropped once it is not.
     Assert::IsTrue(everCruised, L"cruise began to charge while the way was clear");
-    Assert::IsTrue(world.Flight(LEAD)->cruise == Outpost::CruiseState::Off, L"and was refused as the wall came within 600 m");
-    Assert::IsFalse(world.Contacts().empty(), L"at engine speed it still met the wall");
+    Assert::IsTrue(universe.Flight(LEAD)->cruise == Outpost::CruiseState::Off, L"and was refused as the wall came within 600 m");
+    Assert::IsFalse(universe.Contacts().empty(), L"at engine speed it still met the wall");
   }
 
   TEST_METHOD(AContactIsRecordedOnceWithTheBlueprintsDamage)
   {
-    Outpost::World world = LoadedWorld();
+    Outpost::Universe universe = LoadedUniverse();
     Outpost::ShipCommand engine;
     engine.wishes.throttle = 1.0f;
     for (std::uint64_t tick = 1; tick <= std::uint64_t{30} * TICKS_PER_SECOND; ++tick)
     {
-      Assert::IsTrue(world.SubmitCommand(Outpost::FlightInputMessage{tick, LEAD, engine}));
-      world.Tick();
+      Assert::IsTrue(universe.SubmitCommand(Outpost::FlightInputMessage{tick, LEAD, engine}));
+      universe.Tick();
     }
-    Assert::IsFalse(world.Contacts().empty());
-    const Outpost::ContactRecord& first = world.Contacts().front();
+    Assert::IsFalse(universe.Contacts().empty());
+    const Outpost::ContactRecord& first = universe.Contacts().front();
     Assert::AreEqual(LEAD, first.ship);
     Assert::AreEqual(WALL, first.body);
     Assert::AreEqual(0.5f * first.relativeSpeedMetresPerSecond, first.damageToShip, 1.0e-4f, L"the wall is immovable: full rate");
     Assert::AreEqual(0.0f, first.damageToBody, L"ramming an immovable body does it no harm");
-    for (std::size_t i = 1; i < world.Contacts().size(); ++i)
+    for (std::size_t i = 1; i < universe.Contacts().size(); ++i)
     {
-      Assert::IsTrue(world.Contacts()[i].tick - world.Contacts()[i - 1].tick >= 30, L"at most once per half second per pair");
+      Assert::IsTrue(universe.Contacts()[i].tick - universe.Contacts()[i - 1].tick >= 30, L"at most once per half second per pair");
     }
   }
 
   TEST_METHOD(CommandsCrossTheLoopbackAndTheObserverTellsTheClientItsShip)
   {
-    Outpost::World world = LoadedWorld();
+    Outpost::Universe universe = LoadedUniverse();
     Outpost::Observer observer;
     Neuron::LoopbackTransport transport;
-    observer.AssignShip(world.PlayerShip());
-    Assert::IsTrue(observer.Publish(world, transport));
+    observer.AssignShip(universe.PlayerShip());
+    Assert::IsTrue(observer.Publish(universe, transport));
 
     bool toldOwnShip = false;
     std::size_t motions = 0;
@@ -337,7 +337,7 @@ public:
       {
         toldOwnShip = true;
         Assert::AreEqual(LEAD, own->ship);
-        Assert::IsTrue(own->state == *world.Flight(LEAD), L"the whole flight state, exactly");
+        Assert::IsTrue(own->state == *universe.Flight(LEAD), L"the whole flight state, exactly");
       }
       motions += std::holds_alternative<Outpost::ShipMotionMessage>(*message) ? 1 : 0;
     }
@@ -350,11 +350,11 @@ public:
     const Outpost::Route route = Outpost::RouteOf(Outpost::KindOf(input));
     Assert::IsTrue(transport.Send(Neuron::Peer::Client, route.delivery, route.stream, Outpost::Encode(input)));
     std::string error;
-    Assert::IsTrue(Outpost::ReceiveCommands(transport, world, error), Wide(error).c_str());
-    world.Tick();
-    Assert::IsTrue(world.State().FindMotion(LEAD)->throttle == 1.0f, L"the command flew tick 1");
+    Assert::IsTrue(Outpost::ReceiveCommands(transport, universe, error), Wide(error).c_str());
+    universe.Tick();
+    Assert::IsTrue(universe.State().FindMotion(LEAD)->throttle == 1.0f, L"the command flew tick 1");
 
-    Assert::IsTrue(observer.Publish(world, transport));
+    Assert::IsTrue(observer.Publish(universe, transport));
     bool toldAgain = false;
     while (const std::optional<Outpost::Message> message = NextMessage(transport, Neuron::Peer::Client))
     {
@@ -362,8 +362,8 @@ public:
     }
     Assert::IsFalse(toldAgain, L"a predictable tick is not told again");
 
-    world.Tick(); // tick 2 had no command: the client's prediction and the server part
-    Assert::IsTrue(observer.Publish(world, transport));
+    universe.Tick(); // tick 2 had no command: the client's prediction and the server part
+    Assert::IsTrue(observer.Publish(universe, transport));
     while (const std::optional<Outpost::Message> message = NextMessage(transport, Neuron::Peer::Client))
     {
       toldAgain = toldAgain || std::holds_alternative<Outpost::OwnShipMessage>(*message);
@@ -373,12 +373,12 @@ public:
 
   TEST_METHOD(AServerMessageFromTheClientIsADefect)
   {
-    Outpost::World world = LoadedWorld();
+    Outpost::Universe universe = LoadedUniverse();
     Neuron::LoopbackTransport transport;
     const Outpost::Message tick = Outpost::TickMessage{5};
     Assert::IsTrue(transport.Send(Neuron::Peer::Client, Neuron::Delivery::Datagram, 0, Outpost::Encode(tick)));
     std::string error;
-    Assert::IsFalse(Outpost::ReceiveCommands(transport, world, error));
+    Assert::IsFalse(Outpost::ReceiveCommands(transport, universe, error));
     Assert::IsFalse(error.empty());
   }
 };

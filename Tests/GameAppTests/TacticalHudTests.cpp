@@ -36,9 +36,9 @@ int g_moduleAnchor = 0;
   return sheet;
 }
 
-[[nodiscard]] Outpost::WorldSnapshot Snapshot()
+[[nodiscard]] Outpost::UniverseSnapshot Snapshot()
 {
-  Outpost::WorldSnapshot snapshot;
+  Outpost::UniverseSnapshot snapshot;
   snapshot.ships.push_back(Outpost::ShipState{
     "Frigate", "F-317", "Frigate", 68, {{"Hull Section (B)", 34}, {"Engineering", 72}, {"Atmospherics", 75}, {"Bridge", 100}}});
   snapshot.objectives.push_back(Outpost::ObjectiveState{"Defend the shipyard", true});
@@ -66,7 +66,7 @@ struct BuiltHud
 
 /// Builds the HUD at a window size, with the scale the client uses for it, and ships on screen,
 /// off screen and behind the camera; skinned from _sprites when there are any.
-void BuildHud(float _width, float _height, const Outpost::WorldSnapshot& _snapshot, BuiltHud& _out,
+void BuildHud(float _width, float _height, const Outpost::UniverseSnapshot& _snapshot, BuiltHud& _out,
               const Neuron::SpriteSheet* _sprites = nullptr)
 {
   const float scale = std::clamp(_height / 1080.0f, 0.6f, 2.0f);
@@ -106,7 +106,7 @@ TEST_CLASS(TacticalHudTests)
 public:
   TEST_METHOD(EveryVertexStaysOnScreenAtEveryWindowSize)
   {
-    const Outpost::WorldSnapshot snapshot = Snapshot();
+    const Outpost::UniverseSnapshot snapshot = Snapshot();
     for (const auto& [width, height] : {std::pair{1280.0f, 720.0f}, std::pair{1920.0f, 1080.0f}, std::pair{3840.0f, 2160.0f}})
     {
       BuiltHud hud;
@@ -133,7 +133,7 @@ public:
 
   TEST_METHOD(TheBuildPanelHasOneOnScreenSlotPerItem)
   {
-    const Outpost::WorldSnapshot snapshot = Snapshot();
+    const Outpost::UniverseSnapshot snapshot = Snapshot();
     BuiltHud hud;
     BuildHud(1920.0f, 1080.0f, snapshot, hud);
     Assert::AreEqual(std::size_t{4}, hud.layout.buildSlots.size());
@@ -150,7 +150,7 @@ public:
 
   TEST_METHOD(TheLayoutScalesWithTheWindow)
   {
-    const Outpost::WorldSnapshot snapshot = Snapshot();
+    const Outpost::UniverseSnapshot snapshot = Snapshot();
     BuiltHud small;
     BuiltHud large;
     BuildHud(1920.0f, 1080.0f, snapshot, small);
@@ -167,7 +167,7 @@ public:
 
   TEST_METHOD(TheSkinnedHudKeepsItsLayoutAndStaysOnScreen)
   {
-    const Outpost::WorldSnapshot snapshot = Snapshot();
+    const Outpost::UniverseSnapshot snapshot = Snapshot();
     const Neuron::SpriteSheet sprites = ShippedSprites();
     for (const auto& [width, height] : {std::pair{1280.0f, 720.0f}, std::pair{1920.0f, 1080.0f}, std::pair{3840.0f, 2160.0f}})
     {

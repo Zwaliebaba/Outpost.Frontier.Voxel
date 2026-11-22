@@ -3,7 +3,7 @@
 #include "DockingPoint.h"
 #include "ModelAxes.h"
 #include "VoxelMesher.h"
-#include "WorldSnapshot.h"
+#include "UniverseSnapshot.h"
 
 #include <DirectXMath.h>
 
@@ -182,8 +182,8 @@ struct SceneDefinition
 [[nodiscard]] DirectX::XMMATRIX SocketWorld(const SceneDefinition& _scene, std::size_t _instanceIndex,
                                             const Neuron::Socket& _socket) noexcept;
 
-/// The world object a scene instance becomes: its names, owner, scale, and the pose of
+/// The universe object a scene instance becomes: its names, owner, scale, and the pose of
 /// ModelToWorld, socket attachments followed. Model sizes must be set (LoadSceneContent).
-[[nodiscard]] WorldObject ObjectFromInstance(const SceneDefinition& _scene, std::size_t _instanceIndex, ObjectId _id);
+[[nodiscard]] UniverseObject ObjectFromInstance(const SceneDefinition& _scene, std::size_t _instanceIndex, ObjectId _id);
 
 } // namespace Outpost

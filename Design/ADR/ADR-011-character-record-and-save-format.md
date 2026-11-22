@@ -31,8 +31,8 @@ character money=0
 location kind=docked station=Shipyard instance=Hangar point=Berth
 ship instance=Lancer hull=100
 baseship instance=Lancer hull=100
-section name=World
-world tick=8412
+section name=Universe
+universe tick=8412
 resource name=Alloy amount=12400 remainder=37
 objective text="Defend the shipyard" complete=1
 end sections=2 records=7
@@ -50,7 +50,7 @@ end sections=2 records=7
 - **A section the game does not know is kept** as parsed and written back unchanged after the known ones. A save from a later version therefore survives being loaded and saved again by this one. Comments in a kept section are not kept; a save is written by the game, not by hand.
 - **Slice 2 has two sections:**
   - `Character`, written by `WriteCharacter` (`GameLogic/Character`);
-  - `World`, written by `WriteWorld` (`GameLogic/SaveGame`).
+  - `Universe`, written by `WriteUniverse` (`GameLogic/SaveGame`).
 
 ### What the character record holds
 
@@ -67,9 +67,9 @@ end sections=2 records=7
 - **Numbers are written in the shortest form that reads back to the same bits** (`std::to_chars`). A ship saved in space resumes with a flight state equal, bit for bit, to the one saved, which is what `FlightState`'s equality tests.
 - **There is no character name.** The plan's record has none, and nothing in the game shows one.
 
-### What the world section holds
+### What the universe section holds
 
-The world's clock (the tick), each resource's amount and the ledger's remainder, and each objective's state. Everything else in the world is content, and is built again from it on load.
+The universe's clock (the tick), each resource's amount and the ledger's remainder, and each objective's state. Everything else in the universe is content, and is built again from it on load.
 
 ### The file is replaced in one step
 

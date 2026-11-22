@@ -12,7 +12,7 @@ namespace
 {
 
 /// The point in the zone's own frame, its centre at the origin.
-[[nodiscard]] XMFLOAT3 Local(const Zone& _zone, const WorldPosition& _point) noexcept
+[[nodiscard]] XMFLOAT3 Local(const Zone& _zone, const UniversePosition& _point) noexcept
 {
   const XMVECTOR offset = XMVectorSet(static_cast<float>(_point.x - _zone.position.x), static_cast<float>(_point.y - _zone.position.y),
                                       static_cast<float>(_point.z - _zone.position.z), 0.0f);
@@ -47,7 +47,7 @@ namespace
   return _distance > 0.0f ? INFINITY : 0.0f;
 }
 
-[[nodiscard]] float RatioWithin(const Zone& _zone, const WorldPosition& _point, float _marginMetres) noexcept
+[[nodiscard]] float RatioWithin(const Zone& _zone, const UniversePosition& _point, float _marginMetres) noexcept
 {
   const XMFLOAT3 local = Local(_zone, _point);
   const XMFLOAT3 half = HalfExtents(_zone, _marginMetres);
@@ -94,17 +94,17 @@ float BoundingRadius(const Zone& _zone) noexcept
   return size.x;
 }
 
-float SurfaceRatio(const Zone& _zone, const WorldPosition& _point) noexcept
+float SurfaceRatio(const Zone& _zone, const UniversePosition& _point) noexcept
 {
   return RatioWithin(_zone, _point, 0.0f);
 }
 
-bool Contains(const Zone& _zone, const WorldPosition& _point, float _marginMetres) noexcept
+bool Contains(const Zone& _zone, const UniversePosition& _point, float _marginMetres) noexcept
 {
   return RatioWithin(_zone, _point, _marginMetres) <= 1.0f;
 }
 
-float Immersion(const Zone& _zone, const WorldPosition& _point) noexcept
+float Immersion(const Zone& _zone, const UniversePosition& _point) noexcept
 {
   const float ratio = SurfaceRatio(_zone, _point);
   if (ratio >= 1.0f)
@@ -118,7 +118,7 @@ float Immersion(const Zone& _zone, const WorldPosition& _point) noexcept
   return (1.0f - ratio) / _zone.edgeFraction;
 }
 
-const Zone* SmallestZoneAt(std::span<const Zone> _zones, const WorldPosition& _point, ZoneProperty _required) noexcept
+const Zone* SmallestZoneAt(std::span<const Zone> _zones, const UniversePosition& _point, ZoneProperty _required) noexcept
 {
   const Zone* smallest = nullptr;
   float smallestRadius = INFINITY;
@@ -139,7 +139,7 @@ const Zone* SmallestZoneAt(std::span<const Zone> _zones, const WorldPosition& _p
   return smallest;
 }
 
-ZoneProperty PropertiesAround(std::span<const Zone> _zones, const WorldPosition& _point, float _radiusMetres) noexcept
+ZoneProperty PropertiesAround(std::span<const Zone> _zones, const UniversePosition& _point, float _radiusMetres) noexcept
 {
   ZoneProperty properties = ZoneProperty::None;
   for (const Zone& zone : _zones)
@@ -152,7 +152,7 @@ ZoneProperty PropertiesAround(std::span<const Zone> _zones, const WorldPosition&
   return properties;
 }
 
-HazardExposure HazardAt(std::span<const Zone> _zones, const WorldPosition& _point) noexcept
+HazardExposure HazardAt(std::span<const Zone> _zones, const UniversePosition& _point) noexcept
 {
   HazardExposure exposure;
   exposure.zone = SmallestZoneAt(_zones, _point, ZoneProperty::Hazard);

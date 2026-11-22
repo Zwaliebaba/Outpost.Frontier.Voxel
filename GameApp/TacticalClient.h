@@ -18,7 +18,7 @@
 #include "SpriteSheet.h"
 #include "TacticalHud.h"
 #include "TacticalScene.h"
-#include "WorldSnapshot.h"
+#include "UniverseSnapshot.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -40,8 +40,8 @@ enum class ClientView : std::uint8_t
 
 /// The client half of the game as far as it is built. It loads the scene's assets and the
 /// bindings, owns the cameras, the input layer and the prediction of its own ship, builds its own
-/// WorldSnapshot from the messages the server sends, and draws that; it never reads the server's
-/// World (AGENTS.md R18, R25). What it asks of the server it sends as a FlightInputMessage a tick.
+/// UniverseSnapshot from the messages the server sends, and draws that; it never reads the server's
+/// Universe (AGENTS.md R18, R25). What it asks of the server it sends as a FlightInputMessage a tick.
 class TacticalClient
 {
 public:
@@ -111,17 +111,17 @@ public:
     m_pendingDock = _command;
   }
 
-  /// Decodes every message waiting for the client and applies it to the client's world. False,
+  /// Decodes every message waiting for the client and applies it to the client's universe. False,
   /// with ProtocolError() saying why, if a message did not decode: a defect, never a normal event.
   [[nodiscard]] bool Receive(Neuron::LoopbackTransport& _transport);
   [[nodiscard]] const std::string& ProtocolError() const noexcept
   {
     return m_protocolError;
   }
-  /// The world as the client has been told it.
-  [[nodiscard]] const WorldSnapshot& World() const noexcept
+  /// The universe as the client has been told it.
+  [[nodiscard]] const UniverseSnapshot& Universe() const noexcept
   {
-    return m_world;
+    return m_universe;
   }
   [[nodiscard]] const Prediction& OwnShip() const noexcept
   {
@@ -199,7 +199,7 @@ private:
   bool m_panning = false;
   float m_lastX = 0.0f;
   float m_lastY = 0.0f;
-  WorldSnapshot m_world;
+  UniverseSnapshot m_universe;
   std::uint64_t m_builtRevision = 0;
   std::uint64_t m_bodiesRevision = ~0ull;
   std::uint64_t m_seenOwnShipRevision = 0;

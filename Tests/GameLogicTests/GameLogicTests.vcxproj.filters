@@ -4,7 +4,7 @@
     <Filter Include="Replication">
       <UniqueIdentifier>{4D2A9E61-0B3C-4F75-8E19-6C7B2A5D3F48}</UniqueIdentifier>
     </Filter>
-    <Filter Include="World">
+    <Filter Include="Universe">
       <UniqueIdentifier>{678ADF7D-51AC-53C7-99E2-11BF1C18B8C8}</UniqueIdentifier>
     </Filter>
     <Filter Include="Persistence">
@@ -18,11 +18,11 @@
     <ClCompile Include="ObserverTests.cpp">
       <Filter>Replication</Filter>
     </ClCompile>
-    <ClCompile Include="WorldTests.cpp">
-      <Filter>World</Filter>
+    <ClCompile Include="UniverseTests.cpp">
+      <Filter>Universe</Filter>
     </ClCompile>
     <ClCompile Include="FlightTests.cpp">
-      <Filter>World</Filter>
+      <Filter>Universe</Filter>
     </ClCompile>
     <ClCompile Include="SaveGameTests.cpp">
       <Filter>Persistence</Filter>

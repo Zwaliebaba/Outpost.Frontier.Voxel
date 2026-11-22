@@ -44,7 +44,7 @@
     <ClCompile Include="TestSupport.cpp">
       <Filter>Support</Filter>
     </ClCompile>
-    <ClCompile Include="WorldObjectTests.cpp">
+    <ClCompile Include="UniverseObjectTests.cpp">
       <Filter>Scene</Filter>
     </ClCompile>
     <ClCompile Include="MessageTests.cpp">

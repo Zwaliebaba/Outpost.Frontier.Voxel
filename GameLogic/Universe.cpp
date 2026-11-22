@@ -1,4 +1,4 @@
-#include "World.h"
+#include "Universe.h"
 
 #include "TickClock.h"
 
@@ -17,7 +17,7 @@ namespace
 
 constexpr std::uint32_t TICKS_PER_SECOND = Neuron::TickClock::TICKS_PER_SECOND;
 
-[[nodiscard]] double Distance(const WorldPosition& _a, const WorldPosition& _b) noexcept
+[[nodiscard]] double Distance(const UniversePosition& _a, const UniversePosition& _b) noexcept
 {
   const double x = _a.x - _b.x;
   const double y = _a.y - _b.y;
@@ -26,7 +26,7 @@ constexpr std::uint32_t TICKS_PER_SECOND = Neuron::TickClock::TICKS_PER_SECOND;
 }
 
 /// A share of the way along a polyline of three points.
-[[nodiscard]] WorldPosition Along(const std::array<WorldPosition, 3>& _points, double _metres) noexcept
+[[nodiscard]] UniversePosition Along(const std::array<UniversePosition, 3>& _points, double _metres) noexcept
 {
   for (std::size_t i = 0; i + 1 < _points.size(); ++i)
   {
@@ -34,9 +34,9 @@ constexpr std::uint32_t TICKS_PER_SECOND = Neuron::TickClock::TICKS_PER_SECOND;
     if (_metres <= length || i + 2 == _points.size())
     {
       const double share = length > 0.0 ? std::clamp(_metres / length, 0.0, 1.0) : 1.0;
-      const WorldPosition& a = _points[i];
-      const WorldPosition& b = _points[i + 1];
-      return WorldPosition{a.x + (b.x - a.x) * share, a.y + (b.y - a.y) * share, a.z + (b.z - a.z) * share};
+      const UniversePosition& a = _points[i];
+      const UniversePosition& b = _points[i + 1];
+      return UniversePosition{a.x + (b.x - a.x) * share, a.y + (b.y - a.y) * share, a.z + (b.z - a.z) * share};
     }
     _metres -= length;
   }
@@ -51,8 +51,8 @@ constexpr std::uint32_t TICKS_PER_SECOND = Neuron::TickClock::TICKS_PER_SECOND;
   XMStoreFloat3(&offset, XMVector3Rotate(XMVectorSet(static_cast<float>(_local.center.x), static_cast<float>(_local.center.y),
                                                      static_cast<float>(_local.center.z), 0.0f),
                                          XMLoadFloat4(&_state.orientation)));
-  box.center = WorldPosition{_state.position.x + static_cast<double>(offset.x), _state.position.y + static_cast<double>(offset.y),
-                             _state.position.z + static_cast<double>(offset.z)};
+  box.center = UniversePosition{_state.position.x + static_cast<double>(offset.x), _state.position.y + static_cast<double>(offset.y),
+                                _state.position.z + static_cast<double>(offset.z)};
   box.orientation = _state.orientation;
   box.velocityMetresPerSecond = _state.velocityMetresPerSecond;
   return box;
@@ -60,7 +60,7 @@ constexpr std::uint32_t TICKS_PER_SECOND = Neuron::TickClock::TICKS_PER_SECOND;
 
 } // namespace
 
-bool World::LoadContent(const std::filesystem::path& _assetRoot, std::string& _outError)
+bool Universe::LoadContent(const std::filesystem::path& _assetRoot, std::string& _outError)
 {
   SceneDefinition scene;
   if (!LoadSceneContent(_assetRoot, scene, _outError))
@@ -92,9 +92,9 @@ bool World::LoadContent(const std::filesystem::path& _assetRoot, std::string& _o
   return true;
 }
 
-void World::Load(const SceneDefinition& _scene, const ShipContent& _ships, const SystemContent& _system)
+void Universe::Load(const SceneDefinition& _scene, const ShipContent& _ships, const SystemContent& _system)
 {
-  m_state = WorldSnapshot{};
+  m_state = UniverseSnapshot{};
   m_system = _system;
   m_character = Character{};
   m_saveRequested = false;
@@ -150,7 +150,7 @@ void World::Load(const SceneDefinition& _scene, const ShipContent& _ships, const
   const int playerIndex = _scene.playerShip.empty() ? -1 : _scene.InstanceIndex(_scene.playerShip);
   for (std::size_t i = 0; i < m_state.objects.size(); ++i)
   {
-    const WorldObject& object = m_state.objects[i];
+    const UniverseObject& object = m_state.objects[i];
     const ShipArchetype* archetype = FlyingArchetype(_ships, object);
     if (archetype == nullptr)
     {
@@ -176,7 +176,7 @@ void World::Load(const SceneDefinition& _scene, const ShipContent& _ships, const
   }
 }
 
-void World::Tick()
+void Universe::Tick()
 {
   ++m_state.tick;
   PayIncome();
@@ -187,7 +187,7 @@ void World::Tick()
   }
 }
 
-void World::PayIncome()
+void Universe::PayIncome()
 {
   // Integer income: perMinute is spread over the minute's ticks with the remainder carried, so
   // the total after a minute is exact and the result never depends on frame timing.
@@ -212,7 +212,7 @@ void World::PayIncome()
   }
 }
 
-void World::FlyShips()
+void Universe::FlyShips()
 {
   const std::uint64_t tick = m_state.tick;
   // Every body: the immovable ones, then each ship where it stands, except a ship that is carried or
@@ -352,9 +352,9 @@ void World::FlyShips()
   }
 }
 
-void World::SetPose(Flyer& _flyer)
+void Universe::SetPose(Flyer& _flyer)
 {
-  WorldObject& object = m_state.objects[_flyer.objectIndex];
+  UniverseObject& object = m_state.objects[_flyer.objectIndex];
   const Pose pose{_flyer.state.position, _flyer.state.orientation};
   if (!(object.pose == pose))
   {
@@ -364,7 +364,7 @@ void World::SetPose(Flyer& _flyer)
   }
 }
 
-void World::RecordContact(const Flyer& _flyer, const ShipTickResult& _result, float _bodyMass)
+void Universe::RecordContact(const Flyer& _flyer, const ShipTickResult& _result, float _bodyMass)
 {
   const std::uint64_t tick = m_state.tick;
   const auto last = std::ranges::find_if(m_lastContacts, [&](const LastContact& _contact)
@@ -392,7 +392,7 @@ void World::RecordContact(const Flyer& _flyer, const ShipTickResult& _result, fl
   }
 }
 
-bool World::SubmitCommand(const FlightInputMessage& _input)
+bool Universe::SubmitCommand(const FlightInputMessage& _input)
 {
   if (_input.ship == NO_OBJECT || _input.ship != m_playerShip || _input.tick <= m_state.tick ||
       _input.tick > m_state.tick + MAX_COMMAND_LEAD_TICKS)
@@ -413,7 +413,7 @@ bool World::SubmitCommand(const FlightInputMessage& _input)
   return true;
 }
 
-bool World::Direct(ObjectId _ship, const Manoeuvre& _manoeuvre)
+bool Universe::Direct(ObjectId _ship, const Manoeuvre& _manoeuvre)
 {
   Flyer* flyer = FindFlyer(_ship);
   if (flyer == nullptr || _ship == m_playerShip)
@@ -424,25 +424,25 @@ bool World::Direct(ObjectId _ship, const Manoeuvre& _manoeuvre)
   return true;
 }
 
-const FlightState* World::Flight(ObjectId _ship) const noexcept
+const FlightState* Universe::Flight(ObjectId _ship) const noexcept
 {
   const Flyer* flyer = FindFlyer(_ship);
   return flyer != nullptr ? &flyer->state : nullptr;
 }
 
-std::uint64_t World::DivergedAt(ObjectId _ship) const noexcept
+std::uint64_t Universe::DivergedAt(ObjectId _ship) const noexcept
 {
   const Flyer* flyer = FindFlyer(_ship);
   return flyer != nullptr ? flyer->divergedAt : 0;
 }
 
-bool World::Arrived(ObjectId _ship) const noexcept
+bool Universe::Arrived(ObjectId _ship) const noexcept
 {
   const Flyer* flyer = FindFlyer(_ship);
   return flyer != nullptr && flyer->arrived;
 }
 
-void World::BeatSupport()
+void Universe::BeatSupport()
 {
   const SpaceSupport::Heartbeat beat = m_support.Beat(m_state.tick);
   for (const ObjectId ship : beat.abandoned)
@@ -464,7 +464,7 @@ void World::BeatSupport()
   }
 }
 
-void World::StateDock(Flyer& _flyer, DockPhase _phase, DockAnswer _answer, std::string _reason)
+void Universe::StateDock(Flyer& _flyer, DockPhase _phase, DockAnswer _answer, std::string _reason)
 {
   const bool freed = _flyer.dock.phase != DockPhase::None && _phase == DockPhase::None;
   _flyer.dock.tick = m_state.tick;
@@ -482,7 +482,7 @@ void World::StateDock(Flyer& _flyer, DockPhase _phase, DockAnswer _answer, std::
   }
 }
 
-void World::AskForPoint(Flyer& _flyer)
+void Universe::AskForPoint(Flyer& _flyer)
 {
   const SpaceSupport::Answer answer = m_support.Request(_flyer.body.object, _flyer.dockingClass, _flyer.state.position, _flyer.dockStation,
                                                         _flyer.body.object == m_playerShip, m_state.tick);
@@ -502,12 +502,12 @@ void World::AskForPoint(Flyer& _flyer)
   }
 }
 
-void World::Clear(Flyer& _flyer, std::size_t _point)
+void Universe::Clear(Flyer& _flyer, std::size_t _point)
 {
   _flyer.dockPoint = _point;
   // Straight to the entry when nothing immovable is in the way; otherwise by the docking axis.
   const DockingPath& path = m_support.Points(_flyer.dockStation)[_point].path;
-  const WorldPosition& from = _flyer.state.position;
+  const UniversePosition& from = _flyer.state.position;
   const XMFLOAT3 toEntry{static_cast<float>(path.entry.x - from.x), static_cast<float>(path.entry.y - from.y),
                          static_cast<float>(path.entry.z - from.z)};
   SweepHit hit;
@@ -517,14 +517,14 @@ void World::Clear(Flyer& _flyer, std::size_t _point)
     const double length = Distance(path.entry, path.approach);
     const double share = length > 0.0 ? static_cast<double>(AXIS_STANDOFF_METRES) / length : 0.0;
     _flyer.axisPoint =
-      WorldPosition{path.entry.x + (path.entry.x - path.approach.x) * share, path.entry.y + (path.entry.y - path.approach.y) * share,
-                    path.entry.z + (path.entry.z - path.approach.z) * share};
+      UniversePosition{path.entry.x + (path.entry.x - path.approach.x) * share, path.entry.y + (path.entry.y - path.approach.y) * share,
+                       path.entry.z + (path.entry.z - path.approach.z) * share};
   }
   StateDock(_flyer, DockPhase::Staging, DockAnswer::Proceed);
 }
 
-void World::StartMover(Flyer& _flyer, const WorldPosition& _from, const WorldPosition& _via, const WorldPosition& _to,
-                       const XMFLOAT4& _toOrientation, bool _outward)
+void Universe::StartMover(Flyer& _flyer, const UniversePosition& _from, const UniversePosition& _via, const UniversePosition& _to,
+                          const XMFLOAT4& _toOrientation, bool _outward)
 {
   Mover& mover = _flyer.mover;
   mover.points = {_from, _via, _to};
@@ -544,12 +544,12 @@ void World::StartMover(Flyer& _flyer, const WorldPosition& _from, const WorldPos
   _flyer.state.thrusterActive = false;
 }
 
-bool World::StepMover(Flyer& _flyer)
+bool Universe::StepMover(Flyer& _flyer)
 {
   const Mover& mover = _flyer.mover;
   const double share = std::min(1.0, static_cast<double>(m_state.tick - mover.startTick) / static_cast<double>(mover.durationTicks));
   const double travelled = mover.outward ? share * share : share * share * (3.0 - 2.0 * share);
-  const WorldPosition before = _flyer.state.position;
+  const UniversePosition before = _flyer.state.position;
   _flyer.state.position = Along(mover.points, travelled * mover.lengthMetres);
   _flyer.state.velocityMetresPerSecond = XMFLOAT3{static_cast<float>((_flyer.state.position.x - before.x) * TICKS_PER_SECOND),
                                                   static_cast<float>((_flyer.state.position.y - before.y) * TICKS_PER_SECOND),
@@ -562,7 +562,7 @@ bool World::StepMover(Flyer& _flyer)
   return share >= 1.0;
 }
 
-void World::PlaceDocked(Flyer& _flyer, std::size_t _station, std::size_t _point)
+void Universe::PlaceDocked(Flyer& _flyer, std::size_t _station, std::size_t _point)
 {
   const SpaceSupport::Point& point = m_support.Points(_station)[_point];
   m_support.Occupy(_flyer.body.object, _station, _point);
@@ -575,7 +575,7 @@ void World::PlaceDocked(Flyer& _flyer, std::size_t _station, std::size_t _point)
   SetPose(_flyer);
 }
 
-void World::Release(Flyer& _flyer)
+void Universe::Release(Flyer& _flyer)
 {
   // Released at the entry, moving outward at the mover's final speed, with collisions on again.
   const SpaceSupport::Point& point = m_support.Points(_flyer.dockStation)[_flyer.dockPoint];
@@ -594,7 +594,7 @@ void World::Release(Flyer& _flyer)
   BeatSupport();
 }
 
-bool World::Command(const DockCommandMessage& _command)
+bool Universe::Command(const DockCommandMessage& _command)
 {
   Flyer* flyer = FindFlyer(_command.ship);
   if (flyer == nullptr || _command.ship != m_playerShip)
@@ -684,40 +684,40 @@ bool World::Command(const DockCommandMessage& _command)
   return false;
 }
 
-DockStatusState World::DockStatus(ObjectId _ship) const noexcept
+DockStatusState Universe::DockStatus(ObjectId _ship) const noexcept
 {
   const Flyer* flyer = FindFlyer(_ship);
   return flyer != nullptr ? flyer->dock : DockStatusState{};
 }
 
-bool World::Protected(ObjectId _ship) const noexcept
+bool Universe::Protected(ObjectId _ship) const noexcept
 {
   const Flyer* flyer = FindFlyer(_ship);
   const DockPhase phase = flyer != nullptr ? flyer->dock.phase : DockPhase::None;
   return phase == DockPhase::Final || phase == DockPhase::Docked || phase == DockPhase::Launching;
 }
 
-bool World::TakeSaveRequest() noexcept
+bool Universe::TakeSaveRequest() noexcept
 {
   return std::exchange(m_saveRequested, false);
 }
 
-ShipState* World::ShipStateOf(ObjectId _ship) noexcept
+ShipState* Universe::ShipStateOf(ObjectId _ship) noexcept
 {
   const auto found = std::ranges::find(m_state.ships, _ship, &ShipState::object);
   return found != m_state.ships.end() ? &*found : nullptr;
 }
 
-const ShipState* World::ShipStateOf(ObjectId _ship) const noexcept
+const ShipState* Universe::ShipStateOf(ObjectId _ship) const noexcept
 {
   const auto found = std::ranges::find(m_state.ships, _ship, &ShipState::object);
   return found != m_state.ships.end() ? &*found : nullptr;
 }
 
-CharacterShip World::ShipRecordOf(ObjectId _ship) const
+CharacterShip Universe::ShipRecordOf(ObjectId _ship) const
 {
   CharacterShip record;
-  if (const WorldObject* object = m_state.FindObject(_ship))
+  if (const UniverseObject* object = m_state.FindObject(_ship))
   {
     record.instance = object->name;
   }
@@ -729,7 +729,7 @@ CharacterShip World::ShipRecordOf(ObjectId _ship) const
   return record;
 }
 
-bool World::NewGame(std::string& _outError)
+bool Universe::NewGame(std::string& _outError)
 {
   Flyer* flyer = FindFlyer(m_playerShip);
   if (flyer == nullptr)
@@ -759,10 +759,10 @@ bool World::NewGame(std::string& _outError)
   return true;
 }
 
-bool World::Restore(const SaveGame& _save, std::string& _outError)
+bool Universe::Restore(const SaveGame& _save, std::string& _outError)
 {
   Flyer* flyer = FindFlyer(m_playerShip);
-  const WorldObject* object = m_state.FindObject(m_playerShip);
+  const UniverseObject* object = m_state.FindObject(m_playerShip);
   if (flyer == nullptr || object == nullptr)
   {
     _outError = "the scene gives the player no ship to fly";
@@ -774,9 +774,9 @@ bool World::Restore(const SaveGame& _save, std::string& _outError)
     _outError = "the save flies '" + character.ship.instance + "'; the scene gives the player '" + object->name + "'";
     return false;
   }
-  // Everything is checked before anything changes, so a refused save leaves the world as it was.
+  // Everything is checked before anything changes, so a refused save leaves the universe as it was.
   std::vector<std::size_t> resourceIndices;
-  for (const ResourceSave& resource : _save.world.resources)
+  for (const ResourceSave& resource : _save.universe.resources)
   {
     const auto found = std::ranges::find(m_state.resources, resource.name, &ResourceState::name);
     if (found == m_state.resources.end())
@@ -787,7 +787,7 @@ bool World::Restore(const SaveGame& _save, std::string& _outError)
     resourceIndices.push_back(static_cast<std::size_t>(found - m_state.resources.begin()));
   }
   std::vector<std::size_t> objectiveIndices;
-  for (const ObjectiveSave& objective : _save.world.objectives)
+  for (const ObjectiveSave& objective : _save.universe.objectives)
   {
     const auto found = std::ranges::find(m_state.objectives, objective.text, &ObjectiveState::text);
     if (found == m_state.objectives.end())
@@ -823,16 +823,16 @@ bool World::Restore(const SaveGame& _save, std::string& _outError)
     }
   }
 
-  m_state.tick = _save.world.tick;
+  m_state.tick = _save.universe.tick;
   for (std::size_t i = 0; i < resourceIndices.size(); ++i)
   {
-    m_state.resources[resourceIndices[i]].amount = _save.world.resources[i].amount;
-    m_income[resourceIndices[i]].remainder = _save.world.resources[i].remainder;
+    m_state.resources[resourceIndices[i]].amount = _save.universe.resources[i].amount;
+    m_income[resourceIndices[i]].remainder = _save.universe.resources[i].remainder;
     m_state.resourceTicks[resourceIndices[i]] = m_state.tick;
   }
   for (std::size_t i = 0; i < objectiveIndices.size(); ++i)
   {
-    m_state.objectives[objectiveIndices[i]].complete = _save.world.objectives[i].complete;
+    m_state.objectives[objectiveIndices[i]].complete = _save.universe.objectives[i].complete;
   }
   m_character = character;
   if (ShipState* ship = ShipStateOf(m_playerShip))
@@ -858,7 +858,7 @@ bool World::Restore(const SaveGame& _save, std::string& _outError)
     SetPose(*flyer);
   }
   // Every object's pose is stated as of the restored tick, so the client's newest-wins copies take it.
-  for (WorldObject& each : m_state.objects)
+  for (UniverseObject& each : m_state.objects)
   {
     each.poseTick = m_state.tick;
   }
@@ -869,7 +869,7 @@ bool World::Restore(const SaveGame& _save, std::string& _outError)
   return true;
 }
 
-SaveGame World::MakeSave() const
+SaveGame Universe::MakeSave() const
 {
   SaveGame save;
   save.character = m_character;
@@ -895,25 +895,25 @@ SaveGame World::MakeSave() const
       location.flight = flyer->state;
     }
   }
-  save.world.tick = m_state.tick;
+  save.universe.tick = m_state.tick;
   for (std::size_t i = 0; i < m_state.resources.size(); ++i)
   {
-    save.world.resources.push_back(ResourceSave{m_state.resources[i].name, m_state.resources[i].amount, m_income[i].remainder});
+    save.universe.resources.push_back(ResourceSave{m_state.resources[i].name, m_state.resources[i].amount, m_income[i].remainder});
   }
   for (const ObjectiveState& objective : m_state.objectives)
   {
-    save.world.objectives.push_back(ObjectiveSave{objective.text, objective.complete});
+    save.universe.objectives.push_back(ObjectiveSave{objective.text, objective.complete});
   }
   return save;
 }
 
-World::Flyer* World::FindFlyer(ObjectId _ship) noexcept
+Universe::Flyer* Universe::FindFlyer(ObjectId _ship) noexcept
 {
   const auto found = std::ranges::find(m_flyers, _ship, [](const Flyer& _flyer) { return _flyer.body.object; });
   return found != m_flyers.end() ? &*found : nullptr;
 }
 
-const World::Flyer* World::FindFlyer(ObjectId _ship) const noexcept
+const Universe::Flyer* Universe::FindFlyer(ObjectId _ship) const noexcept
 {
   const auto found = std::ranges::find(m_flyers, _ship, [](const Flyer& _flyer) { return _flyer.body.object; });
   return found != m_flyers.end() ? &*found : nullptr;
