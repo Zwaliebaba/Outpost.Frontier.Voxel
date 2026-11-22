@@ -148,7 +148,7 @@ A save that cannot be read, or that does not fit the content, stops the game wit
 | The docked view and the UI foundation it is built on (tasks 2.5a and 2.5) | [`GameApp/DockedView.h`](GameApp/DockedView.h), [`NeuronClient/HudBatch.h`](NeuronClient/HudBatch.h), [`NeuronClient/ControlFocus.h`](NeuronClient/ControlFocus.h), [`Assets/Ui/`](Assets/Ui/), ADR-023 |
 | The character record and the save (tasks 2.6 and 2.7) | [`GameLogic/SaveGame.h`](GameLogic/SaveGame.h), [`NeuronServer/SaveFile.h`](NeuronServer/SaveFile.h), ADR-011 |
 | Ship archetypes, the flight model and the manoeuvre layer (slice 1, tasks 1.1 to 1.3) | [`Assets/Content/Ships.txt`](Assets/Content/Ships.txt), [`GameCore/FlightModel.h`](GameCore/FlightModel.h), [`GameCore/Manoeuvre.h`](GameCore/Manoeuvre.h), ADR-009 |
-| The MsQuic spike: the catalogue over QUIC on localhost, with induced loss and a pinned certificate | [`QuicSpike/`](QuicSpike/), ADR-017. Run `.\x64\Debug\QuicSpike.exe`; it exits 0 when every check passes |
+| The MsQuic spike: the catalogue over QUIC on localhost, with induced loss and a pinned certificate | [`Tools/QuicSpike/`](Tools/QuicSpike/), ADR-017 and ADR-025. Run `.\x64\Debug\QuicSpike.exe`; it exits 0 when every check passes |
 | The scene: camera, lights, models, sockets, instances, ships, module damage, engines, objectives, resources, build items | [`Assets/Scene.txt`](Assets/Scene.txt) — plain text, documented in its header and in ADR-002 |
 | The models | `Assets/Models/*.vox` — genuine MagicaVoxel files, open them in MagicaVoxel |
 | The canonical palette (role → colour) | [`GameCore/Palette.h`](GameCore/Palette.h) for the index map, [`GameCore/Palette.cpp`](GameCore/Palette.cpp) for colours and the emissive material table |

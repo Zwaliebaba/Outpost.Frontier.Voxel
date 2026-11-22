@@ -9,7 +9,7 @@ directories of other projects and of the NuGet packages it imports (ADR-017). Th
 Run it where MSVC's environment is set (a Developer PowerShell, or CI after "Import the MSVC
 environment"): INCLUDE is what makes the CRT and the Windows SDK visible to clang. Run it after a
 build, because NeuronClient includes the shader headers the build writes to CompiledShaders/, and
-QuicSpike the headers of a package only a restore puts under packages/.
+Tools/QuicSpike the headers of a package only a restore puts under packages/.
 
 Usage:
   python Build/RunClangTidy.py                         every translation unit

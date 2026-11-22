@@ -162,6 +162,8 @@ The concrete layout is recorded in [ADR-001](Design/ADR/ADR-001-solution-layout.
 
 **Every library has its own test project, and every test project lives under `Tests\`**, as `Tests\<Library>Tests\<Library>Tests.vcxproj` ([ADR-006](Design/ADR/ADR-006-test-projects.md)). A suite tests the library it is named for, through that library's public headers; it references that library and what the library itself builds on, and nothing above it. A new library arrives with its test project, and that project ships with real tests rather than only the `SuiteSmoke` placeholder (§3). `Tests\` is a container folder, not a project: each test project inside it is flat like any other.
 
+**A tool project lives under `Tools\`**, beside the scripts there, as `Tools\<Tool>\<Tool>.vcxproj` ([ADR-025](Design/ADR/ADR-025-tool-projects-under-tools.md)). Like `Tests\`, `Tools\` is a container folder, and each project inside it is flat.
+
 These are the standing constraints the layout satisfies, and any change to it has to keep satisfying.
 
 **Project directories are flat, with exactly two sanctioned subdirectories.** C++ source — headers and `.cpp` alike — lives directly in its project's folder. **There is no `src/`, no `include/`**, and no other split of a project by file kind. This is not taste: `.clang-tidy`'s `HeaderFilterRegex` matches headers exactly one level in, so **a header in a subdirectory is silently unchecked** — no findings, no warning, and nobody notices for months. The two exceptions are the shader pipeline:

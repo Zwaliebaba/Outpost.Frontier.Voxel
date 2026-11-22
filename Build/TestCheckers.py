@@ -352,7 +352,7 @@ class RunClangTidyTests(TreeCase):
 
     def fake_restore(self, project: str) -> Path:
         """Writes the build file a project's package import names, as a NuGet restore would."""
-        text = (self.tree / project / f"{project}.vcxproj").read_text(encoding="utf-8-sig")
+        text = (self.tree / project / f"{Path(project).name}.vcxproj").read_text(encoding="utf-8-sig")
         target = next(element.get("Project", "") for element in BuildTree.parse_xml(text).iter(f"{{{BuildTree.MSBUILD_NAMESPACE}}}Import") if "packages" in element.get("Project", ""))
         path = Path(os.path.normpath(self.tree / project / target.replace("\\", os.sep)))
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -365,8 +365,8 @@ class RunClangTidyTests(TreeCase):
         return path.parent / "include"
 
     def test_package_headers_are_on_the_include_path(self) -> None:
-        include = self.fake_restore("QuicSpike")
-        result = self.dry_run("QuicSpike/QuicPeer.cpp")
+        include = self.fake_restore("Tools/QuicSpike")
+        result = self.dry_run("Tools/QuicSpike/QuicPeer.cpp")
         self.assertClean(result)
         self.assertIn(f"/I{os.path.normpath(include)}", result.stdout.split())
 

@@ -13,7 +13,7 @@
     <Project Path="GameApp/GameApp.vcxproj" Id="99eb673d-1511-5709-ae13-05b4cd4d2125" />
   </Folder>
   <Folder Name="/Tools/">
-    <Project Path="QuicSpike/QuicSpike.vcxproj" Id="bb4c93dd-660a-44b5-b96e-c6e894fe3343" />
+    <Project Path="Tools/QuicSpike/QuicSpike.vcxproj" Id="bb4c93dd-660a-44b5-b96e-c6e894fe3343" />
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="Tests/NeuronCoreTests/NeuronCoreTests.vcxproj" Id="cc536723-713c-5dd2-a5a1-f27f4480111c" />

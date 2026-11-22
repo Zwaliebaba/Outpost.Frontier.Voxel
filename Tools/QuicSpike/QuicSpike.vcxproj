@@ -109,15 +109,15 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\NeuronCore\NeuronCore.vcxproj">
+    <ProjectReference Include="..\..\NeuronCore\NeuronCore.vcxproj">
       <Project>{3F3C549D-B794-5BEB-9C43-ED86BED75B98}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\GameCore\GameCore.vcxproj">
+    <ProjectReference Include="..\..\GameCore\GameCore.vcxproj">
       <Project>{6D02E2AD-67A5-51EC-944A-2AFDB5843360}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="..\packages\Microsoft.Native.Quic.MsQuic.Schannel.2.6.4\build\native\Microsoft.Native.Quic.MsQuic.schannel.targets" Condition="Exists('..\packages\Microsoft.Native.Quic.MsQuic.Schannel.2.6.4\build\native\Microsoft.Native.Quic.MsQuic.schannel.targets')" />
+    <Import Project="..\..\packages\Microsoft.Native.Quic.MsQuic.Schannel.2.6.4\build\native\Microsoft.Native.Quic.MsQuic.schannel.targets" Condition="Exists('..\..\packages\Microsoft.Native.Quic.MsQuic.Schannel.2.6.4\build\native\Microsoft.Native.Quic.MsQuic.schannel.targets')" />
   </ImportGroup>
 </Project>
