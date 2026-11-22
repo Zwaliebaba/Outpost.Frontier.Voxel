@@ -31,7 +31,7 @@ One solution, `Outpost.Frontier.slnx`, x64 only, Debug and Release:
 
 Engine code is namespace `Neuron` and never names a game concept: the renderer draws voxels, lines, glows and HUD triangles, and the game decides what they are. Game code is namespace `Outpost`.
 
-The edges run one way. `GameLogic` (server) and `GameApp` (client) share `GameCore` and never see each other. The client draws a `WorldSnapshot` and never reads `World`. `Outpost.exe` hosts both halves in one process for now; the snapshot is the seam where a network transport would go, but networking is out of scope.
+The edges run one way. `GameLogic` (server) and `GameApp` (client) share `GameCore` and never see each other. The client draws a `WorldSnapshot` and never reads `World`. `Outpost.exe` hosts both halves in one process for now; the snapshot is the seam where a network transport would go, but networking is out of scope. *Since the design ([GameDesign.md](../GameDesign.md)): networking is its slice 10, and AGENTS.md R18 makes this seam a rule from the first slice.*
 
 ### Build shape
 
@@ -55,3 +55,4 @@ The edges run one way. `GameLogic` (server) and `GameApp` (client) share `GameCo
 - `NeuronClient` is the only project that links D3D12; `NeuronCore`, `GameCore` and the tool build and test without a GPU.
 - Splitting `Outpost.exe` into separate client and server processes is a transport behind the snapshot, not a restructuring.
 - Assets are copied, not linked: editing `Assets/Scene.txt` takes effect at the next build, or immediately with `--assets Assets`.
+- *Added with the design:* what each project takes on as the game is built is listed in [GameDesign.md](../GameDesign.md) §9. The projects and the edges decided here do not change.

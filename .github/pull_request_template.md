@@ -10,7 +10,8 @@
 ## Why
 
 <!-- The problem, or the decision this implements. Link the ADR if there is one; add one under
-     Design/ADR/ if this change IS a decision (AGENTS.md §6). -->
+     Design/ADR/ if this change IS a decision (AGENTS.md §6). For game rules, name the section of
+     Design/GameDesign.md this builds. -->
 
 ## How it was verified
 
@@ -36,6 +37,9 @@
 - [ ] Debug and Release still agree on everything AGENTS.md §3 says they must
 - [ ] No warning silenced, no `ConformanceMode`/`LanguageStandard`/`WarningLevel` changed
 - [ ] No new third-party dependency (R14)
+- [ ] If it touches game rules: R18–R24 hold — only `GameCore` data crosses between client and
+      server, the server decides, no wall time, no mode test, no game state in a global
+- [ ] A design answer the task needed is written in `Design/GameDesign.md`, not only in the code
 - [ ] Only the lines the task required were changed
 
 ## Anything you had to bend

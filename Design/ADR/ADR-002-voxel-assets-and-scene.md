@@ -68,3 +68,8 @@ Unknown keywords and malformed values fail with the line number. `ValidateScene`
 - Editing a model by hand in MagicaVoxel is supported, but the next `AssetGenerator --out Assets` overwrites it. A hand-edited model should get its own file name and its own `model` line.
 - A new palette role is a change to `GameCore/Palette` plus regenerating every model, and the palette test fails until that is done.
 - Anything larger than 256 voxels on an axis must be built from modules and sockets; the format leaves no alternative, and the scene file is designed around it.
+- *Added with the design ([GameDesign.md](../GameDesign.md)):* the concepts decided here carry the game.
+  - A socket is the design's hardpoint, module mount and docking point, and will need a class (§3.4).
+  - A palette family becomes a material with a strength, a mass and a yield beside its emission (§7.1).
+  - The scene file is the starting point of the system, base and archetype definitions (§9, and the chapter 12 row of §6).
+  - What the scene file draws with `style=blueprint` the design calls a *build plan*; it keeps "blueprint" for its source document.

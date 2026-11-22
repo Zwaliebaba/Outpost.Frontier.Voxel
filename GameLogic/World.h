@@ -9,10 +9,12 @@
 namespace Outpost
 {
 
-/// The authoritative game state: the server half of the sample. It is built from the scene's
-/// command records, advanced in whole ticks, and read by the client only through a snapshot, so
-/// the client never touches it directly — the seam a network transport would later occupy.
-/// Combat, damage and navigation are out of scope; what the server runs is resource income.
+/// The authoritative game state: the server half of the game (AGENTS.md R18, R19). It is built
+/// from the scene's command records, advanced in whole ticks, and read by the client only through
+/// a snapshot, so the client never touches it directly — the seam a network transport later
+/// occupies. Today it runs resource income only, which is the ledger the design gives an outpost
+/// whose owner is away (Design/GameDesign.md §7.2). Combat, damage and navigation come with the
+/// design's later slices.
 class World
 {
 public:
