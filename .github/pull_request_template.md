@@ -22,11 +22,12 @@
 - [ ] Every test suite runs and passes
 - [ ] `python Build\CheckProjectFiles.py`
 - [ ] `python Build\CheckFormat.py`
-- [ ] `python Build\RunClangTidy.py`
+- [ ] `python Build\RunClangTidy.py` (needs a Developer PowerShell and a build; CI runs it otherwise)
+- [ ] `python Build\TestCheckers.py`, if a checker changed
 - [ ] Release built locally (CI does not build it — AGENTS.md §6)
 - [ ] Ran the executable (**required** if this touches rendering, input, audio or presentation)
 
-<!-- A checker that is not written yet is not a box to tick. Strike it and say so below. -->
+<!-- A checker you could not run is not a box to tick: say so, and say where it did run (CI). -->
 
 ## Conformance
 

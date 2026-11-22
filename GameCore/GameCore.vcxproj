@@ -87,11 +87,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Messages.h" />
     <ClInclude Include="Palette.h" />
     <ClInclude Include="SceneDefinition.h" />
     <ClInclude Include="WorldSnapshot.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Messages.cpp" />
     <ClCompile Include="Palette.cpp" />
     <ClCompile Include="SceneDefinition.cpp" />
     <ClCompile Include="WorldSnapshot.cpp" />

@@ -79,7 +79,9 @@ Ships behind the camera or off screen get an edge arrow that points toward them;
 | What | Where |
 |---|---|
 | The design: what the game is, system by system, and the order to build it in | [`Design/GameDesign.md`](Design/GameDesign.md) |
-| The MVP implementation plan: the design's first six slices as tasks, tests, ADRs and exit criteria | [`Design/ImplementationPlan.md`](Design/ImplementationPlan.md) |
+| The MVP implementation plan: the design's first six slices as tasks, tests, ADRs and exit criteria, with what is done so far | [`Design/ImplementationPlan.md`](Design/ImplementationPlan.md) |
+| The checkers CI runs, and their self-test | [`Build/`](Build/) — see *Tests and checks* |
+| The message catalogue and the in-process transport (not yet used by the executable) | [`GameCore/Messages.h`](GameCore/Messages.h), [`NeuronCore/LoopbackTransport.h`](NeuronCore/LoopbackTransport.h), ADR-008 |
 | The scene: camera, lights, models, sockets, instances, ships, module damage, engines, objectives, resources, build items | [`Assets/Scene.txt`](Assets/Scene.txt) — plain text, documented in its header and in ADR-002 |
 | The models | `Assets/Models/*.vox` — genuine MagicaVoxel files, open them in MagicaVoxel |
 | The canonical palette (role → colour) | [`GameCore/Palette.h`](GameCore/Palette.h) for the index map, [`GameCore/Palette.cpp`](GameCore/Palette.cpp) for colours and the emissive material table |
@@ -108,16 +110,22 @@ Every file carries the identical canonical RGBA palette chunk. Index 0 is empty,
 
 # Smoke test: fixed timeline on WARP, image checks, debug layer on; exit code 0 on success
 .\x64\Debug\Outpost.exe --smoke-test --warp --capture smoke.png --report smoke.txt --compare "Design\Space Station HUD Without Navigation Path.png"
+
+# The checkers CI runs (AGENTS.md §6). The pinned tools: pip install clang-format==18.1.3 clang-tidy==22.1.8
+python Build\CheckProjectFiles.py    # build shape, registration, Debug/Release alignment, R2, R7, R11, R14
+python Build\CheckFormat.py          # clang-format over every .h/.cpp; --fix rewrites
+python Build\RunClangTidy.py         # after a build, in a Developer PowerShell; --dry-run prints the commands
+python Build\TestCheckers.py         # the checkers' own tests
 ```
 
 Every library has its own test project under `Tests\`. In Visual Studio, *Test › Test Explorer* runs them all.
 
 | Project | Tests | Covers |
 |---|---|---|
-| `Tests\NeuronCoreTests` | 20 | VOX read/write and a hand-authored fixture that pins the palette offset; rejection of bad magic, truncated chunks, invalid dimensions and out-of-bounds voxels; meshing of single and adjacent voxels; wireframes and the side profile; VOX-to-world axes, handedness and socket mating |
+| `Tests\NeuronCoreTests` | 28 | VOX read/write and a hand-authored fixture that pins the palette offset; rejection of bad magic, truncated chunks, invalid dimensions and out-of-bounds voxels; meshing of single and adjacent voxels; wireframes and the side profile; VOX-to-world axes, handedness and socket mating; the wire format's byte order and round trips; the in-process transport's order and datagram budget |
 | `Tests\NeuronClientTests` | 8 | Selection maths: ships ahead, beside the view, straddling the near plane and behind the camera; pick rays; click versus drag; orbit-camera limits |
-| `Tests\NeuronServerTests` | 4 | The tick clock: whole ticks, carried remainders, stall catch-up, interpolation |
-| `Tests\GameCoreTests` | 12 | The canonical palette, including byte equality across every generated file; scene parsing and validation; the shipped blueprint landing on its dock |
+| `Tests\NeuronServerTests` | 5 | The tick clock at 60 Hz (ADR-007): whole ticks, carried remainders, ten minutes exactly 36,000 ticks, stall catch-up, interpolation |
+| `Tests\GameCoreTests` | 21 | The canonical palette, including byte equality across every generated file; scene parsing and validation; the shipped blueprint landing on its dock; the message catalogue: round trips, header, refusals, routes, the datagram budget |
 | `Tests\GameLogicTests` | 5 | The world: the first snapshot, exact income per minute, fractional income, capacity, reloading |
 | `Tests\GameAppTests` | 6 | The HUD: every vertex on screen at 720p, 1080p and 4K with ships off screen and behind the camera; build slots; scaling; fonts. The draw constants the voxel shader unprojects through |
 
@@ -153,7 +161,7 @@ All of the following passed on 2026-11-21, on Windows 11 with an RTX 3070 Ti Lap
 
 Not run here:
 - the GitHub Actions workflow itself;
-- `Build/CheckFormat.py`, `Build/CheckProjectFiles.py` and `Build/RunClangTidy.py`, which AGENTS.md calls for but which do not exist yet, so CI skips those gates.
+- `Build/CheckFormat.py`, `Build/CheckProjectFiles.py` and `Build/RunClangTidy.py`, which did not exist yet. They were added on 2026-11-22 and CI runs them; see *Tests and checks*.
 
 ## Scope
 

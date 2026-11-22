@@ -1,6 +1,6 @@
 # Outpost:Frontier — game design concept
 
-**Status:** concept, adopted as this repository's design; the decisions in §13 are taken but for D13 · **Date:** 2026-11-22
+**Status:** concept, adopted as this repository's design; the decisions in §13 are taken · **Date:** 2026-11-22
 
 This is the design document AGENTS.md refers to, at concept depth. It says what the game is, which systems it is made of, where each comes from, and in what order to build them. It does not fix numbers, write the per-system rules or invent a setting; those follow once this direction is accepted.
 
@@ -221,7 +221,7 @@ QUIC answers the Frontier blueprint's list of what not to copy in one piece (ch.
 | Flight input | Datagrams, stamped with the tick they are for, each repeating the last few inputs so that one loss costs nothing; the server buffers a few ticks against jitter (§8.2) |
 | Object state | Unreliable datagrams (RFC 9221), each carrying a sequence number; a receiver keeps the newest and discards older ones. A lost state update is replaced by the next, never retransmitted. What goes into each datagram is chosen per observer by interest, priority and a byte budget, delta-compressed against the last state the client acknowledged (§8.2). QUIC's congestion control replaces the blueprint's saturation gate: datagrams are built when the connection can send, and the send state MsQuic reports for each one tells the server what was lost |
 | Voxel damage events | Reliable streams sharded by target object: R22 needs every event in order per object, not one global order, so a lost packet delays only the objects on its stream. Observers far from an object receive coalesced brick diffs at a low rate instead; a mask snapshot brings a newcomer up to date (§8.2) |
-| Message size | A state message must fit one datagram. The size is the maximum MsQuic reports for the connection, about 1,200 bytes at worst, so state for many objects is split across datagrams and never assumes they arrive together |
+| Message size | A state message must fit one datagram. Until slice 10 the budget is 1,100 bytes: QUIC guarantees a 1,200-byte UDP payload, less its own packet and frame overhead (ADR-008). From slice 10 it is the maximum MsQuic reports for the connection. State for many objects is split across datagrams and never assumes they arrive together |
 | Encoding | Every message carries its kind, its length and the catalogue version, as constraint 9's data hash and the blueprint's design notes require |
 | Identity and trust | The host proves itself with a self-signed certificate, and the client pins it on first connection and warns if it ever changes (decided). There is no certificate authority to configure, and every connection after the first is protected. Accounts authenticate over the encrypted stream, never by a bare identifier |
 | Threads | MsQuic calls back on its own worker threads. Callbacks only enqueue; the tick drains the queue at its first step (ch. 11 §3.2), so content and rules stay on one thread |
@@ -262,7 +262,7 @@ Four further points complete the picture:
 
 **When each part is built.** The target is stated now, because stating it costs nothing and prevents choices that would block it. What is built in the MVP is only what would mean rewriting core structures later: double-precision positions, bricks, the observer path, delivery classes and mask snapshots, and the renderer go/no-go. Everything else in this section is added behind those interfaces in slices 7 and 10 (plan section 14).
 
-**Not decided here** and added to §13 as D13: how many outposts a system can hold. Twenty claim sites per system is the figure the drawing budget above assumes.
+**Outposts per system** are bounded by D13: about twenty authored claim sites per system, the figure the drawing budget above assumes.
 
 ## 9. How it lands in the repository
 
@@ -330,7 +330,7 @@ The first six slices are the MVP; [ImplementationPlan.md](ImplementationPlan.md)
 
 ## 13. Open decisions
 
-*D1 to D12 were decided by the owner on 2026-11-22: D1, D2, D5, D6 and D12 for the MVP plan ([ImplementationPlan.md](ImplementationPlan.md)), the rest the same day. Eleven follow the recommendation; D10 does not, and the rest of this document follows the decision. D13 came out of the scale review (§8.2) and is open.*
+*D1 to D12 were decided by the owner on 2026-11-22: D1, D2, D5, D6 and D12 for the MVP plan ([ImplementationPlan.md](ImplementationPlan.md)), the rest the same day. Eleven follow the recommendation; D10 does not, and the rest of this document follows the decision. D13 came out of the scale review (§8.2) and was decided the same day, as recommended.*
 
 | # | Question | Decision |
 |---|---|---|
@@ -346,7 +346,7 @@ The first six slices are the MVP; [ImplementationPlan.md](ImplementationPlan.md)
 | D10 | Where the tactical view is available — *decided* | Only while docked, at any base, limited to owned sensors. In space the player flies and has the wing's command keys. (The recommendation was anywhere; the owner chose otherwise) |
 | D11 | Voice — *decided* | None at first. Comms are text; the rules of chatter (ch. 06 §3.12) are kept |
 | D12 | Wing size — *decided* | About three, capped by crew |
-| D13 | How many outposts one system can hold | *Open.* Recommendation: a fixed set of authored claim sites per system, about twenty, so that a crowded system has a bounded amount of player-built structure to draw and send (§8.2). In multiplayer, claims are first come, first served |
+| D13 | How many outposts one system can hold — *decided* | A fixed set of authored claim sites per system, about twenty, so that a crowded system has a bounded amount of player-built structure to draw and send (§8.2). In multiplayer, claims are first come, first served |
 
 ## 14. Basis
 

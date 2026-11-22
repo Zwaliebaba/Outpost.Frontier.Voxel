@@ -1,0 +1,103 @@
+#pragma once
+
+#include "LoopbackTransport.h"
+#include "WorldSnapshot.h"
+
+#include <cstddef>
+#include <cstdint>
+#include <expected>
+#include <span>
+#include <variant>
+#include <vector>
+
+namespace Outpost
+{
+
+// The message catalogue (ADR-008): everything that crosses between client and server, one kind
+// per message, encoded to bytes even in process so that nothing but data can cross (R18). Each
+// kind has a fixed route: reliable on a named stream, or a datagram whose newest copy wins.
+
+/// Raised whenever a message is added, removed or changes its encoding.
+inline constexpr std::uint16_t CATALOGUE_VERSION = 1;
+
+/// Every encoded message begins with: catalogue version (16 bits), kind (16 bits), payload length
+/// in bytes (32 bits).
+inline constexpr std::size_t MESSAGE_HEADER_BYTES = 8;
+
+/// Reliable facts about the world, in the order they happened.
+inline constexpr std::uint16_t STREAM_WORLD = 0;
+
+enum class MessageKind : std::uint16_t
+{
+  Tick = 1,
+  Ship = 2,
+  Objective = 3,
+  Resource = 4
+};
+
+/// The server's tick, so the client knows how current its picture is. Newest wins.
+struct TickMessage
+{
+  std::uint64_t tick = 0;
+
+  friend bool operator==(const TickMessage&, const TickMessage&) = default;
+};
+
+/// A ship's identity and health. A fact: reliable, on the world stream.
+struct ShipMessage
+{
+  ShipState ship;
+
+  friend bool operator==(const ShipMessage&, const ShipMessage&) = default;
+};
+
+/// One objective, by its index in the list. A fact: reliable, on the world stream.
+struct ObjectiveMessage
+{
+  std::uint16_t index = 0;
+  ObjectiveState objective;
+
+  friend bool operator==(const ObjectiveMessage&, const ObjectiveMessage&) = default;
+};
+
+/// One resource, by its index, as of a tick. Changes every tick, so a datagram; the receiver keeps
+/// the copy with the latest tick.
+struct ResourceMessage
+{
+  std::uint64_t tick = 0;
+  std::uint16_t index = 0;
+  ResourceState resource;
+
+  friend bool operator==(const ResourceMessage&, const ResourceMessage&) = default;
+};
+
+using Message = std::variant<TickMessage, ShipMessage, ObjectiveMessage, ResourceMessage>;
+
+/// How a kind of message travels.
+struct Route
+{
+  Neuron::Delivery delivery = Neuron::Delivery::Reliable;
+  std::uint16_t stream = STREAM_WORLD;
+
+  friend bool operator==(const Route&, const Route&) = default;
+};
+
+enum class DecodeError : std::uint8_t
+{
+  Truncated,      // fewer bytes than the header or the payload length says
+  WrongVersion,   // encoded against another catalogue
+  UnknownKind,    // a kind this catalogue does not have
+  LengthMismatch, // bytes beyond the stated payload length
+  Malformed       // the payload does not read as its kind
+};
+
+[[nodiscard]] MessageKind KindOf(const Message& _message);
+[[nodiscard]] Route RouteOf(MessageKind _kind) noexcept;
+
+/// The message as bytes: header, then payload. Empty if a field cannot be encoded (a string
+/// longer than the wire allows).
+[[nodiscard]] std::vector<std::uint8_t> Encode(const Message& _message);
+
+[[nodiscard]] std::expected<Message, DecodeError> Decode(std::span<const std::uint8_t> _bytes);
+
+} // namespace Outpost

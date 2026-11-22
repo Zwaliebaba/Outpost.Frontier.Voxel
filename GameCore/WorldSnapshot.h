@@ -15,6 +15,8 @@ struct ShipModuleState
 {
   std::string name;
   int healthPercent = 100;
+
+  friend bool operator==(const ShipModuleState&, const ShipModuleState&) = default;
 };
 
 struct ShipState
@@ -27,12 +29,16 @@ struct ShipState
 
   /// Modules below full health, worst first.
   [[nodiscard]] std::vector<ShipModuleState> DamagedModules() const;
+
+  friend bool operator==(const ShipState&, const ShipState&) = default;
 };
 
 struct ObjectiveState
 {
   std::string text;
   bool complete = false;
+
+  friend bool operator==(const ObjectiveState&, const ObjectiveState&) = default;
 };
 
 struct ResourceState
@@ -40,6 +46,8 @@ struct ResourceState
   std::string name;
   std::int64_t amount = 0;
   std::int64_t capacity = 0; // 0: uncapped; otherwise shown as amount / capacity
+
+  friend bool operator==(const ResourceState&, const ResourceState&) = default;
 };
 
 struct WorldSnapshot

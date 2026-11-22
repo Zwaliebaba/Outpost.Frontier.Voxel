@@ -133,7 +133,7 @@ private:
 | R2 affixes, R7 file names and project registration, R11 spellings, §2 flat directories, shader names and functional filters | `Build/CheckProjectFiles.py`, gated in CI |
 | R4, R6, R9, R10 | Review. Check your own diff against the table before handing it back. |
 
-**Neither checker exists yet** (§6). `.clang-tidy` is configured and gates the moment there is a translation unit to run it over; `Build/CheckProjectFiles.py` has to be written, and until it is, the four rules in its row are review's problem and nothing else. A rule nobody can run is a rule that rots, so writing that checker is early work rather than housekeeping.
+**Both checkers run in CI** (§6). `Build/RunClangTidy.py` runs `.clang-tidy` over every hand-written translation unit with the switches its own project sets; `Build/CheckProjectFiles.py` carries the rules in its row, and also the Debug/Release alignment of §3 and R14's package table. `python Build/TestCheckers.py` proves that each checker fails on a planted violation of every rule it claims; a rule added to a checker comes with a test there.
 
 ---
 
@@ -296,9 +296,9 @@ For Direct3D that list means what the Windows SDK installs: `d3d12.h`, `dxgi1_6.
 
 **Record decisions as ADRs.** An engineering decision — a file format, a wire protocol, a subsystem's shape, an exception to a rule here — goes in `Design/ADR/` as one file per decision, numbered in order from `ADR-001-<slug>.md`, stating the context, the decision and what it forecloses, in the same commit as the change that implements it. Figures in an ADR are measured, not estimated — if you quote one, say how you measured it. A decision nobody wrote down gets re-litigated every few months by whoever forgot it. The design lists the decisions it forces and the slice each is due before ([`Design/GameDesign.md`](Design/GameDesign.md) §9); those are ADRs like any other.
 
-**Write the checkers early.** `Build/CheckFormat.py`, `Build/CheckProjectFiles.py` and `Build/RunClangTidy.py` are what §1, §2 and §3 lean on, and **none of them exists yet.** Until each one lands, the rules it would enforce are review's problem — which is exactly why they are early work rather than housekeeping.
+**The checkers are part of the tree.** `Build/CheckFormat.py`, `Build/CheckProjectFiles.py` and `Build/RunClangTidy.py` are what §1, §2 and §3 lean on, and `Build/TestCheckers.py` tests them. A checker that misses a violation is a defect in the checker: fix it, and add the case to the self-test.
 
-**What CI runs.** [`.github/workflows/build.yml`](.github/workflows/build.yml) has two jobs: a Windows job that checks the build shape, builds **Debug|x64**, runs the test suites and then clang-tidy; and a Linux job that checks formatting on a pinned clang-format. **Every step that has something to run blocks; a step whose input does not exist yet is skipped, not faked.** Each gate is guarded on the file it needs — the checker script, the solution, the built test DLLs — so the workflow is honest about today's empty tree and starts gating the moment that file lands. The guards are the only concession: nothing is `continue-on-error`, and a script that exists and fails still fails the build. Remove a guard once its input is permanently there, not before, and never add one to get past a red build.
+**What CI runs.** [`.github/workflows/build.yml`](.github/workflows/build.yml) has two jobs: a Windows job that checks the build shape, builds **Debug|x64**, runs the test suites and then clang-tidy; and a Linux job that self-tests the checkers and checks formatting on a pinned clang-format. **Every step that has something to run blocks; a step whose input does not exist yet is skipped, not faked.** Each gate is guarded on the file it needs — the checker script, the solution, the built test DLLs — so the workflow is honest about today's empty tree and starts gating the moment that file lands. The guards are the only concession: nothing is `continue-on-error`, and a script that exists and fails still fails the build. Remove a guard once its input is permanently there, not before, and never add one to get past a red build.
 
 **CI does not build Release.** The Windows build is the slow half of the pipeline and a second configuration roughly doubles it for a tree where the two differ only in optimisation. What stands in for it is the static alignment check on the two configurations (§3) — and, before a release, an actual `Configuration=Release` build by whoever is shipping. If you change something that could plausibly break only under optimisation, build Release yourself and say so.
 
@@ -314,7 +314,7 @@ For Direct3D that list means what the Windows SDK installs: `d3d12.h`, `dxgi1_6.
 - [ ] No project's `ConformanceMode`, `LanguageStandard`, `WarningLevel` or `TreatWarningAsError` was changed, and no warning was silenced with a pragma.
 - [ ] Debug and Release still agree on everything §3 says they must.
 - [ ] No library outside R14's approved table, every package at a pinned version, each within its bounds.
-- [ ] The checkers pass — or, for one not yet written, the report says which and why.
+- [ ] The checkers pass: `CheckProjectFiles.py`, `CheckFormat.py`, `RunClangTidy.py` (CI runs the last if you cannot), and `TestCheckers.py` if you changed a checker.
 - [ ] It builds Debug|x64, and every test suite runs and passes.
 - [ ] If it touches rendering, input, audio or presentation: it was **run**, not just built.
 - [ ] `Design/ADR/` has a new file if the change *was* a decision.

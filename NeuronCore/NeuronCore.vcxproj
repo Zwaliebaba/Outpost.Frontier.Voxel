@@ -86,6 +86,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="FileSys.h" />
+    <ClInclude Include="LoopbackTransport.h" />
     <ClInclude Include="ModelAxes.h" />
     <ClInclude Include="Random.h" />
     <ClInclude Include="RayBox.h" />
@@ -96,15 +97,18 @@
     <ClInclude Include="VoxelMesher.h" />
     <ClInclude Include="VoxelWireframe.h" />
     <ClInclude Include="WindowsSdk.h" />
+    <ClInclude Include="WireFormat.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FileSys.cpp" />
+    <ClCompile Include="LoopbackTransport.cpp" />
     <ClCompile Include="ModelAxes.cpp" />
     <ClCompile Include="Random.cpp" />
     <ClCompile Include="RayBox.cpp" />
     <ClCompile Include="RecordFile.cpp" />
     <ClCompile Include="VoxFile.cpp" />
     <ClCompile Include="VoxModel.cpp" />
+    <ClCompile Include="WireFormat.cpp" />
     <ClCompile Include="VoxelMesher.cpp" />
     <ClCompile Include="VoxelWireframe.cpp" />
   </ItemGroup>

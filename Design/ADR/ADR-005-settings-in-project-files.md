@@ -44,6 +44,6 @@ After the change:
 
 ## Consequences
 
-- A required setting is stated in nine projects and two configurations each, so a change to one has to reach all of them, and nothing checks that yet. `Build/CheckProjectFiles.py` is meant to compare them; until it exists, that is review's job (AGENTS.md §2).
+- A required setting is stated in nine projects and two configurations each, so a change to one has to reach all of them, and nothing checks that yet. `Build/CheckProjectFiles.py` is meant to compare them; until it exists, that is review's job (AGENTS.md §2). *Since 2026-11-22 it exists and does: it requires every setting in this table in both configurations, allows Debug and Release to differ only where AGENTS.md §3 says, and rejects comments, custom targets and imports beyond the template's, except the build files of a package R14 approves.*
 - A new asset file must be added to `Outpost.vcxproj` as a *Copy file* item, or it is not deployed. That is the same rule AGENTS.md §2 already applies to source files.
 - In Debug, shaders compile without optimisation, which is Visual Studio's default for the HLSL compiler. AGENTS.md §3 allows Debug and Release to differ on optimisation.

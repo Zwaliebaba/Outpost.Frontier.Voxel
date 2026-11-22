@@ -7,6 +7,9 @@
     <Filter Include="Scene">
       <UniqueIdentifier>{EE98632B-2A43-5D77-97F1-966361B6E92D}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Messages">
+      <UniqueIdentifier>{AAC720A9-E91B-4F3B-8CB7-3C57D23026E1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Palette.h">
@@ -18,6 +21,9 @@
     <ClInclude Include="WorldSnapshot.h">
       <Filter>Scene</Filter>
     </ClInclude>
+    <ClInclude Include="Messages.h">
+      <Filter>Messages</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Palette.cpp">
@@ -28,6 +34,9 @@
     </ClCompile>
     <ClCompile Include="WorldSnapshot.cpp">
       <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="Messages.cpp">
+      <Filter>Messages</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
