@@ -287,9 +287,10 @@ void Universe::FlyShips()
         if (flyer.dock.phase == DockPhase::Final)
         {
           // Docked: within the point's radius of the pad, which the mover ends on (ch. 04 §3.4).
+          // A docked ship rests on the pad as a resumed save places it, its charge made good.
           m_support.Docked(flyer.body.object);
-          flyer.state.velocityMetresPerSecond = XMFLOAT3{};
-          flyer.state.angularVelocityRadiansPerSecond = XMFLOAT3{};
+          const DockingPath& path = m_support.Points(flyer.dockStation)[flyer.dockPoint].path;
+          flyer.state = RestingFlightState(flyer.body.spec, Pose{path.pad, path.orientation});
           StateDock(flyer, DockPhase::Docked, DockAnswer::None);
           if (player)
           {

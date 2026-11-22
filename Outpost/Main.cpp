@@ -10,6 +10,8 @@
 #include "MainWindow.h"
 
 #include "Commands.h"
+#include "SaveFile.h"
+#include "SaveGame.h"
 
 #include "FileSys.h"
 #include "FrameCapture.h"
@@ -20,10 +22,11 @@
 #include "TacticalClient.h"
 #include "TickClock.h"
 #include "VoxFile.h"
-#include "VoxelMesher.h"
 #include "Universe.h"
+#include "VoxelMesher.h"
 
 #include <shellapi.h>
+#include <shlobj.h>
 
 #include <algorithm>
 #include <chrono>
@@ -130,7 +133,82 @@ struct Session
   Outpost::Universe universe;
   Outpost::Observer observer;
   Neuron::LoopbackTransport transport;
+  std::filesystem::path savePath; // empty: nothing is saved
+  std::string saveError;          // the last save that failed, for the report
 };
+
+/// Where the game saves (D17): the path --save gave, or the player's Saved Games folder. A smoke
+/// test saves only where --save says, so it never touches the player's game.
+[[nodiscard]] std::filesystem::path SavePathFor(const Outpost::LaunchOptions& _options)
+{
+  if (!_options.save.empty() || _options.smokeTest)
+  {
+    return _options.save;
+  }
+  PWSTR folder = nullptr;
+  std::filesystem::path path;
+  if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_SavedGames, KF_FLAG_CREATE, nullptr, &folder)))
+  {
+    path = std::filesystem::path(folder) / L"Outpost Frontier" / L"Save.txt";
+  }
+  CoTaskMemFree(folder);
+  return path;
+}
+
+/// Writes the character and the universe as they stand to the save, completely before it replaces
+/// the last (D17). False, with the reason kept in the session, when it could not.
+bool SaveNow(Session& _session)
+{
+  if (_session.savePath.empty())
+  {
+    return true;
+  }
+  std::string text;
+  std::string error;
+  std::error_code ignored;
+  std::filesystem::create_directories(_session.savePath.parent_path(), ignored);
+  if (!Outpost::FormatSaveGame(_session.universe.MakeSave(), text, error) || !Neuron::WriteSaveFile(_session.savePath, text, error))
+  {
+    _session.saveError = "cannot save to " + _session.savePath.string() + ": " + error;
+    OutputDebugStringA(("Outpost: " + _session.saveError + "\n").c_str());
+    return false;
+  }
+  _session.saveError.clear();
+  return true;
+}
+
+/// Start-up as D18 says: the save if there is one, otherwise a new game docked at the start
+/// station. A save that cannot be read or does not fit the content is left as it is, and the
+/// game does not start, so that nothing overwrites it.
+[[nodiscard]] bool StartGame(Session& _session, Report& _report, std::string& _outError)
+{
+  std::error_code missing;
+  if (!_session.savePath.empty() && std::filesystem::exists(_session.savePath, missing))
+  {
+    std::string text;
+    Outpost::SaveGame save;
+    if (!Neuron::ReadTextFile(_session.savePath, text))
+    {
+      _outError = "cannot read the save " + _session.savePath.string();
+      return false;
+    }
+    if (!Outpost::ParseSaveGame(text, save, _outError) || !_session.universe.Restore(save, _outError))
+    {
+      _outError = "the save " + _session.savePath.string() + " was left as it is: " + _outError;
+      return false;
+    }
+    _report.Line("save: resumed " + _session.savePath.string() + " at tick " + std::to_string(_session.universe.TickCount()) + ", " +
+                 (save.character.location.kind == Outpost::LocationKind::Docked ? "docked" : "in space"));
+    return true;
+  }
+  if (!_session.universe.NewGame(_outError))
+  {
+    return false;
+  }
+  _report.Line("save: a new game, docked at " + _session.universe.DockStatus(_session.universe.PlayerShip()).station +
+               (_session.savePath.empty() ? ", saved nowhere" : ", saved to " + _session.savePath.string()));
+  return true;
+}
 
 /// How often the client's prediction of its own ship matched the server, tick for tick.
 struct PredictionTally
@@ -174,6 +252,10 @@ struct PredictionTally
     return false;
   }
   _session.universe.Tick();
+  if (_session.universe.TakeSaveRequest())
+  {
+    static_cast<void>(SaveNow(_session)); // D17: on launch and on docking
+  }
   const Outpost::ObjectId ship = _session.universe.PlayerShip();
   const Outpost::FlightState* server = _session.universe.Flight(ship);
   const Outpost::FlightState* predicted = _session.client.OwnShip().StateAt(_session.universe.TickCount());
@@ -733,6 +815,20 @@ int WINAPI wWinMain(_In_ HINSTANCE _instance, _In_opt_ HINSTANCE /*_previous*/, 
           else
           {
             report.Line("server: " + std::to_string(session->universe.State().objects.size()) + " objects");
+            session->savePath = SavePathFor(options);
+            if (!StartGame(*session, report, error))
+            {
+              report.Line("FAIL save: " + error);
+              result = ExitCode::Save;
+              if (!options.smokeTest)
+              {
+                const std::filesystem::path message = error; // widened for the box
+                MessageBoxW(session->window.Handle(), message.wstring().c_str(), L"Outpost: Frontier", MB_ICONERROR);
+              }
+            }
+          }
+          if (result == ExitCode::Success)
+          {
             // The client is the observer that flies the player's ship, and is told what exists
             // before the first tick so that it can predict that tick.
             session->observer.AssignShip(session->universe.PlayerShip());
@@ -758,6 +854,19 @@ int WINAPI wWinMain(_In_ HINSTANCE _instance, _In_opt_ HINSTANCE /*_previous*/, 
             if (ReportDebugLayer(*session, options, report) > 0 && result == ExitCode::Success)
             {
               result = ExitCode::DebugLayerErrors;
+            }
+          }
+          if (result != ExitCode::Save && !session->savePath.empty())
+          {
+            // D17: saved on quit, and quitting in space keeps the sortie.
+            if (SaveNow(*session))
+            {
+              report.Line("save: written to " + session->savePath.string() + " at tick " + std::to_string(session->universe.TickCount()));
+            }
+            else
+            {
+              report.Line("FAIL save: " + session->saveError);
+              result = result == ExitCode::Success ? ExitCode::Save : result;
             }
           }
         }

@@ -36,14 +36,17 @@ namespace
 const char* UsageText() noexcept
 {
   return "usage: Outpost [--windowed] [--size WxH] [--warp] [--debug-layer | --no-debug-layer] [--no-vsync]\n"
-         "               [--assets directory]\n"
+         "               [--assets directory] [--save file.txt]\n"
          "       Outpost --smoke-test [--frames N] [--size WxH] [--capture file.png] [--compare reference.png]\n"
          "               [--report file.txt] [--script file.txt] [--expect report.txt] [same device options]\n"
          "               --script plays input commands at fixed ticks and runs one frame past the last;\n"
          "               --expect fails the run when the frame's statistics leave a stored report's tolerance\n"
          "       Outpost --benchmark [--frames N] [smoke-test options]: times every frame on the GPU with the\n"
          "               shadow map redrawn each frame, and surface extraction per model; 600 frames by default\n"
-         "Interactive sessions start borderless fullscreen unless --windowed; F11 or Alt+Enter switches.\n";
+         "Interactive sessions start borderless fullscreen unless --windowed; F11 or Alt+Enter switches.\n"
+         "The game resumes its save, Saved Games\\Outpost Frontier\\Save.txt unless --save names another,\n"
+         "or starts a new game docked; it saves on launch, on docking and on quit. A smoke test uses no\n"
+         "save unless --save is given.\n";
 }
 
 bool ParseCommandLine(const std::vector<std::wstring>& _arguments, LaunchOptions& _outOptions, std::string& _outError)
@@ -131,6 +134,10 @@ bool ParseCommandLine(const std::vector<std::wstring>& _arguments, LaunchOptions
     else if (argument == L"--assets" && hasValue)
     {
       _outOptions.assets = _arguments[++i];
+    }
+    else if (argument == L"--save" && hasValue)
+    {
+      _outOptions.save = _arguments[++i];
     }
     else
     {

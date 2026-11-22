@@ -1,5 +1,6 @@
 #include "FileSys.h"
 #include "Messages.h"
+#include "SaveGame.h"
 #include "TickClock.h"
 #include "Universe.h"
 
@@ -229,6 +230,109 @@ public:
     Assert::IsTrue(universe.DockStatus(ship).answer == Outpost::DockAnswer::Canceled);
     Assert::IsTrue(PhaseOf(universe) == Outpost::DockPhase::None);
     Assert::IsNull(universe.Support().HeldBy(ship));
+  }
+
+  TEST_METHOD(LaunchFlyDockQuitAndRestartKeepsEveryField)
+  {
+    Outpost::Universe universe;
+    LoadShipped(universe);
+    std::string error;
+    Assert::IsTrue(universe.NewGame(error), Wide(error).c_str());
+    const Outpost::ObjectId ship = universe.PlayerShip();
+    Assert::IsTrue(universe.Command(Outpost::DockCommandMessage{0, ship, Outpost::DockCommand::Launch}));
+    Assert::IsTrue(TickUntil(universe, Outpost::DockPhase::None, 60).has_value(), L"launched");
+    for (int i = 0; i < 4 * static_cast<int>(TICKS_PER_SECOND); ++i)
+    {
+      Outpost::ShipCommand command;
+      command.wishes.engineOn = true;
+      command.wishes.throttle = 0.5f;
+      Assert::IsTrue(universe.SubmitCommand(Outpost::FlightInputMessage{universe.State().tick + 1, ship, command}));
+      universe.Tick();
+    }
+    Assert::IsTrue(universe.Command(Outpost::DockCommandMessage{universe.State().tick, ship, Outpost::DockCommand::Dock}));
+    Assert::IsTrue(TickUntil(universe, Outpost::DockPhase::Docked, 600).has_value(), L"docked again");
+    Assert::IsTrue(universe.TakeSaveRequest());
+    for (int i = 0; i < 90; ++i)
+    {
+      universe.Tick(); // income runs on while docked; the quit save takes it
+    }
+
+    // Quit: the save as the executable writes it, as text.
+    std::string text;
+    Assert::IsTrue(Outpost::FormatSaveGame(universe.MakeSave(), text, error), Wide(error).c_str());
+    // Restart: a fresh process loads its content and resumes the save.
+    Outpost::Universe resumed;
+    LoadShipped(resumed);
+    Outpost::SaveGame save;
+    Assert::IsTrue(Outpost::ParseSaveGame(text, save, error), Wide(error).c_str());
+    Assert::IsTrue(resumed.Restore(save, error), Wide(error).c_str());
+
+    Assert::IsTrue(resumed.MakeSave() == universe.MakeSave(), L"the character and the universe, field by field");
+    Assert::AreEqual(universe.State().tick, resumed.State().tick);
+    Assert::IsTrue(*resumed.Flight(ship) == *universe.Flight(ship), L"in the same berth, at rest");
+    Assert::IsTrue(resumed.DockStatus(ship).phase == Outpost::DockPhase::Docked);
+    Assert::AreEqual(universe.DockStatus(ship).station, resumed.DockStatus(ship).station);
+    Assert::IsTrue(resumed.State().resources == universe.State().resources);
+    for (int i = 0; i < 600; ++i)
+    {
+      universe.Tick();
+      resumed.Tick();
+    }
+    Assert::IsTrue(resumed.State().resources == universe.State().resources, L"the ledger runs on alike, remainders included");
+  }
+
+  TEST_METHOD(QuittingInSpaceKeepsTheSortie)
+  {
+    Outpost::Universe universe;
+    LoadShipped(universe);
+    std::string error;
+    Assert::IsTrue(universe.NewGame(error), Wide(error).c_str());
+    const Outpost::ObjectId ship = universe.PlayerShip();
+    Assert::IsTrue(universe.Command(Outpost::DockCommandMessage{0, ship, Outpost::DockCommand::Launch}));
+    Assert::IsTrue(TickUntil(universe, Outpost::DockPhase::None, 60).has_value());
+    for (int i = 0; i < 2 * static_cast<int>(TICKS_PER_SECOND); ++i)
+    {
+      universe.Tick(); // coasting out, turning nothing
+    }
+    std::string text;
+    Assert::IsTrue(Outpost::FormatSaveGame(universe.MakeSave(), text, error), Wide(error).c_str());
+    Outpost::Universe resumed;
+    LoadShipped(resumed);
+    Outpost::SaveGame save;
+    Assert::IsTrue(Outpost::ParseSaveGame(text, save, error), Wide(error).c_str());
+    Assert::IsTrue(save.character.location.kind == Outpost::LocationKind::Space);
+    Assert::IsTrue(resumed.Restore(save, error), Wide(error).c_str());
+    Assert::IsTrue(*resumed.Flight(ship) == *universe.Flight(ship), L"the flight state to the bit");
+    Assert::IsTrue(resumed.DockStatus(ship).phase == Outpost::DockPhase::None);
+    Assert::IsNull(resumed.Support().HeldBy(ship), L"the berth is free");
+    for (int i = 0; i < 120; ++i)
+    {
+      universe.Tick();
+      resumed.Tick();
+    }
+    Assert::IsTrue(*resumed.Flight(ship) == *universe.Flight(ship), L"and it flies on the same");
+  }
+
+  TEST_METHOD(ASaveThatDoesNotFitTheContentIsRefusedAndChangesNothing)
+  {
+    Outpost::Universe universe;
+    LoadShipped(universe);
+    std::string error;
+    Assert::IsTrue(universe.NewGame(error), Wide(error).c_str());
+    const Outpost::SaveGame before = universe.MakeSave();
+
+    Outpost::SaveGame save = before;
+    save.character.location.station = "Elsewhere";
+    save.universe.tick = 999;
+    Assert::IsFalse(universe.Restore(save, error));
+    Assert::IsTrue(error.find("Elsewhere") != std::string::npos, Wide(error).c_str());
+    save = before;
+    save.character.ship.instance = "Talon";
+    Assert::IsFalse(universe.Restore(save, error), L"another ship than the scene gives the player");
+    save = before;
+    save.universe.resources.front().name = "Unobtainium";
+    Assert::IsFalse(universe.Restore(save, error));
+    Assert::IsTrue(universe.MakeSave() == before, L"a refused save leaves the universe as it was");
   }
 };
 

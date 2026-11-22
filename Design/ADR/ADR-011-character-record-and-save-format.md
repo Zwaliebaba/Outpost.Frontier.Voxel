@@ -75,12 +75,23 @@ The universe's clock (the tick), each resource's amount and the ledger's remaind
 
 `Neuron::WriteSaveFile` writes the text to `<save>.partial`, flushes it to the disk, and moves it over the save with `MoveFileExW(MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)`. A crash leaves either the previous save or the new one, never part of either. This is D17's "written completely before it replaces the last".
 
+### Where the save is, and when it is written
+
+Added with plan task 2.7, which implements D17 and D18.
+
+- **One slot, in the player's Saved Games folder:** `Saved Games\Outpost Frontier\Save.txt`, found with `SHGetKnownFolderPath(FOLDERID_SavedGames)`, the folder Windows gives games for exactly this. `--save <file>` names another. A smoke test saves nowhere unless `--save` is given, so a verification run never touches the player's game and always starts the same way.
+- **The universe asks; the executable writes.** `Universe::TakeSaveRequest` reports that the save rule fired: on launch, the tick the command is taken, with the ship saved docked in the berth it is leaving; and on docking, the tick the ship rests on the pad. The executable writes after that tick, and again on quit, wherever the ship is, so quitting in space keeps the sortie. The server half never sees a file (R18's split, and this ADR's interface rule).
+- **A ship being carried is saved in its berth.** During the final approach, docked, and launching, the location is the docking point, so a save never holds a pose inside a scripted move that a resume could not continue.
+- **Start-up (D18):** the save is resumed when it exists. Otherwise a new game starts with the player's ship docked at a free fitting point of `System.txt`'s start station, with a fresh character, and the first save is written by the first launch or the quit.
+- **A save that cannot be read or does not fit the content stops the game, and is left as it is.** The reason and the path are shown, and nothing overwrites the file. A save that names an unknown station, point, resource or objective, or flies another ship than the scene gives the player, fails whole: `Universe::Restore` checks everything before it changes anything. Whether the player may then choose to start again is a question for the owner, not settled here.
+- **What a resume reproduces, measured by test:** `LaunchFlyDockQuitAndRestartKeepsEveryField` launches, flies, docks, formats the save, parses it into a fresh universe loaded from the shipped content, and compares the save, the tick, the flight state and the ledger field by field, then runs both 600 ticks and compares the ledger again. `QuittingInSpaceKeepsTheSortie` does the same for a ship in space and compares the flight state to the bit before and after 120 more ticks.
+
 ### No time stamp
 
-The blueprint's header has a time stamp, and the server half reads no wall time (R20). The file's modification time says when it was written; the world's tick says how far the game had run.
+The blueprint's header has a time stamp, and the server half reads no wall time (R20). The file's modification time says when it was written; the universe's tick says how far the game had run.
 
 ## What this forecloses
 
 - **A binary save.** Anything a save holds has to be expressible as records of text values, quote-free. Slice 5's voxel masks will need an encoding inside that rule; the plan amends this ADR for it.
-- **Partial loading.** A save is read whole or refused. There is no recovery of a damaged file; the previous one is gone once the replacement lands.
+- **Partial loading.** A save is read whole or refused, and a refused save stops the game rather than being replaced. There is no recovery of a damaged file; the previous one is gone once the replacement lands.
 - **Hand-edited comments surviving.** A save is rewritten on every launch, docking and quit, and only records survive.
