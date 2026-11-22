@@ -1,6 +1,6 @@
 # Smoke-test baseline
 
-**Taken:** 2026-11-22, first at commit `381bbc5` (F1 to F3 done), and stored again after F4, after the new station and after slice 1, for the reasons given below. **Purpose:** the reference that every change that must not alter the picture is checked against.
+**Taken:** 2026-11-22, first at commit `381bbc5` (F1 to F3 done), and stored again after F4, after the new station, after slice 1, after the signal and glazing materials and for slice 2's docked start, for the reasons given below. **Purpose:** the reference that every change that must not alter the picture is checked against.
 
 ## How it was taken
 
@@ -74,6 +74,16 @@ What the new references hold:
 - **WARP:** three default runs and two scripted runs wrote byte-identical PNGs. The statistics are 0.093, 10.6 %, 0.64 % and 0.28 % with 496 colours (default), 0.136, 22.2 %, 2.17 % and 0.68 % with 668 colours (scripted), and 0.135, 21.7 %, 2.12 % and 0.99 % with 726 colours (flight). The flight capture is again a single run.
 - **Hardware:** each RTX 3070 Ti Laptop GPU run matches its WARP report under `--expect`: 495, 668 and 729 colours.
 
+## Why it was stored again for slice 2's docked start
+
+Since slice 2's docking work, a new game starts docked at the shipyard (task 2.7), and docked is the tactical view with the docked view's section rail and Services inspector over it (task 2.5). The default run then showed the tactical view where its references held the flight view, and it failed `--expect` on every statistic: lit 25.0 % against 10.6 %. The references were stored again on branch `slice-2-dock`, at the docked view's commit `f413833`.
+
+- **Default:** the report reads `view: tactical` and `save: a new game, docked at Shipyard, saved nowhere`. The first publish is 70 messages, where it was 69: the dock status is new. No tick is predicted, because the ship is in its berth and the server holds it. The statistics are mean luminance 0.139, lit 25.0 %, cyan 2.57 % and warm 1.03 %, with 786 distinct colours.
+- **Scripted:** `ScriptedSmoke.txt` no longer presses F9, which task 2.5 removed; its click still selects the Tug. The statistics are 0.141, 25.8 %, 2.58 % and 0.73 %, with 671 colours. Against the default report it fails with exit code 9, as it should.
+- **WARP:** two runs of each wrote byte-identical PNGs.
+- **Hardware:** the RTX 3070 Ti Laptop GPU matches each WARP report under `--expect`: 788 colours against 786 (default) and 673 against 671 (scripted).
+- **The flight reference was not stored again.** `FlightSmoke.txt` assumes the game starts in flight and presses F9. It now has to launch first, which adds about 700 ticks to a run that already takes ten minutes on WARP. It is due with slice 2's close-out; until then `FlightSmokeWarp.*` are the slice 1 capture and do not describe the game.
+
 ## How to check against it
 
 ```powershell
@@ -94,7 +104,7 @@ So check a Release build with `--expect`, and use `--compare` against a capture 
 
 ## The scripted reference (plan task F5)
 
-`ScriptedSmoke.txt` drives the executable through input at fixed ticks. Since slice 1 it first presses F9 for the tactical view. It then clicks at the point where the first station had its fighter on the right; in the current station, that point selects the Tug. Then it orbits the view by dragging for 20 ticks and zooms one wheel step. The run lasts until one frame after the last input, 31 frames here.
+`ScriptedSmoke.txt` drives the executable through input at fixed ticks. A new game starts in the tactical view since slice 2, so it no longer presses F9 first. It clicks at the point where the first station had its fighter on the right; in the current station, that point selects the Tug. Then it orbits the view by dragging for 20 ticks and zooms one wheel step. The run lasts until one frame after the last input, 31 frames here.
 
 ```powershell
 .\x64\Debug\Outpost.exe --smoke-test --warp --script Design\Measurements\ScriptedSmoke.txt --expect Design\Measurements\ScriptedSmokeWarp.txt
@@ -119,6 +129,8 @@ What was checked when it was stored again, on the current station:
 - The RTX 3070 Ti Laptop GPU run matches the WARP report within the tolerance: 649 distinct colours against WARP's 650, the rest identical. So the WARP report also serves as the hardware reference.
 
 ## The flight reference (slice 1)
+
+*Out of date since slice 2's docked start: the script presses F9 and assumes a start in flight. See above.*
 
 `FlightSmoke.txt` flies the player's escort by its commands, then orders it from the tactical view. Over 480 ticks it:
 

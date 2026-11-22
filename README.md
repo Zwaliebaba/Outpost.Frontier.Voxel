@@ -75,7 +75,16 @@ Each build copies `Assets\` next to the executable, and the executable finds its
 
 ## Controls
 
-The game starts in the cockpit of the escort E-114, behind it in the chase view. Every key is a binding in `Assets\Content\Bindings.txt` and can be changed there.
+A new game starts docked at the Kessler Reach shipyard, with the escort E-114 in its berth. After that, the game resumes where it was last saved (see *Saving*). Every key is a binding in `Assets\Content\Bindings.txt` and can be changed there.
+
+**Docked**
+
+Docked is the tactical view of the station (below), with a section rail at the left (Build, Yard, Fleet, Services) and an inspector at the right. In slice 2 only Services has actions:
+
+- **Launch** (or L) carries the ship out of the hangar and hands it back about 12 seconds later, clear of the station and protected until then. It is unavailable, with the reason, when the ship has no working engine or power plant.
+- **Repair** is shown unavailable: the yard does not repair hulls yet.
+
+A control that cannot be used says why. While the station carries the ship, docking or launching, the chase view follows it and the flight HUD names the phase in place of an order.
 
 **Flying**
 
@@ -94,13 +103,13 @@ The game starts in the cockpit of the escort E-114, behind it in the chase view.
 
 The cursor is confined to the window while flying.
 
-**The tactical view** (F9). It stands in for the docked view that slice 2 builds; the key goes then.
+**The tactical view**, only while docked (GameDesign.md D10). A click on the docked view's rail or inspector goes to that control; elsewhere:
 
 | Input | Action |
 |---|---|
 | Left drag | Orbit the camera |
 | Left click (no drag) | Select the ship under the cursor; click empty space to clear the selection |
-| Right click | Order your ship there: onto a ship, it stops a few lengths short; into space, it flies to that point at its own height |
+| Right click | An order for your ship. It was flown in slice 1; docked, the station holds the ship and no order is sent, until orders for the fleet arrive |
 | Right or middle drag | Pan |
 | Mouse wheel | Zoom |
 | R or Home | Reset the camera to the scene's starting view |
@@ -111,13 +120,20 @@ Ships behind the camera or off screen get an edge arrow that points toward them;
 
 | Input | Action |
 |---|---|
-| F9 | Switch between flying and the tactical view |
-| Esc | Cancel: drop an order or the cursor lock |
+| G | Dock: asks the nearest station within 10 km. When it answers *proceed*, the station flies the ship to a free berth; *wait* puts it on the waiting list |
+| L | Launch, when docked |
+| Esc | Cancel: drop an order or the cursor lock, or leave a docking approach or the waiting list |
 | H | Show or hide the controls line |
 | F3 | Show or hide the status line (adapter, model and voxel counts, fps) |
 | F11 or Alt+Enter | Switch between borderless fullscreen and a framed window |
 | F12 | Save a screenshot to `Captures\` next to the executable |
 | F10 or Alt+F4 | Quit |
+
+## Saving
+
+The game saves itself on launch, on docking and on quit, into one slot, and resumes from it at start-up. There is no manual save and no pause (GameDesign.md D17 to D19). The save is a readable text file at `Saved Games\Outpost Frontier\Save.txt` in your profile ([ADR-011](Design/ADR/ADR-011-character-record-and-save-format.md)); delete it to start a new game. `--save <file>` uses another file.
+
+A save that cannot be read, or that does not fit the content, stops the game with the reason and is left untouched (exit code 11).
 
 ## Where things live
 
@@ -127,6 +143,10 @@ Ships behind the camera or off screen get an edge arrow that points toward them;
 | The MVP implementation plan: the design's first six slices as tasks, tests, ADRs and exit criteria, with what is done so far | [`Design/ImplementationPlan.md`](Design/ImplementationPlan.md) |
 | The checkers CI runs, and their self-test | [`Build/`](Build/) — see *Tests and checks* |
 | The message catalogue and the in-process transport the executable runs on; the observer that publishes world state | [`GameCore/Messages.h`](GameCore/Messages.h), [`NeuronCore/LoopbackTransport.h`](NeuronCore/LoopbackTransport.h), [`GameLogic/Observer.h`](GameLogic/Observer.h), ADR-008 |
+| Zones, the system's stations and their docking points (slice 2, tasks 2.1 and 2.2) | [`Assets/Content/System.txt`](Assets/Content/System.txt), [`GameCore/Zone.h`](GameCore/Zone.h), [`GameCore/DockingPoint.h`](GameCore/DockingPoint.h), [`GameCore/SystemContent.h`](GameCore/SystemContent.h) |
+| Docking and launching on the server: space support's checks and waiting list, the approach and the carry in and out (tasks 2.3 and 2.4) | [`GameLogic/SpaceSupport.h`](GameLogic/SpaceSupport.h), [`GameLogic/Universe.h`](GameLogic/Universe.h) |
+| The docked view and the UI foundation it is built on (tasks 2.5a and 2.5) | [`GameApp/DockedView.h`](GameApp/DockedView.h), [`NeuronClient/HudBatch.h`](NeuronClient/HudBatch.h), [`NeuronClient/ControlFocus.h`](NeuronClient/ControlFocus.h), [`Assets/Ui/`](Assets/Ui/), ADR-023 |
+| The character record and the save (tasks 2.6 and 2.7) | [`GameLogic/SaveGame.h`](GameLogic/SaveGame.h), [`NeuronServer/SaveFile.h`](NeuronServer/SaveFile.h), ADR-011 |
 | Ship archetypes, the flight model and the manoeuvre layer (slice 1, tasks 1.1 to 1.3) | [`Assets/Content/Ships.txt`](Assets/Content/Ships.txt), [`GameCore/FlightModel.h`](GameCore/FlightModel.h), [`GameCore/Manoeuvre.h`](GameCore/Manoeuvre.h), ADR-009 |
 | The MsQuic spike: the catalogue over QUIC on localhost, with induced loss and a pinned certificate | [`QuicSpike/`](QuicSpike/), ADR-017. Run `.\x64\Debug\QuicSpike.exe`; it exits 0 when every check passes |
 | The scene: camera, lights, models, sockets, instances, ships, module damage, engines, objectives, resources, build items | [`Assets/Scene.txt`](Assets/Scene.txt) — plain text, documented in its header and in ADR-002 |
@@ -162,8 +182,8 @@ Emit/Glass properties stay in the VOX files.
 The [gameplay UI proposal](Design/GameplayUiProposal.md) includes Flight, Combat, Mining and
 Docked layouts, screenshots, interaction checks and the requested DDS texture plan. Download/open
 [the interactive preview](Design/GameplayUi/gameplay-ui-preview.html) in a browser to review it.
-These are design review files with example data; the game's implemented flight HUD remains the
-current runtime UI until the proposed integration is built.
+These are design review files with example data. The UI foundation and the Docked layout's rail and
+Services inspector are built (tasks 2.5a and 2.5); the other layouts are not yet.
 
 ## Tests and checks
 
@@ -185,17 +205,17 @@ Every library has its own test project under `Tests\`. In Visual Studio, *Test �
 
 | Project | Tests | Covers |
 |---|---|---|
-| `Tests\NeuronCoreTests` | 28 | VOX read/write and a hand-authored fixture that pins the palette offset; rejection of bad magic, truncated chunks, invalid dimensions and out-of-bounds voxels; meshing of single and adjacent voxels; wireframes and the side profile; VOX-to-world axes, handedness and socket mating; the wire format's byte order and round trips; the in-process transport's order and datagram budget |
-| `Tests\NeuronClientTests` | 30 | Selection maths: ships ahead, beside the view, straddling the near plane and behind the camera; pick rays; click versus drag; orbit-camera limits; pixel differences between captures, the report's image line, and the `--expect` tolerance. Bindings: key names, contexts and their precedence, holds and repeats, a key held across a context switch. The chase camera: its offset at rest, lag, look-ahead, levelling and shake |
-| `Tests\NeuronServerTests` | 5 | The tick clock at 60 Hz (ADR-007): whole ticks, carried remainders, ten minutes exactly 36,000 ticks, stall catch-up, interpolation |
-| `Tests\GameCoreTests` | 76 | The canonical palette, including byte equality across every model; scene parsing and validation; the shipped blueprint landing on its dock; the message catalogue: round trips, header, refusals, routes, the datagram budget, and applying messages to the client's world; world objects and poses; ship records; the flight model against chapter 02's worked example; the manoeuvre layer; swept collisions at every speed, bounce and collision damage |
-| `Tests\GameLogicTests` | 21 | The universe: its objects, the first state, exact income per minute, fractional income, capacity, reloading; the observer: one message per object, nothing sent twice, only what changed. Flight: an input timeline flown the same at 30, 60 and 144 fps, a go-to directive, a missing command, walls met at every speed regime, cruise refused near a wall, contacts recorded once, commands across the loopback |
-| `Tests\GameAppTests` | 31 | The HUD: every vertex on screen at 720p, 1080p and 4K with ships off screen and behind the camera; build slots; scaling; fonts. The flight HUD on screen at the same sizes. The draw constants the voxel shader unprojects through, and the render origin. Input scripts: parsing, drags, clicks and keys expanded per tick, mistakes reported with the line. Mouse flight: demand from the cursor, the hold, the lock, throttle, cruise, banking. The prediction against the server's step, corrections, and interpolation |
+| `Tests\NeuronCoreTests` | 45 | VOX read/write and a hand-authored fixture that pins the palette offset; rejection of bad magic, truncated chunks, invalid dimensions and out-of-bounds voxels; meshing of single and adjacent voxels; wireframes and the side profile; VOX-to-world axes, handedness and socket mating; the wire format's byte order and round trips; the in-process transport's order and datagram budget. The DDS reader: each supported format, truncated, unsupported and mipmapped files refused, straight alpha required (ADR-023). Text records: round trips and what the format cannot hold |
+| `Tests\NeuronClientTests` | 46 | Selection maths: ships ahead, beside the view, straddling the near plane and behind the camera; pick rays; click versus drag; orbit-camera limits; pixel differences between captures, the report's image line, and the `--expect` tolerance. Bindings: key names, contexts and their precedence, holds and repeats, a key held across a context switch. The chase camera: its offset at rest, lag, look-ahead, levelling and shake. The UI foundation: sprites and nine-slice panels in the HUD batch, the sprite manifest and its errors by line, button skins, and control focus with pointer, keyboard and disabled controls |
+| `Tests\NeuronServerTests` | 12 | The tick clock at 60 Hz (ADR-007): whole ticks, carried remainders, ten minutes exactly 36,000 ticks, stall catch-up, interpolation. The save file: sections round trip as readable records, a file cut short or miscounted is refused, and writing replaces the file whole |
+| `Tests\GameCoreTests` | 93 | The canonical palette, including byte equality across every model; scene parsing and validation; the shipped blueprint landing on its dock; the message catalogue: round trips, header, refusals, routes, the datagram budget, and applying messages to the client's world; world objects and poses; ship records; the flight model against chapter 02's worked example; the manoeuvre layer; swept collisions at every speed, bounce and collision damage. Zones: chapter 01's immersion, edges, boxes and cylinders, the smallest zone winning, hazards. Docking points, stations and the system file, with mistakes named by file and line |
+| `Tests\GameLogicTests` | 44 | The universe: its objects, the first state, exact income per minute, fractional income, capacity, reloading; the observer: one message per object, nothing sent twice, only what changed. Flight: an input timeline flown the same at 30, 60 and 144 fps, a go-to directive, a missing command, walls met at every speed regime, cruise refused near a wall, contacts recorded once, commands across the loopback. Space support: the checks in the chapter's order, the nearest free point, the waiting list and the 90 s abandonment. Docking from four start poses, launch clear and protected, commands set aside while carried, the Dock key out of range, cancel, a refused launch. The save: every field round trips, an unknown section is kept, a launch-fly-dock-quit-restart loop and a save that does not fit the content |
+| `Tests\GameAppTests` | 37 | The HUD: every vertex on screen at 720p, 1080p and 4K with ships off screen and behind the camera; build slots; scaling; fonts. The flight HUD on screen at the same sizes. The draw constants the voxel shader unprojects through, and the render origin. Input scripts: parsing, drags, clicks and keys expanded per tick, mistakes reported with the line. Mouse flight: demand from the cursor, the hold, the lock, throttle, cruise, banking. The prediction against the server's step, corrections, and interpolation. The docked view: rail and inspector on screen and clear of the HUD at three resolutions, Launch and Repair with their reasons, clicks, and the rail's sections |
 
 Smoke-test options:
 
 - `--frames N`, `--size WxH`, `--no-vsync`, `--debug-layer` / `--no-debug-layer` and `--assets <dir>`.
-- `--script <file>` plays input commands at fixed server ticks: `drag`, `click`, `move`, `wheel`, `key` (held for a number of ticks), `press`, `reset`, `help` and `status`. Keys are named as in `Bindings.txt`. The examples are `Design\Measurements\ScriptedSmoke.txt` (the tactical view) and `FlightSmoke.txt` (flying, then an order).
+- `--script <file>` plays input commands at fixed server ticks: `drag`, `click`, `move`, `wheel`, `key` (held for a number of ticks), `press`, `reset`, `help` and `status`. Keys are named as in `Bindings.txt`. The examples are `Design\Measurements\ScriptedSmoke.txt` (the tactical view) and `FlightSmoke.txt` (flying, then an order). `FlightSmoke.txt` predates the docked start and is due to be rewritten; see SmokeBaseline.md.
 - `--expect <report>` fails the run when the image statistics leave a stored report's tolerance.
 
 `--benchmark` times every frame on the GPU. The F6 crowd scenes it was measured on came from a generator that left the tree with `AssetGenerator` ([F6-RendererBaseline.md](Design/Measurements/F6-RendererBaseline.md)).
@@ -217,10 +237,31 @@ Exit codes:
 | 8 | The client could not decode or apply the server's messages |
 | 9 | `--expect`: the statistics differ from the stored report |
 | 10 | The client's prediction of its own ship left the server's on a tick the server did not correct |
+| 11 | The save could not be read or does not fit the content; it is left untouched |
 
 ### What was run for this version
 
-On 2026-11-22, on branch `slice-1-flight` (slice 1, tasks 1.4 to 1.11), Windows 11 with an RTX 3070 Ti Laptop GPU:
+On 2026-11-22, on branch `slice-2-dock` (slice 2, tasks 2.1 to 2.7 and 2.5a; 2.8 is not done), Windows 11 with an RTX 3070 Ti Laptop GPU:
+
+- **Builds:** Debug and Release x64 through the solution, with no warnings. The post-build copy deployed `Assets\` in both (ADR-024).
+- **Unit tests:** `vstest.console.exe` over all six suites, Debug: 277 of 277 passed.
+- **Smoke tests on WARP, Debug:**
+  - The default and scripted runs were stored again as references, for the docked start (SmokeBaseline.md). Two runs of each wrote byte-identical PNGs.
+  - The flight reference was not run: its script predates the docked start.
+  - The CI material sample, 3 frames at 1280×720, passes.
+- **Smoke tests on hardware, Debug:**
+  - The default and scripted runs match their WARP references under `--expect`, with 0 debug-layer errors.
+  - A scripted round trip: Launch clicked in the Services panel, the carry-out, free flight, G, the approach, and docked again with the docked view. The prediction matched the server on every tick it predicted, with one tick corrected where the server took the ship.
+- **The save:** two runs with `--save`, a new game and then a resume; the file is a readable text record.
+- **Checkers:**
+  - `CheckProjectFiles.py` clean.
+  - `CheckFormat.py` clean with clang-format 18.1.3.
+  - `RunClangTidy.py` clean over 107 translation units, with the local clang-tidy and `--any-version`.
+  - `TestCheckers.py` passed after the Universe rename.
+
+Not run here: the GitHub Actions workflow before the pull request, Visual Studio's own build of an asset-only change (ADR-024), and an interactive session played by hand.
+
+The record before, for slice 1 on branch `slice-1-flight`. On 2026-11-22 (slice 1, tasks 1.4 to 1.11), Windows 11 with an RTX 3070 Ti Laptop GPU:
 
 - **Builds:** Debug and Release x64, each a clean `Rebuild` through the solution, with no warnings.
 - **Unit tests:** `vstest.console.exe` over all six suites, Debug: 191 of 191 passed.
@@ -240,7 +281,7 @@ On 2026-11-22, on branch `slice-1-flight` (slice 1, tasks 1.4 to 1.11), Windows 
 
 Not run here: the GitHub Actions workflow.
 
-The record before, for F0 to F7 and slice 1 tasks 1.1 to 1.3, on branch `mvp-foundations`:
+The record before that, for F0 to F7 and slice 1 tasks 1.1 to 1.3, on branch `mvp-foundations`:
 
 - **Builds:** a Debug x64 rebuild through the solution after a NuGet restore, with no warnings. Release x64 built too.
 - **Unit tests:** `vstest.console.exe` over all six suites, Debug: 135 of 135 passed.

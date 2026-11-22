@@ -1,6 +1,6 @@
 # Outpost:Frontier — MVP implementation plan
 
-**Status:** in progress; F1 to F3 are done · **Date:** 2026-11-22
+**Status:** in progress; the foundations and slice 1 are done, slice 2 is under way · **Date:** 2026-11-22
 
 This plan turns the first six slices of [GameDesign.md](GameDesign.md) §11 into work: what to build, in which project, behind which decision, with which tests, and how to tell a slice is finished. It assumes the code as it stands at commit `d331bcf` and the rules in [AGENTS.md](../AGENTS.md), which it does not repeat. It gives no time estimates; the order and the dependencies are the plan.
 
@@ -17,7 +17,8 @@ This plan turns the first six slices of [GameDesign.md](GameDesign.md) §11 into
 | F6 Renderer baseline | Done: go | [F6-RendererBaseline.md](Measurements/F6-RendererBaseline.md). ADR-003's technique stays |
 | F7 MsQuic spike | Done | `QuicSpike` ([ADR-017](ADR/ADR-017-nuget-and-the-msquic-transport.md)). Every check passes at 10 % loss each way. At 30 % the stream stays whole, but the worst pose is 49 ticks behind |
 | Slice 1 | Done | The escort E-114 flies by cursor with a chase camera, and obeys a go-to order from the tactical view (F9). The prediction matched the server on every tick of every scripted run ([ADR-010](ADR/ADR-010-moving-instances-and-the-shadow-map.md)). The owner flew it by hand on 2026-11-22 |
-| Slices 2 to 6 | Not started | — |
+| Slice 2 | In progress: 2.1 to 2.7 and 2.5a done; 2.8 open | Zones and docking points in `Assets/Content/System.txt` (`GameCore/Zone`, `DockingPoint`, `SystemContent`). The dock request is `GameLogic/SpaceSupport`, not `Docking`, and the carry in and out is a mover inside `GameLogic/Universe`, not `GameCore/Manoeuvre`. The docked view is `GameApp/DockedView`, not `BaseView`: R2 bans the affix. The save ([ADR-011](ADR/ADR-011-character-record-and-save-format.md)) resumes the game, and a launch-fly-dock-quit-restart loop passes as a scenario test and as a scripted run on hardware. Open: the hazard warning (2.8), the flight smoke rewritten for the docked start, and the loop played by hand. Assets deploy by one post-build copy ([ADR-024](ADR/ADR-024-assets-deployed-by-a-post-build-copy.md)) |
+| Slices 3 to 6 | Not started | — |
 
 ## 1. What the MVP is
 
@@ -268,6 +269,7 @@ Content records (ADR-009) come with F4. `Scene.txt` stays the placement file; ar
 | 009 | Content records and identifiers | F4 | Which record files, typed fields, reference checking, socket classes, how `Scene.txt` divides |
 | 010 | Moving instances and the shadow map | Slice 1 | Per-frame transforms, shadow camera and redraw policy, and how it grows into cascades, with the F6 measurements |
 | 023 | The UI foundation | Slice 2 (task 2.5a) | The DDS subset read and its validation, the atlas manifest's records, colour space and straight alpha, one mip level, and how coloured sprites and nine-slice panels join the HUD batch (GameplayUiProposal.md). Numbered after 021 and 022, which asset work took |
+| 024 | Assets deployed by a post-build copy | Taken during slice 2, at the owner's request | One post-build event mirrors `Assets\` into the output directory in both configurations; asset files stop being project items. Visual Studio's up-to-date check no longer sees an asset-only edit |
 | 011 | The character record and save format | Slice 2 | Sections, content's save interface, atomic replacement, mask encoding |
 | 012 | The voxel mask and the damage event | First carve (slice 3) | The event's fields, integer application, cell order, the separation function's contract (a full fill behind it in the MVP), snapshots and brick diffs named by event (R22) |
 | 013 | Changing surfaces in the renderer | Slice 3 | Brick size, the per-frame re-extraction budget and its priority, GPU buffers per damaged instance, the upload path, and room for levels of detail, with the measurements behind them |
