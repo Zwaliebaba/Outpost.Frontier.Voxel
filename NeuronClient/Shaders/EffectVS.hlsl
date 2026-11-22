@@ -9,6 +9,9 @@ EffectVertexOut main(uint _vertexId : SV_VertexID)
   float2 q = QUAD[corner];
   output.colorA = effect.colorA;
   output.colorB = effect.colorB;
+  float brightness = StrobeBrightness(effect.animation.x);
+  output.colorA.rgb *= brightness;
+  output.colorB.rgb *= brightness;
   output.flags = effect.flags;
 
   if ((effect.flags & EFFECT_GLOW) != 0u)

@@ -18,12 +18,12 @@ public:
     Assert::IsTrue(Outpost::CanonicalPalette()[0] == (Neuron::Rgba8{0, 0, 0, 0}));
   }
 
-  TEST_METHOD(EveryAddressableEntryIsOpaque)
+  TEST_METHOD(OnlyBlueGlazingIsTranslucent)
   {
     const Neuron::VoxPalette& palette = Outpost::CanonicalPalette();
     for (std::size_t i = 1; i < palette.size(); ++i)
     {
-      Assert::AreEqual(255, static_cast<int>(palette[i].a));
+      Assert::AreEqual(i == Outpost::PaletteIndex::WINDOW_BLUE ? 80 : 255, static_cast<int>(palette[i].a));
     }
   }
 
@@ -34,11 +34,14 @@ public:
     for (std::size_t i = 0; i < materials.size(); ++i)
     {
       const bool emits = materials[i].emissionR > 0.0f || materials[i].emissionG > 0.0f || materials[i].emissionB > 0.0f;
-      const bool emissiveRole = i >= Pal::LAMP_AMBER && i < Pal::SIGNAL_CYAN + 4;
+      const bool emissiveRole = i >= Pal::LAMP_AMBER && i <= Pal::STROBE_YELLOW;
       Assert::AreEqual(emissiveRole, emits, (L"palette index " + std::to_wstring(i)).c_str());
+      Assert::AreEqual(i == Pal::STROBE_YELLOW ? 1.5f : 0.0f, materials[i].strobePeriodSeconds);
     }
     Assert::IsTrue(materials[Pal::LAMP_AMBER].glowRadius > 0.0f, L"lamps carry a glow sprite");
     Assert::IsTrue(materials[Pal::WINDOW_AMBER].glowRadius == 0.0f, L"windows emit without a sprite");
+    Assert::IsTrue(materials[Pal::STROBE_YELLOW].glowRadius > 0.0f, L"strobe halos flash with their emitting cells");
+    Assert::IsTrue(materials[Pal::WINDOW_BLUE].emissionB == 0.0f, L"blue glazing is not an opaque glowing display");
   }
 
   TEST_METHOD(EveryShippedModelCarriesTheCanonicalPaletteChunk)
@@ -57,6 +60,11 @@ public:
       Assert::IsTrue(Neuron::LoadVoxFile(entry.path(), document) == Neuron::VoxError::None, entry.path().c_str());
       Assert::IsTrue(document.hasPalette, entry.path().c_str());
       Assert::IsTrue(document.rgbaChunk == expected, entry.path().c_str());
+      Assert::AreEqual(std::size_t{2}, document.materials.size(), L"new authoring materials travel with every palette");
+      Assert::AreEqual(std::uint32_t{Outpost::PaletteIndex::STROBE_YELLOW}, document.materials[0].colorIndex);
+      Assert::IsTrue(document.materials[0].properties.front() == std::pair<std::string, std::string>{"_type", "_emit"});
+      Assert::AreEqual(std::uint32_t{Outpost::PaletteIndex::WINDOW_BLUE}, document.materials[1].colorIndex);
+      Assert::IsTrue(document.materials[1].properties.front() == std::pair<std::string, std::string>{"_type", "_glass"});
       if (first.empty())
       {
         first = document.rgbaChunk;

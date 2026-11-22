@@ -22,14 +22,16 @@ constexpr std::array<std::array<Int3, 4>, FACE_DIRECTION_COUNT> CORNERS = {{
   {Int3{0, 0, 0}, Int3{0, 1, 0}, Int3{1, 1, 0}, Int3{1, 0, 0}}, // -Z
 }};
 
-[[nodiscard]] bool Solid(const VoxModel& _model, int _x, int _y, int _z) noexcept
+[[nodiscard]] bool Solid(const VoxModel& _model, int _x, int _y, int _z, const VoxPalette* _palette = nullptr) noexcept
 {
-  return _model.At(_x, _y, _z) != VOX_EMPTY;
+  const std::uint8_t index = _model.At(_x, _y, _z);
+  return index != VOX_EMPTY && (_palette == nullptr || (*_palette)[index].a == 255);
 }
 
 // How recessed a face is: the count of solid cells among the eight that ring the cell in front of
 // the face, quantized to two bits.
-[[nodiscard]] std::uint16_t FaceOcclusion(const VoxModel& _model, int _x, int _y, int _z, FaceDirection _direction) noexcept
+[[nodiscard]] std::uint16_t FaceOcclusion(const VoxModel& _model, int _x, int _y, int _z, FaceDirection _direction,
+                                          const VoxPalette* _palette) noexcept
 {
   const Int3 n = NORMALS[static_cast<std::size_t>(_direction)];
   const int fx = _x + n.x;
@@ -62,7 +64,7 @@ constexpr std::array<std::array<Int3, 4>, FACE_DIRECTION_COUNT> CORNERS = {{
         dx = a;
         dy = b;
       }
-      count += Solid(_model, fx + dx, fy + dy, fz + dz) ? 1 : 0;
+      count += Solid(_model, fx + dx, fy + dy, fz + dz, _palette) ? 1 : 0;
     }
   }
   if (count == 0)
@@ -88,7 +90,7 @@ std::vector<VoxelFace> MeshFaces(const VoxModel& _model)
   return ExtractSurface(_model).faces;
 }
 
-VoxelSurface ExtractSurface(const VoxModel& _model)
+VoxelSurface ExtractSurface(const VoxModel& _model, const VoxPalette* _palette)
 {
   VoxelSurface surface;
   surface.boundsMin = Int3{static_cast<int>(_model.SizeX()), static_cast<int>(_model.SizeY()), static_cast<int>(_model.SizeZ())};
@@ -111,13 +113,15 @@ VoxelSurface ExtractSurface(const VoxModel& _model)
         for (std::uint32_t face = 0; face < FACE_DIRECTION_COUNT; ++face)
         {
           const Int3 n = NORMALS[face];
-          if (Solid(_model, x + n.x, y + n.y, z + n.z))
+          const std::uint8_t neighbor = _model.At(x + n.x, y + n.y, z + n.z);
+          if (neighbor == colorIndex || Solid(_model, x + n.x, y + n.y, z + n.z, _palette))
           {
             continue; // shared with a solid neighbour: never visible
           }
           const auto direction = static_cast<FaceDirection>(face);
           voxel.exposedFaceMask = static_cast<std::uint8_t>(voxel.exposedFaceMask | (1u << face));
-          voxel.faceOcclusion = static_cast<std::uint16_t>(voxel.faceOcclusion | (FaceOcclusion(_model, x, y, z, direction) << (face * 2)));
+          voxel.faceOcclusion =
+            static_cast<std::uint16_t>(voxel.faceOcclusion | (FaceOcclusion(_model, x, y, z, direction, _palette) << (face * 2)));
 
           VoxelFace out{Int3{x, y, z}, direction, colorIndex, {}};
           for (std::size_t corner = 0; corner < 4; ++corner)

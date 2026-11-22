@@ -6,16 +6,20 @@ live combat, module failure and repair remain their MVP implementation tasks.
 
 | Vessel | Editable master | Grid, VOX X × Y × Z | Solid cells | Regions |
 |---|---|---|---:|---:|
-| Frigate | `Assets/Models/FrigateIntact.vox` | 48 × 150 × 40 | 81,369 | 10 |
-| Lancer escort | `Assets/Models/EscortLancerIntact.vox` | 28 × 52 × 18 | 4,230 | 8 |
-| Talon escort | `Assets/Models/EscortTalonIntact.vox` | 44 × 42 × 16 | 3,158 | 9 |
-| Tug | `Assets/Models/TugIntact.vox` | 26 × 38 × 22 | 6,870 | 8 |
-| Raider | `Assets/Models/RaiderIntact.vox` | 48 × 54 × 20 | 7,496 | 8 |
+| Frigate | `Assets/Models/FrigateIntact.vox` | 48 × 150 × 40 | 81,321 | 10 |
+| Lancer escort | `Assets/Models/EscortLancerIntact.vox` | 28 × 52 × 18 | 4,124 | 8 |
+| Talon escort | `Assets/Models/EscortTalonIntact.vox` | 44 × 42 × 16 | 3,095 | 9 |
+| Tug | `Assets/Models/TugIntact.vox` | 26 × 38 × 22 | 6,843 | 8 |
+| Raider | `Assets/Models/RaiderIntact.vox` | 48 × 54 × 20 | 7,100 | 8 |
 
 Each master has one fully occupied core region, and every solid voxel is connected to it by
-face neighbors. All carry the existing byte-identical canonical palette. Grid sizes, default
-pivots and VOX-to-world axes match their corresponding scene model. Existing model files,
-`Scene.txt` and flight archetypes are unchanged.
+face neighbors. All carry the byte-identical canonical palette, including ADR-022’s signal and glazing roles. Grid sizes, default
+pivots and VOX-to-world axes match their corresponding scene model. Scene references, placements
+and flight archetypes are unchanged; ADR-022 applies the signal/glazing edits to both preview
+models and intact masters.
+
+The signal/glazing pass adds yellow strobes, blue panes and shallow inspection recesses while
+preserving core connectivity; see [SignalMaterials.md](SignalMaterials.md).
 
 The frigate's starboard armor is restored from the original undamaged mirrored hull geometry.
 The new masters have readable enclosed framing, deck layers and component colors: teal/cyan core
@@ -35,7 +39,7 @@ inspection and is never saved over the master. No burned paint is baked into an 
 `Assets/Hulls/FrigateF317.txt` removes **5,063 master cells** to reproduce the existing frigate's
 occupancy exactly. It separately references the hashed legacy preview for its palette appearance:
 scorch, embers, exposed frames and the old interior paint. This avoids treating burned colors as
-the original material. Expanding that reference currently yields 57,366 cosmetic color differences.
+the original material. Expanding that reference currently yields 57,318 cosmetic color differences.
 
 Applying the presence mask and appearance produces the byte-identical original `Frigate.vox`.
 Restoring all master cells and clearing the appearance yields the byte-identical `FrigateIntact.vox`.

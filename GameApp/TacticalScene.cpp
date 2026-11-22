@@ -131,8 +131,14 @@ void TacticalScene::BuildEffects()
       const XMFLOAT4 halo{glow.color.x / strength * 0.55f, glow.color.y / strength * 0.55f, glow.color.z / strength * 0.55f, 1.0f};
       const XMFLOAT4 core{1.0f, 0.95f, 0.85f, 0.55f};
       const XMFLOAT3 center = TransformPoint(glow.centerVox, voxToWorld);
-      m_staticGlows.push_back(Neuron::GpuEffect{
-        center, glow.radiusVoxels * view.voxelWorldSize, center, 0.0f, halo, core, Neuron::EFFECT_GLOW, {0.0f, 0.0f, 0.0f}});
+      m_staticGlows.push_back(Neuron::GpuEffect{center,
+                                                glow.radiusVoxels * view.voxelWorldSize,
+                                                center,
+                                                0.0f,
+                                                halo,
+                                                core,
+                                                Neuron::EFFECT_GLOW,
+                                                {glow.strobePeriodSeconds, 0.0f, 0.0f}});
     }
   }
 

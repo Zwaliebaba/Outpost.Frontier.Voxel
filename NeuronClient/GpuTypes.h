@@ -76,8 +76,8 @@ static_assert(sizeof(GpuVoxel) == 8);
 /// The per-palette-index material table: linear albedo and emission.
 struct GpuMaterial
 {
-  DirectX::XMFLOAT4 albedo;
-  DirectX::XMFLOAT4 emission; // rgb radiance, w = glow radius (unused on the GPU)
+  DirectX::XMFLOAT4 albedo;   // rgb linear color, w = coverage
+  DirectX::XMFLOAT4 emission; // rgb radiance, w = strobe period in seconds (0 = steady)
 };
 static_assert(sizeof(GpuMaterial) == 32);
 
@@ -102,7 +102,7 @@ struct GpuEffect
   DirectX::XMFLOAT4 colorA;
   DirectX::XMFLOAT4 colorB;
   std::uint32_t flags;
-  float padding[3];
+  float animation[3]; // x = strobe period in seconds (0 = steady), y/z reserved
 };
 static_assert(sizeof(GpuEffect) == 80);
 

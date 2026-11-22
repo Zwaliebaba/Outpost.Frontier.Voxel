@@ -20,6 +20,7 @@ struct GlowPoint
   DirectX::XMFLOAT3 centerVox;
   DirectX::XMFLOAT3 color;
   float radiusVoxels;
+  float strobePeriodSeconds;
 };
 
 /// One model, loaded once and shared by every instance that uses it.

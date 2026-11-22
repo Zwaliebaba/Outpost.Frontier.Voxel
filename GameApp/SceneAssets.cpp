@@ -27,8 +27,10 @@ namespace
   std::array<Neuron::GpuMaterial, Neuron::Renderer::MATERIAL_COUNT> table{};
   for (std::size_t i = 0; i < table.size(); ++i)
   {
-    table[i].albedo = DirectX::XMFLOAT4{SrgbToLinear(palette[i].r), SrgbToLinear(palette[i].g), SrgbToLinear(palette[i].b), 1.0f};
-    table[i].emission = DirectX::XMFLOAT4{materials[i].emissionR, materials[i].emissionG, materials[i].emissionB, materials[i].glowRadius};
+    table[i].albedo = DirectX::XMFLOAT4{SrgbToLinear(palette[i].r), SrgbToLinear(palette[i].g), SrgbToLinear(palette[i].b),
+                                        static_cast<float>(palette[i].a) / 255.0f};
+    table[i].emission =
+      DirectX::XMFLOAT4{materials[i].emissionR, materials[i].emissionG, materials[i].emissionB, materials[i].strobePeriodSeconds};
   }
   return table;
 }
@@ -81,7 +83,7 @@ bool SceneAssets::Load(const std::filesystem::path& _assetRoot, Neuron::Renderer
 
     LoadedModel model;
     model.name = asset.name;
-    model.surface = Neuron::ExtractSurface(document.model);
+    model.surface = Neuron::ExtractSurface(document.model, &canonical);
     model.gpu = _renderer.UploadModel(model.surface);
     if (model.gpu.voxelCount != model.surface.voxels.size())
     {
@@ -98,7 +100,8 @@ bool SceneAssets::Load(const std::filesystem::path& _assetRoot, Neuron::Renderer
       {
         model.glows.push_back(GlowPoint{
           DirectX::XMFLOAT3{static_cast<float>(voxel.x) + 0.5f, static_cast<float>(voxel.y) + 0.5f, static_cast<float>(voxel.z) + 0.5f},
-          DirectX::XMFLOAT3{material.emissionR, material.emissionG, material.emissionB}, material.glowRadius});
+          DirectX::XMFLOAT3{material.emissionR, material.emissionG, material.emissionB}, material.glowRadius,
+          material.strobePeriodSeconds});
       }
     }
     m_models.push_back(std::move(model));

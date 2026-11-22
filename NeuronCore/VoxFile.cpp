@@ -2,6 +2,7 @@
 
 #include "FileSys.h"
 
+#include <algorithm>
 #include <cstring>
 
 namespace Neuron
@@ -43,6 +44,49 @@ struct ChunkHeader
   std::size_t childrenBytes;
 };
 
+[[nodiscard]] bool ReadMaterial(std::span<const std::uint8_t> _bytes, VoxMaterial& _out)
+{
+  if (_bytes.size() < 8)
+  {
+    return false;
+  }
+  _out.colorIndex = ReadU32(_bytes, 0);
+  const std::uint32_t count = ReadU32(_bytes, 4);
+  if (_out.colorIndex == 0 || _out.colorIndex > 255 || count > (_bytes.size() - 8) / 8)
+  {
+    return false;
+  }
+  std::size_t offset = 8;
+  const auto readString = [&](std::string& _outString)
+  {
+    if (_bytes.size() - offset < 4)
+    {
+      return false;
+    }
+    const std::uint32_t size = ReadU32(_bytes, offset);
+    offset += 4;
+    if (size > _bytes.size() - offset)
+    {
+      return false;
+    }
+    _outString.assign(reinterpret_cast<const char*>(_bytes.data() + offset), size);
+    offset += size;
+    return true;
+  };
+  for (std::uint32_t i = 0; i < count; ++i)
+  {
+    std::string key;
+    std::string value;
+    if (!readString(key) || !readString(value) || key.empty() ||
+        std::ranges::any_of(_out.properties, [&](const auto& _property) { return _property.first == key; }))
+    {
+      return false;
+    }
+    _out.properties.emplace_back(std::move(key), std::move(value));
+  }
+  return offset == _bytes.size();
+}
+
 // Reads a chunk header at _offset and checks that its content and children fit inside _end.
 [[nodiscard]] bool ReadChunkHeader(std::span<const std::uint8_t> _bytes, std::size_t _offset, std::size_t _end, ChunkHeader& _out) noexcept
 {
@@ -81,6 +125,8 @@ const char* VoxErrorName(VoxError _error) noexcept
     return "InvalidDimensions";
   case VoxError::VoxelOutOfBounds:
     return "VoxelOutOfBounds";
+  case VoxError::InvalidMaterial:
+    return "InvalidMaterial";
   case VoxError::FileIo:
     return "FileIo";
   }
@@ -221,6 +267,18 @@ VoxError ReadVox(std::span<const std::uint8_t> _bytes, VoxDocument& _outDocument
       _outDocument.hasPalette = true;
     }
 
+    else if (IdEquals(_bytes, offset, "MATL"))
+    {
+      VoxMaterial material;
+      if (!ReadMaterial(_bytes.subspan(chunk.contentOffset, chunk.contentBytes), material) ||
+          std::ranges::any_of(_outDocument.materials,
+                              [&](const VoxMaterial& _existing) { return _existing.colorIndex == material.colorIndex; }))
+      {
+        return VoxError::InvalidMaterial;
+      }
+      _outDocument.materials.push_back(std::move(material));
+    }
+
     offset = chunk.contentOffset + chunk.contentBytes + chunk.childrenBytes;
   }
 
@@ -235,7 +293,7 @@ VoxError ReadVox(std::span<const std::uint8_t> _bytes, VoxDocument& _outDocument
   return VoxError::None;
 }
 
-std::vector<std::uint8_t> WriteVox(const VoxModel& _model, const VoxPalette& _palette)
+std::vector<std::uint8_t> WriteVox(const VoxModel& _model, const VoxPalette& _palette, std::span<const VoxMaterial> _materials)
 {
   std::vector<std::uint8_t> voxels;
   voxels.reserve(_model.CountSolid() * 4);
@@ -262,14 +320,34 @@ std::vector<std::uint8_t> WriteVox(const VoxModel& _model, const VoxPalette& _pa
   const std::uint32_t xyziChunkBytes = static_cast<std::uint32_t>(CHUNK_HEADER_BYTES + 4 + voxels.size());
   const std::uint32_t rgbaChunkBytes = static_cast<std::uint32_t>(CHUNK_HEADER_BYTES + rgba.size());
 
+  std::vector<std::uint8_t> materialChunks;
+  for (const VoxMaterial& material : _materials)
+  {
+    std::vector<std::uint8_t> content;
+    AppendU32(content, material.colorIndex);
+    AppendU32(content, static_cast<std::uint32_t>(material.properties.size()));
+    for (const auto& [key, value] : material.properties)
+    {
+      for (const std::string* text : {&key, &value})
+      {
+        AppendU32(content, static_cast<std::uint32_t>(text->size()));
+        content.insert(content.end(), text->begin(), text->end());
+      }
+    }
+    AppendId(materialChunks, "MATL");
+    AppendU32(materialChunks, static_cast<std::uint32_t>(content.size()));
+    AppendU32(materialChunks, 0);
+    materialChunks.insert(materialChunks.end(), content.begin(), content.end());
+  }
+
   std::vector<std::uint8_t> out;
-  out.reserve(8 + CHUNK_HEADER_BYTES + sizeChunkBytes + xyziChunkBytes + rgbaChunkBytes);
+  out.reserve(8 + CHUNK_HEADER_BYTES + sizeChunkBytes + xyziChunkBytes + rgbaChunkBytes + materialChunks.size());
   AppendId(out, "VOX ");
   AppendU32(out, VOX_VERSION);
 
   AppendId(out, "MAIN");
   AppendU32(out, 0);
-  AppendU32(out, sizeChunkBytes + xyziChunkBytes + rgbaChunkBytes);
+  AppendU32(out, sizeChunkBytes + xyziChunkBytes + rgbaChunkBytes + static_cast<std::uint32_t>(materialChunks.size()));
 
   AppendId(out, "SIZE");
   AppendU32(out, 12);
@@ -288,6 +366,7 @@ std::vector<std::uint8_t> WriteVox(const VoxModel& _model, const VoxPalette& _pa
   AppendU32(out, static_cast<std::uint32_t>(rgba.size()));
   AppendU32(out, 0);
   out.insert(out.end(), rgba.begin(), rgba.end());
+  out.insert(out.end(), materialChunks.begin(), materialChunks.end());
   return out;
 }
 
@@ -302,9 +381,10 @@ VoxError LoadVoxFile(const std::filesystem::path& _path, VoxDocument& _outDocume
   return ReadVox(bytes, _outDocument);
 }
 
-bool SaveVoxFile(const std::filesystem::path& _path, const VoxModel& _model, const VoxPalette& _palette)
+bool SaveVoxFile(const std::filesystem::path& _path, const VoxModel& _model, const VoxPalette& _palette,
+                 std::span<const VoxMaterial> _materials)
 {
-  return WriteFileBytes(_path, WriteVox(_model, _palette));
+  return WriteFileBytes(_path, WriteVox(_model, _palette, _materials));
 }
 
 } // namespace Neuron

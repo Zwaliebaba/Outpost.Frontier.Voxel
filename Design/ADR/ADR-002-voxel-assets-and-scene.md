@@ -2,6 +2,10 @@
 
 **Status:** accepted · **Date:** 2026-11-21
 
+**Amended by [ADR-022](ADR-022-signal-and-glazing-materials.md):** slots 224/225 add yellow
+strobes and translucent blue glazing. MATL authoring dictionaries now round-trip; runtime emission
+and coverage still come from the canonical game tables.
+
 ## Context
 
 The sample's models must be genuine MagicaVoxel `.vox` files: editable in MagicaVoxel and committed as source assets. Every model has to agree on what a palette index means, emission has to come from the renderer rather than the file, and large structures must respect the format's 256-voxel dimension limit. Scene placement — which model goes where, how modules dock, what the HUD reports — must be editable without a rebuild of the code.

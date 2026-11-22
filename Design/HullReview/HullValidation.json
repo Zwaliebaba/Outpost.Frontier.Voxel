@@ -7,9 +7,9 @@
         150,
         40
       ],
-      "solidVoxels": 81369,
-      "surfaceVoxels": 16099,
-      "sha256": "7c505c31b824f7329253e3bfd113f1a1af08dbc1cfe8e1a37fd7907cc3337893",
+      "solidVoxels": 81321,
+      "surfaceVoxels": 16279,
+      "sha256": "b6e1d085300b1ef3b43e3a731ac5e943fff06d790d33494c247282a78c054aff",
       "coreConnected": true,
       "regions": [
         {
@@ -40,7 +40,7 @@
         {
           "name": "Sensors",
           "function": "sensor",
-          "solidVoxels": 2040
+          "solidVoxels": 1992
         },
         {
           "name": "WeaponFore",
@@ -60,7 +60,7 @@
         {
           "name": "HullSectionB",
           "function": "structure",
-          "solidVoxels": 35695
+          "solidVoxels": 35647
         }
       ]
     },
@@ -71,9 +71,9 @@
         52,
         18
       ],
-      "solidVoxels": 4230,
-      "surfaceVoxels": 2118,
-      "sha256": "3ec725c7c8b622db308b038707f01260ef3253b90fca8b4997d9d47fe5da5e86",
+      "solidVoxels": 4124,
+      "surfaceVoxels": 2142,
+      "sha256": "9b4d56d7b07045677d7eb5fda6d2189ca5225bdd7a81e08fa6c575456f99ca6b",
       "coreConnected": true,
       "regions": [
         {
@@ -104,7 +104,7 @@
         {
           "name": "Sensors",
           "function": "sensor",
-          "solidVoxels": 144
+          "solidVoxels": 38
         },
         {
           "name": "WeaponPort",
@@ -125,9 +125,9 @@
         42,
         16
       ],
-      "solidVoxels": 3158,
-      "surfaceVoxels": 1818,
-      "sha256": "8a287bd61979c982f10e6a4e35c669dd3ff468a5c58f147aeff73fa1e7369502",
+      "solidVoxels": 3095,
+      "surfaceVoxels": 1849,
+      "sha256": "9a0b127c5d829c81236b572b8e5fa6afe90f5da813b54c12497f8d8f5ad9c02d",
       "coreConnected": true,
       "regions": [
         {
@@ -153,7 +153,7 @@
         {
           "name": "Sensors",
           "function": "sensor",
-          "solidVoxels": 64
+          "solidVoxels": 25
         },
         {
           "name": "WeaponPort",
@@ -184,9 +184,9 @@
         38,
         22
       ],
-      "solidVoxels": 6870,
-      "surfaceVoxels": 2412,
-      "sha256": "1ee11bb0b965e446c8b51eacddd9dcf303cf92c1f133f0d2406662f6313968cf",
+      "solidVoxels": 6843,
+      "surfaceVoxels": 2460,
+      "sha256": "36bd3100d698912c1808640be7dd0bc27f98d1184ae4020c9674f37b5b2dd7d4",
       "coreConnected": true,
       "regions": [
         {
@@ -212,7 +212,7 @@
         {
           "name": "Sensors",
           "function": "sensor",
-          "solidVoxels": 256
+          "solidVoxels": 235
         },
         {
           "name": "ClampPort",
@@ -238,9 +238,9 @@
         54,
         20
       ],
-      "solidVoxels": 7496,
-      "surfaceVoxels": 2894,
-      "sha256": "ee09dbfe7512e7acc82ae0418b7852a47585e76628d334456e185339bf3397ab",
+      "solidVoxels": 7100,
+      "surfaceVoxels": 3046,
+      "sha256": "23d153ad79b5013fb07a4966c853384ce9f5d469f82414cca16795e7f936819f",
       "coreConnected": true,
       "regions": [
         {
@@ -271,7 +271,7 @@
         {
           "name": "Sensors",
           "function": "sensor",
-          "solidVoxels": 170
+          "solidVoxels": 78
         },
         {
           "name": "WeaponPort",
@@ -286,13 +286,13 @@
       ]
     }
   },
-  "paletteSha256": "644fe81285ae70806c873eda5aa05d08c20cab026e8c464f8f87a2da2c3c6977",
+  "paletteSha256": "afec7a9fbc00aabad89d1c8e20987cc11216208262c3797e2ad3517a916aee86",
   "preset": {
     "name": "FrigateF317",
     "removedVoxels": 5063,
-    "appearanceVoxels": 57366,
+    "appearanceVoxels": 57318,
     "previewExact": true,
     "repairExact": true,
-    "midsectionDetachedVoxels": 38145
+    "midsectionDetachedVoxels": 38109
   }
 }

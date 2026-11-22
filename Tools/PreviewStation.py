@@ -18,7 +18,7 @@ import bpy
 import numpy as np
 from mathutils import Matrix, Vector
 
-from VoxelAssets import InstanceMatrices, MeshFaces, ParseScene, ReadVox, SWIZZLE, Triple
+from VoxelAssets import InstanceMatrices, MeshFaces, ParseScene, ReadVox, SWIZZLE, Triple, STROBE_YELLOW, WINDOW_BLUE
 
 
 def Materials(_palette):
@@ -34,8 +34,15 @@ def Materials(_palette):
     surface.inputs["Base Color"].default_value = (*linear, 1)
     surface.inputs["Roughness"].default_value = 0.62
     surface.inputs["Metallic"].default_value = 0.25 if index < 97 else 0.1
-    if 200 <= index <= 223:
+    if index == WINDOW_BLUE:
+      surface.inputs["Metallic"].default_value = 0
+      surface.inputs["Roughness"].default_value = 0.05
+      surface.inputs["Transmission Weight"].default_value = 0.68627451
+      surface.inputs["IOR"].default_value = 1.3
+    if 200 <= index <= STROBE_YELLOW:
       strength = 2.6 if index <= 207 else 3.2
+      if index == STROBE_YELLOW:
+        strength = 10
       surface.inputs["Emission Color"].default_value = (*linear, 1)
       surface.inputs["Emission Strength"].default_value = strength
     materials.append(material)
