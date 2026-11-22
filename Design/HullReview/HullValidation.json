@@ -1,0 +1,298 @@
+{
+  "hulls": {
+    "Frigate": {
+      "model": "FrigateIntact",
+      "dimensions": [
+        48,
+        150,
+        40
+      ],
+      "solidVoxels": 81369,
+      "surfaceVoxels": 16099,
+      "sha256": "7c505c31b824f7329253e3bfd113f1a1af08dbc1cfe8e1a37fd7907cc3337893",
+      "coreConnected": true,
+      "regions": [
+        {
+          "name": "Core",
+          "function": "core",
+          "solidVoxels": 96
+        },
+        {
+          "name": "Reactor",
+          "function": "power",
+          "solidVoxels": 800
+        },
+        {
+          "name": "ShieldGenerator",
+          "function": "shield",
+          "solidVoxels": 144
+        },
+        {
+          "name": "EnginePort",
+          "function": "engine",
+          "solidVoxels": 1096
+        },
+        {
+          "name": "EngineStarboard",
+          "function": "engine",
+          "solidVoxels": 1096
+        },
+        {
+          "name": "Sensors",
+          "function": "sensor",
+          "solidVoxels": 2040
+        },
+        {
+          "name": "WeaponFore",
+          "function": "weapon",
+          "solidVoxels": 210
+        },
+        {
+          "name": "WeaponAft",
+          "function": "weapon",
+          "solidVoxels": 208
+        },
+        {
+          "name": "Atmospherics",
+          "function": "atmosphere",
+          "solidVoxels": 2016
+        },
+        {
+          "name": "HullSectionB",
+          "function": "structure",
+          "solidVoxels": 35695
+        }
+      ]
+    },
+    "EscortLancer": {
+      "model": "EscortLancerIntact",
+      "dimensions": [
+        28,
+        52,
+        18
+      ],
+      "solidVoxels": 4230,
+      "surfaceVoxels": 2118,
+      "sha256": "3ec725c7c8b622db308b038707f01260ef3253b90fca8b4997d9d47fe5da5e86",
+      "coreConnected": true,
+      "regions": [
+        {
+          "name": "Core",
+          "function": "core",
+          "solidVoxels": 48
+        },
+        {
+          "name": "Reactor",
+          "function": "power",
+          "solidVoxels": 72
+        },
+        {
+          "name": "ShieldGenerator",
+          "function": "shield",
+          "solidVoxels": 48
+        },
+        {
+          "name": "EnginePort",
+          "function": "engine",
+          "solidVoxels": 764
+        },
+        {
+          "name": "EngineStarboard",
+          "function": "engine",
+          "solidVoxels": 764
+        },
+        {
+          "name": "Sensors",
+          "function": "sensor",
+          "solidVoxels": 144
+        },
+        {
+          "name": "WeaponPort",
+          "function": "weapon",
+          "solidVoxels": 45
+        },
+        {
+          "name": "WeaponStarboard",
+          "function": "weapon",
+          "solidVoxels": 45
+        }
+      ]
+    },
+    "EscortTalon": {
+      "model": "EscortTalonIntact",
+      "dimensions": [
+        44,
+        42,
+        16
+      ],
+      "solidVoxels": 3158,
+      "surfaceVoxels": 1818,
+      "sha256": "8a287bd61979c982f10e6a4e35c669dd3ff468a5c58f147aeff73fa1e7369502",
+      "coreConnected": true,
+      "regions": [
+        {
+          "name": "Core",
+          "function": "core",
+          "solidVoxels": 48
+        },
+        {
+          "name": "Reactor",
+          "function": "power",
+          "solidVoxels": 60
+        },
+        {
+          "name": "ShieldGenerator",
+          "function": "shield",
+          "solidVoxels": 36
+        },
+        {
+          "name": "Engine",
+          "function": "engine",
+          "solidVoxels": 198
+        },
+        {
+          "name": "Sensors",
+          "function": "sensor",
+          "solidVoxels": 64
+        },
+        {
+          "name": "WeaponPort",
+          "function": "weapon",
+          "solidVoxels": 156
+        },
+        {
+          "name": "WeaponStarboard",
+          "function": "weapon",
+          "solidVoxels": 156
+        },
+        {
+          "name": "WingStrutPort",
+          "function": "structure",
+          "solidVoxels": 276
+        },
+        {
+          "name": "WingStrutStarboard",
+          "function": "structure",
+          "solidVoxels": 276
+        }
+      ]
+    },
+    "Tug": {
+      "model": "TugIntact",
+      "dimensions": [
+        26,
+        38,
+        22
+      ],
+      "solidVoxels": 6870,
+      "surfaceVoxels": 2412,
+      "sha256": "1ee11bb0b965e446c8b51eacddd9dcf303cf92c1f133f0d2406662f6313968cf",
+      "coreConnected": true,
+      "regions": [
+        {
+          "name": "Core",
+          "function": "core",
+          "solidVoxels": 64
+        },
+        {
+          "name": "Reactor",
+          "function": "power",
+          "solidVoxels": 64
+        },
+        {
+          "name": "EnginePort",
+          "function": "engine",
+          "solidVoxels": 684
+        },
+        {
+          "name": "EngineStarboard",
+          "function": "engine",
+          "solidVoxels": 684
+        },
+        {
+          "name": "Sensors",
+          "function": "sensor",
+          "solidVoxels": 256
+        },
+        {
+          "name": "ClampPort",
+          "function": "clamp",
+          "solidVoxels": 224
+        },
+        {
+          "name": "ClampStarboard",
+          "function": "clamp",
+          "solidVoxels": 224
+        },
+        {
+          "name": "CargoSystems",
+          "function": "cargo",
+          "solidVoxels": 480
+        }
+      ]
+    },
+    "Raider": {
+      "model": "RaiderIntact",
+      "dimensions": [
+        48,
+        54,
+        20
+      ],
+      "solidVoxels": 7496,
+      "surfaceVoxels": 2894,
+      "sha256": "ee09dbfe7512e7acc82ae0418b7852a47585e76628d334456e185339bf3397ab",
+      "coreConnected": true,
+      "regions": [
+        {
+          "name": "Core",
+          "function": "core",
+          "solidVoxels": 80
+        },
+        {
+          "name": "Reactor",
+          "function": "power",
+          "solidVoxels": 80
+        },
+        {
+          "name": "ShieldGenerator",
+          "function": "shield",
+          "solidVoxels": 48
+        },
+        {
+          "name": "EnginePort",
+          "function": "engine",
+          "solidVoxels": 587
+        },
+        {
+          "name": "EngineStarboard",
+          "function": "engine",
+          "solidVoxels": 587
+        },
+        {
+          "name": "Sensors",
+          "function": "sensor",
+          "solidVoxels": 170
+        },
+        {
+          "name": "WeaponPort",
+          "function": "weapon",
+          "solidVoxels": 244
+        },
+        {
+          "name": "WeaponStarboard",
+          "function": "weapon",
+          "solidVoxels": 244
+        }
+      ]
+    }
+  },
+  "paletteSha256": "644fe81285ae70806c873eda5aa05d08c20cab026e8c464f8f87a2da2c3c6977",
+  "preset": {
+    "name": "FrigateF317",
+    "removedVoxels": 5063,
+    "appearanceVoxels": 57366,
+    "previewExact": true,
+    "repairExact": true,
+    "midsectionDetachedVoxels": 38145
+  }
+}

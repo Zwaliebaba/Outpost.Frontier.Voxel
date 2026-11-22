@@ -162,6 +162,9 @@ Cut outright, each named as affordable in `Blueprint.md` §9 or in its chapter's
 - **Materials.** Each palette family (ADR-002) is a material with a strength, a mass and a yield. Armour is a stronger outer material, not a divisor. This sits beside the emissive table in `GameCore/Palette`.
 - **Modules.** A module is a named region of a model's voxels with a function: reactor, engines, weapons mount, sensors, hangar, refinery. Its health is the share of its voxels present. Below one threshold it works at a reduced rate, below a second it stops. The engine rule of the blueprint (ch. 02 §3.4: no nozzle left, no thrust) becomes the general rule.
 - **The core.** Every ship and station has one core module. A ship whose core stops is destroyed and breaks up; this replaces "hull at zero". "Hull" on the HUD is the share of structural voxels present.
+- **Prepared hull sources.** [DamageReadyHulls.md](DamageReadyHulls.md) lists five intact masters,
+  named authoring regions and the F-317 initial damage fixture (ADR-021). Presence and cosmetic
+  appearance are separate. Runtime import, thresholds and damage events remain ADR-012/014's tasks.
 - **Separation.** Voxels that lose their connection to the core become a wreck: a drifting object that can be salvaged. This replaces shed parts and dropped equipment. At scale, connectivity is tracked incrementally, not refilled from the core on every hit (§8.2).
 - **Damage events.** The blueprint's damage list (ch. 03 §2) becomes a damage event: object, impact position, shape, energy, cause, inflictor. Weapons, explosions, collisions and hazard zones all produce them. The authority decides which voxels go and sends the event; the presentation replays it.
 - **Shields** are untouched: no bleed-through, collapse at a threshold, a rebuild time, energy damage drains the pool that rebuilds them.

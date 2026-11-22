@@ -139,6 +139,11 @@ Ships behind the camera or off screen get an edge arrow that points toward them;
 
 ### Editing the models
 
+Damage-ready vessel masters are available as `Assets/Models/*Intact.vox`, with region annotations
+and a reproducible F-317 initial-damage fixture in `Assets/Hulls/`. See
+[the hull asset guide](Design/DamageReadyHulls.md) for previews and validation. The existing scene
+keeps its original model files; live damage and repair integration remain the MVP's slice 3.
+
 Edit the committed files under `Assets/Models/` directly in MagicaVoxel. Keep one model per file and preserve its palette indices. Rebuild Debug or Release to copy saved edits beside the executable, or launch with `--assets Assets` from the repository root. If geometry moves relative to its origin, check its sockets, lights and engines in `Assets/Scene.txt`.
 
 A **new** asset file must also be added to the `Outpost` project in Visual Studio (*Add › Existing Item*, Item Type *Copy file*, destination `$(OutDir)Assets\Models`), or the build will not copy it next to the executable.
