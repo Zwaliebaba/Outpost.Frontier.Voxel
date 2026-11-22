@@ -61,6 +61,19 @@ What the new references hold:
 - **Hardware:** the RTX 3070 Ti Laptop GPU agrees with WARP on every statistic but the colour count, 411 against 414.
 - **The image check's colour floor** is 200 in the flight view and stays 400 in the tactical one. A chase view shows part of the yard against open space.
 
+## Why it was stored again after the signal and glazing materials
+
+PR #5 (ADR-022) added yellow strobes and blue glazing to the models and changed the voxel and effect shaders, without storing the references again. The default run then failed `--expect` with 496 distinct colours against 414. All three references were stored again from `main` at `0e95f20`, after checking where the frames changed:
+
+- **Default:** 10,465 pixels differ from the slice 1 capture. Every one is a strobe glow (on the Lancer's canopy, the Frigate and the station), a glazed window, or the status line, whose surface-voxel count went from 623,094 to 624,538.
+- **Scripted:** 5,221 pixels differ, in the same kinds of places, plus the selected Tug's live thumbnail.
+- **Flight:** the ship ends at the same position as before, −87.98, −212.91, −234.63, so the materials changed the picture and not the flight.
+
+What the new references hold:
+
+- **WARP:** three default runs and two scripted runs wrote byte-identical PNGs. The statistics are 0.093, 10.6 %, 0.64 % and 0.28 % with 496 colours (default), 0.136, 22.2 %, 2.17 % and 0.68 % with 668 colours (scripted), and 0.135, 21.7 %, 2.12 % and 0.99 % with 726 colours (flight). The flight capture is again a single run.
+- **Hardware:** each RTX 3070 Ti Laptop GPU run matches its WARP report under `--expect`: 495, 668 and 729 colours.
+
 ## How to check against it
 
 ```powershell

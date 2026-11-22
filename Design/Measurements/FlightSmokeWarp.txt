@@ -1,5 +1,5 @@
 adapter: Microsoft Basic Render Driver (WARP)
-scene: 53 instances, 27 models, 623094 surface voxels
+scene: 53 instances, 27 models, 624538 surface voxels
 server: 53 objects
 first publish: 69 message(s)
 script: FlightSmoke.txt, 15 input(s) to tick 480
@@ -10,6 +10,6 @@ prediction: 481 tick(s) matched the server, 0 corrected after a divergence, 0 mi
 own ship: at -87.98, -212.91, -234.63, 79.93 m/s, 0 contact(s)
   order: go to -234.5, -199.6, 356.6, 609.3 m away, flying
 client told of 53 object(s), 4 ship(s), 3 objective(s), 5 resource(s), as of tick 481
-image 1920x1080: mean luminance 0.135, lit 21.7%, cyan 2.11%, warm 0.98%, 714 distinct colours
+image 1920x1080: mean luminance 0.135, lit 21.7%, cyan 2.12%, warm 0.99%, 726 distinct colours
 debug layer: on, 0 error(s), 0 warning(s)
 PASS
