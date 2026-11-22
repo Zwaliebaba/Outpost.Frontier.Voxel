@@ -34,6 +34,30 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <CopyFileToFolders Include="..\Assets\Models\Habitat.vox">
+      <Filter>Assets\Models</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Models\Raider.vox">
+      <Filter>Assets\Models</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Models\RadiatorArray.vox">
+      <Filter>Assets\Models</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Models\Reactor.vox">
+      <Filter>Assets\Models</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Models\Refinery.vox">
+      <Filter>Assets\Models</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Models\ShieldGenerator.vox">
+      <Filter>Assets\Models</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Models\TurretPlatform.vox">
+      <Filter>Assets\Models</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Models\Yard.vox">
+      <Filter>Assets\Models</Filter>
+    </CopyFileToFolders>
     <CopyFileToFolders Include="..\Assets\Models\AsteroidMajor.vox">
       <Filter>Assets\Models</Filter>
     </CopyFileToFolders>

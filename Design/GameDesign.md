@@ -38,7 +38,7 @@ The Frontier blueprint has eight pillars (`Blueprint.md` §2). Six are kept as w
 | 7 | **A world that seems to exist without the player.** Traffic is generated around the player and has somewhere to go. The player's own tugs and miners are part of that traffic | Kept (pillar 6) |
 | 8 | **A base is its modules.** A station offers a service because it has the module for it, and loses the service when the module is shot off. The player's outpost and every other base are the same kind of thing | Replaces pillar 7, "bases are places" made of staged rooms |
 | 9 | **What is built can be broken, and what is broken can be rebuilt.** One voxel state serves construction, damage, repair and mining | New |
-| 10 | **Authors build the game, not programmers.** Everything with a name is data; models come from generator recipes | Kept (pillar 8) |
+| 10 | **Authors build the game, not programmers.** Everything with a name is data; models are editable VOX files | Kept (pillar 8) |
 
 ## 3. Five ideas that make it one game
 
@@ -280,7 +280,7 @@ Four further points complete the picture:
 | `GameCore` | What both sides share: archetypes, materials, the flight and equipment model, zones, the message catalogue |
 | `GameLogic` | The authority: systems, world objects, regard, markets, the outpost and its ledger, and the content controllers for population, missions and the campaign |
 | `GameApp` | The presentation: flight view, tactical view, HUD, base panels, the map |
-| `AssetGenerator` | Recipes for families of hulls and modules, so that content volume is generated, not drawn |
+| `Assets/Models/` | Editable hull and module models |
 
 Decisions this design forces, each an ADR before the slice that needs it: the deterministic mask and the damage event; the shared flight model on a fixed tick; the record schema that grows `Scene.txt` into system, base and archetype definitions; the message catalogue; the network transport over MsQuic; replication through observers; levels of detail and culling; lag compensation; rendering of changing voxels (today the surface is extracted once and the shadow map is drawn once); world scale. On scale: the sample's ship models, read as one metre per voxel, give escorts of 42 to 52 m and a frigate of about 190 m, which fits the blueprint's metric constants, so those can be carried over unchanged.
 

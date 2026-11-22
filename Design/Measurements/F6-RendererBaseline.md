@@ -11,7 +11,7 @@
 - **GPU time** comes from timestamp queries `GraphicsDevice` writes at the start and end of every frame. `TacticalClient` adds a timestamp after the shadow pass and another after the scene.
 - **Frame interval** is the CPU's wall clock between frames. It tracks the GPU time, so these runs are bound by the GPU.
 - **Surface extraction** is the median wall time of five `ExtractSurface` calls per model, on the same Release build.
-- **Crowd scenes** are written by `AssetGenerator --crowd <dir>` (`AssetGenerator/CrowdScene.*`) and are not committed.
+- **Crowd scenes** were written by `AssetGenerator --crowd <dir>` (`AssetGenerator/CrowdScene.*`) and are not committed. `AssetGenerator` was removed from the tree afterwards (PR #3, which replaced it with editable models); the crowd generator is in the history at commit `fff703f`, so a rerun of this benchmark needs it brought back first.
   - **Load:** GameDesign.md §8.2's load. 600 ships within about 900 m of the centre: 260 Lancers, 260 Talons, 50 tugs and 30 frigates. Around them, 20 outposts, each the sample's 12 station modules and its claim asteroid, on a ring 1.5 to 3.5 km out. 860 instances in all.
   - **Battle:** the camera 300 m from the centre, inside the crowd.
   - **Overview:** the camera 2.4 km out, with the whole crowd in view.

@@ -10,7 +10,7 @@
 # Keywords: camera, keylight, stars, model, socket, instance, ship, engine, light, objective,
 # resource, build, select.
 
-camera target=-4,4,56 yaw=-8 pitch=30 distance=430 fov=38
+camera target=-10,42,115 yaw=-16 pitch=28 distance=800 fov=38
 keylight direction=0.35,0.80,-0.48 color=0.74,0.84,1.0 intensity=2.3 ambientsky=0.070,0.085,0.120 ambientground=0.030,0.027,0.028
 stars seed=20261121 count=900
 
@@ -20,13 +20,13 @@ model name=EscortLancer   file=Models/EscortLancer.vox
 model name=EscortTalon    file=Models/EscortTalon.vox
 model name=Tug            file=Models/Tug.vox
 model name=CargoModule    file=Models/CargoModule.vox
-model name=HangarBay      file=Models/HangarBay.vox
-model name=HangarSection  file=Models/HangarSection.vox
-model name=CommandBlock   file=Models/CommandBlock.vox
-model name=TankCluster    file=Models/TankCluster.vox
-model name=DockingCollar  file=Models/DockingCollar.vox
-model name=TrussBeam      file=Models/TrussBeam.vox
-model name=TrussTower     file=Models/TrussTower.vox
+model name=HangarBay      file=Models/HangarBay.vox voxelsize=0.75
+model name=HangarSection  file=Models/HangarSection.vox voxelsize=0.75
+model name=CommandBlock   file=Models/CommandBlock.vox voxelsize=0.75
+model name=TankCluster    file=Models/TankCluster.vox voxelsize=0.75
+model name=DockingCollar  file=Models/DockingCollar.vox voxelsize=0.75
+model name=TrussBeam      file=Models/TrussBeam.vox voxelsize=0.75
+model name=TrussTower     file=Models/TrussTower.vox voxelsize=0.75
 model name=AsteroidMajor  file=Models/AsteroidMajor.vox voxelsize=2
 model name=AsteroidSmallA file=Models/AsteroidSmallA.vox voxelsize=2
 model name=AsteroidSmallB file=Models/AsteroidSmallB.vox voxelsize=2
@@ -35,61 +35,88 @@ model name=DebrisA        file=Models/DebrisA.vox voxelsize=1.2
 model name=DebrisB        file=Models/DebrisB.vox voxelsize=1.2
 model name=DebrisC        file=Models/DebrisC.vox voxelsize=1.2
 
+model name=Raider file=Models/Raider.vox
+model name=Reactor file=Models/Reactor.vox voxelsize=0.75
+model name=Habitat file=Models/Habitat.vox voxelsize=0.75
+model name=Refinery file=Models/Refinery.vox voxelsize=0.75
+model name=TurretPlatform file=Models/TurretPlatform.vox voxelsize=0.75
+model name=ShieldGenerator file=Models/ShieldGenerator.vox voxelsize=0.75
+model name=Yard file=Models/Yard.vox voxelsize=0.75
+model name=RadiatorArray file=Models/RadiatorArray.vox voxelsize=0.75
+
 # ── Sockets ─────────────────────────────────────────────────────────────────────────────────
 # The hangar's docking socket on its +X wall, and the matching mounts on the section module.
-socket model=HangarBay     name=ExtensionDock position=64,30,17 normal=1,0,0  up=0,0,1
-socket model=HangarSection name=Mount         position=0,18,15  normal=-1,0,0 up=0,0,1
-socket model=HangarSection name=Dock          position=48,18,15 normal=1,0,0  up=0,0,1
+socket model=HangarBay     name=ExtensionDock position=128,60,34 normal=1,0,0  up=0,0,1
+socket model=HangarSection name=Mount         position=0,36,30  normal=-1,0,0 up=0,0,1
+socket model=HangarSection name=Dock          position=96,36,30 normal=1,0,0  up=0,0,1
 # The tug's clamp and the cargo module's carrying point.
 socket model=Tug           name=Clamp         position=13,38,9  normal=0,1,0  up=0,0,1
 socket model=CargoModule   name=Mount         position=11,0,10  normal=0,-1,0 up=0,0,1
 
-# ── The shipyard ────────────────────────────────────────────────────────────────────────────
-instance name=Hangar       model=HangarBay     position=0,40,120
-instance name=SectionF02   model=HangarSection position=-58,36,118
-instance name=Command      model=CommandBlock  position=-14,82,136
-instance name=TanksWest    model=TankCluster   position=-98,36,114
-instance name=TrussUpper   model=TrussBeam     position=-158,40,118
-instance name=TrussLower   model=TrussBeam     position=-150,10,104
-instance name=TrussRoof    model=TrussBeam     position=12,64,150
-instance name=TowerWest    model=TrussTower    position=-74,74,118
-instance name=TowerEast    model=TrussTower    position=24,82,132
-instance name=PylonDown    model=TrussTower    position=-26,-2,124 rotation=0,180,0
-instance name=CollarWest   model=DockingCollar position=-128,10,92
-instance name=CollarRoof   model=DockingCollar position=62,64,140 rotation=90,0,0
-# The planned extension: the same section geometry, mated to the hangar's docking socket.
+# ── The shipyard: connected industrial campus, with the original named dock retained ──────
+# Architectural grids use 0.75-unit voxels; socket coordinates above are doubled accordingly.
+# Primary silhouette: asteroid anchor -> processing/crew blocks -> command crown -> open drydock.
+instance name=Hangar       model=HangarBay     position=0,25,130
+instance name=SectionF02   model=HangarSection position=-84,20,130
+instance name=Command      model=CommandBlock  position=0,87,150
+instance name=HabitatLower model=Habitat       position=-83,66,146
+instance name=HabitatUpper model=Habitat       position=-83,103,146
+instance name=ReactorWest  model=Reactor       position=-158,-7,144
+instance name=RefineryWest model=Refinery      position=-158,52,144
+instance name=TanksWest    model=TankCluster   position=-216,25,145
+instance name=TanksReserve model=TankCluster   position=-216,25,171
+instance name=DryDock      model=Yard          position=190,41,150
+# Load-bearing lattice bridges contain service conduits and intermittent access lights.
+instance name=TrussUpper   model=TrussBeam     position=-302,25,145
+instance name=TrussLower   model=TrussBeam     position=-285,-18,140
+instance name=CrewSupport  model=TrussBeam     position=-83,45,146 scale=0.65
+instance name=UtilitySpine model=TrussBeam     position=-68,-37,145
+instance name=DockBridgeHi model=TrussBeam     position=85,84,173
+instance name=DockBridgeLo model=TrussBeam     position=85,0,173
+instance name=TowerWest    model=TrussTower    position=-45,106,173
+instance name=TowerEast    model=TrussTower    position=45,106,173
+instance name=SensorMast   model=TrussTower    position=0,148,170
+instance name=PylonDown    model=TrussTower    position=0,-20,150 rotation=0,180,0
+instance name=CollarWest   model=DockingCollar position=-215,-5,128
+instance name=CollarLower  model=DockingCollar position=0,-54,138
+instance name=DefenseWest  model=TurretPlatform position=-154,106,145
+instance name=CommsArray   model=ShieldGenerator position=-80,153,146
+instance name=ThermalBridge model=TrussBeam position=-185,82,205 rotation=90,0,0
+instance name=ThermalRiser model=TrussTower position=-185,102,215
+instance name=HeatRejection model=RadiatorArray position=-185,128,215
+# F-03 remains an actual socket-attached build plan of the editable section geometry.
 instance name=Extension    model=HangarSection parent=Hangar parentsocket=ExtensionDock socket=Mount style=blueprint
 
 # ── Rock ────────────────────────────────────────────────────────────────────────────────────
-instance name=Asteroid     model=AsteroidMajor  position=-300,20,170 rotation=20,0,0
-instance name=RockA        model=AsteroidSmallA position=236,104,210 rotation=40,10,0
-instance name=RockB        model=AsteroidSmallB position=-196,-58,-10 rotation=10,30,0
-instance name=RockC        model=AsteroidSmallC position=196,-104,30
-instance name=RockD        model=AsteroidSmallC position=96,132,240 rotation=60,0,20
-instance name=RockE        model=AsteroidSmallB position=256,-20,160 rotation=-30,0,15
+instance name=Asteroid     model=AsteroidMajor  position=-405,15,175 rotation=20,0,0
+instance name=RockA        model=AsteroidSmallA position=330,147,280 rotation=40,10,0
+instance name=RockB        model=AsteroidSmallB position=-245,-110,5 rotation=10,30,0
+instance name=RockC        model=AsteroidSmallC position=310,-130,40
+instance name=RockD        model=AsteroidSmallC position=70,235,300 rotation=60,0,20
+instance name=RockE        model=AsteroidSmallB position=370,-5,210 rotation=-30,0,15
 
 # ── Ships ───────────────────────────────────────────────────────────────────────────────────
-instance name=Frigate      model=Frigate      position=8,-32,36 rotation=72,0,0 scale=1.25
-instance name=Lancer       model=EscortLancer position=-150,-12,60 rotation=80,0,0
-instance name=Talon        model=EscortTalon  position=150,-14,30 rotation=62,0,0
-instance name=Tug          model=Tug          position=196,44,92 rotation=-90,0,0
+instance name=Frigate      model=Frigate      position=55,-42,18 rotation=72,0,0 scale=0.95
+instance name=Lancer       model=EscortLancer position=-170,-70,25 rotation=80,0,0
+instance name=Talon        model=EscortTalon  position=246,-8,28 rotation=62,0,0
+instance name=Tug          model=Tug          position=288,10,90 rotation=-90,0,0
 instance name=Cargo        model=CargoModule  parent=Tug parentsocket=Clamp socket=Mount
 
 # Fragments torn from the breach, drifting off the frigate's starboard side.
-instance name=DebrisA1     model=DebrisA position=17,-33,10 rotation=20,30,10
-instance name=DebrisA2     model=DebrisA position=24,-41,-2 rotation=70,10,40
-instance name=DebrisB1     model=DebrisB position=20,-29,4 rotation=10,50,0
-instance name=DebrisB2     model=DebrisB position=28,-35,-9 rotation=45,0,30
-instance name=DebrisC1     model=DebrisC position=14,-40,6 rotation=80,20,0
-instance name=DebrisC2     model=DebrisC position=31,-44,-14 rotation=15,60,10
-instance name=DebrisA3     model=DebrisA position=36,-42,-22 rotation=35,80,20
-instance name=DebrisB3     model=DebrisB position=42,-50,-28 rotation=60,20,45
-instance name=DebrisC3     model=DebrisC position=27,-52,-20 rotation=5,40,70
-instance name=DebrisB4     model=DebrisB position=48,-39,-36 rotation=25,10,15
-instance name=DebrisA4     model=DebrisA position=22,-27,-8 rotation=50,65,30
-instance name=DebrisC4     model=DebrisC position=40,-58,-32 rotation=75,30,5
-instance name=DebrisB5     model=DebrisB position=55,-54,-44 rotation=10,75,60
-instance name=DebrisA5     model=DebrisA position=31,-35,-15 rotation=85,15,50
+instance name=DebrisA1     model=DebrisA position=61.84,-42.76,-1.76 rotation=20,30,10
+instance name=DebrisA2     model=DebrisA position=67.16,-48.84,-10.88 rotation=70,10,40
+instance name=DebrisB1     model=DebrisB position=64.12,-39.72,-6.32 rotation=10,50,0
+instance name=DebrisB2     model=DebrisB position=70.20,-44.28,-16.20 rotation=45,0,30
+instance name=DebrisC1     model=DebrisC position=59.56,-48.08,-4.80 rotation=80,20,0
+instance name=DebrisC2     model=DebrisC position=72.48,-51.12,-20.00 rotation=15,60,10
+instance name=DebrisA3     model=DebrisA position=76.28,-49.60,-26.08 rotation=35,80,20
+instance name=DebrisB3     model=DebrisB position=80.84,-55.68,-30.64 rotation=60,20,45
+instance name=DebrisC3     model=DebrisC position=69.44,-57.20,-24.56 rotation=5,40,70
+instance name=DebrisB4     model=DebrisB position=85.40,-47.32,-36.72 rotation=25,10,15
+instance name=DebrisA4     model=DebrisA position=65.64,-38.20,-15.44 rotation=50,65,30
+instance name=DebrisC4     model=DebrisC position=79.32,-61.76,-33.68 rotation=75,30,5
+instance name=DebrisB5     model=DebrisB position=90.72,-58.72,-42.80 rotation=10,75,60
+instance name=DebrisA5     model=DebrisA position=72.48,-44.28,-20.76 rotation=85,15,50
 
 ship instance=Frigate callsign=F-317 class=Frigate hull=68 module="Hull Section (B):34" module="Engineering:72" module="Atmospherics:75" module=Reactor:100 module=Sensors:100
 ship instance=Lancer  callsign=E-114 class=Escort  hull=92 module=Shields:88 module=Drives:100
@@ -105,11 +132,14 @@ engine instance=Tug     position=8,0.5,9    radius=2.1 length=12
 engine instance=Tug     position=18,0.5,9   radius=2.1 length=12
 
 # ── Local light ─────────────────────────────────────────────────────────────────────────────
-light instance=Hangar  position=32,28,10 color=1.0,0.62,0.30 intensity=3.2 radius=46
-light instance=Hangar  position=32,18,24 color=1.0,0.70,0.40 intensity=2.0 radius=40
+light instance=Hangar  position=64,56,20 color=1.0,0.62,0.30 intensity=3.2 radius=46
+light instance=Hangar  position=64,36,48 color=1.0,0.70,0.40 intensity=2.0 radius=40
 light instance=Frigate position=37,64,15 color=1.0,0.40,0.14 intensity=5.5 radius=30
 light instance=Frigate position=37,84,13 color=1.0,0.34,0.10 intensity=4.0 radius=26
-light instance=Command position=24,0,14  color=1.0,0.66,0.34 intensity=1.2 radius=30
+light instance=Command position=48,0,28  color=1.0,0.66,0.34 intensity=1.2 radius=30
+
+light instance=DryDock position=90,82,96 color=1.0,0.70,0.40 intensity=2.0 radius=80
+light instance=ReactorWest position=51,20,38 color=0.20,0.65,1.0 intensity=1.4 radius=48
 
 # ── Command state ─────────────────────────────────────────────────────────────────────────
 # Read by the server (GameLogic) and shown by the HUD. perminute is income the server adds.

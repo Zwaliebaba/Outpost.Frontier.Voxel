@@ -1,9 +1,10 @@
 adapter: Microsoft Basic Render Driver (WARP)
-scene: 38 instances, 19 models, 122142 surface voxels
-server: 38 objects
-first publish: 51 message(s)
+scene: 53 instances, 27 models, 623094 surface voxels
+server: 53 objects
+first publish: 66 message(s)
 rendered 3 frame(s), server tick 3
-client told of 38 object(s), 4 ship(s), 3 objective(s), 5 resource(s), as of tick 3
-image 1920x1080: mean luminance 0.146, lit 26.8%, cyan 1.92%, warm 2.63%, 657 distinct colours
+selected: Frigate
+client told of 53 object(s), 4 ship(s), 3 objective(s), 5 resource(s), as of tick 3
+image 1920x1080: mean luminance 0.135, lit 21.8%, cyan 2.16%, warm 0.99%, 725 distinct colours
 debug layer: on, 0 error(s), 0 warning(s)
 PASS

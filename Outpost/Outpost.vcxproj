@@ -120,6 +120,38 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <CopyFileToFolders Include="..\Assets\Models\Habitat.vox">
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)Assets\Models</DestinationFolders>
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)Assets\Models</DestinationFolders>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Models\Raider.vox">
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)Assets\Models</DestinationFolders>
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)Assets\Models</DestinationFolders>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Models\RadiatorArray.vox">
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)Assets\Models</DestinationFolders>
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)Assets\Models</DestinationFolders>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Models\Reactor.vox">
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)Assets\Models</DestinationFolders>
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)Assets\Models</DestinationFolders>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Models\Refinery.vox">
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)Assets\Models</DestinationFolders>
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)Assets\Models</DestinationFolders>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Models\ShieldGenerator.vox">
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)Assets\Models</DestinationFolders>
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)Assets\Models</DestinationFolders>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Models\TurretPlatform.vox">
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)Assets\Models</DestinationFolders>
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)Assets\Models</DestinationFolders>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Models\Yard.vox">
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)Assets\Models</DestinationFolders>
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)Assets\Models</DestinationFolders>
+    </CopyFileToFolders>
     <CopyFileToFolders Include="..\Assets\Models\AsteroidMajor.vox">
       <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)Assets\Models</DestinationFolders>
       <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)Assets\Models</DestinationFolders>

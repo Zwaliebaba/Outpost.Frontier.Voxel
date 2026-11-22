@@ -13,7 +13,6 @@
     <Project Path="GameApp/GameApp.vcxproj" Id="99eb673d-1511-5709-ae13-05b4cd4d2125" />
   </Folder>
   <Folder Name="/Tools/">
-    <Project Path="AssetGenerator/AssetGenerator.vcxproj" Id="0e1bfdab-eb0b-5bee-848d-9238e643c19f" />
     <Project Path="QuicSpike/QuicSpike.vcxproj" Id="bb4c93dd-660a-44b5-b96e-c6e894fe3343" />
   </Folder>
   <Folder Name="/Tests/">

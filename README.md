@@ -15,6 +15,15 @@ What is on screen:
 
 The HUD shows objectives, resources, a radar, the selected ship's panel with its damaged modules, and a build panel with live module thumbnails.
 
+### Expanded station art pass
+
+The editable station kit now has a larger connected assembly: a capital-ship drydock, stacked habitats,
+processing and reactor blocks, a command crown and an external radiator array. Thirteen station models
+were reauthored and one was added. The solid station is 2.30 times wider and 1.92 times taller than the
+original assembly shown above. See [the art review](Design/StationArt.md) for previews, measurements,
+authoring tools and validation limits. The previews are offline renders; the Windows GPU sample has
+not been recaptured for this art pass.
+
 **The sample is the starting point of a game, not the game.** [Design/GameDesign.md](Design/GameDesign.md) says what the game is: the player flies one ship with a cursor, owns an outpost built module by module on an asteroid, and commands a small fleet from this tactical view. Every solid thing is voxels, and removing voxels is the damage model. The design's build order starts from this scene, and its first six slices make the three objectives on the HUD things a player can complete.
 
 How the code is written is in [AGENTS.md](AGENTS.md); the engineering decisions behind it are in [Design/ADR/](Design/ADR/).
@@ -94,18 +103,14 @@ Ships behind the camera or off screen get an edge arrow that points toward them;
 | The scene: camera, lights, models, sockets, instances, ships, module damage, engines, objectives, resources, build items | [`Assets/Scene.txt`](Assets/Scene.txt) — plain text, documented in its header and in ADR-002 |
 | The models | `Assets/Models/*.vox` — genuine MagicaVoxel files, open them in MagicaVoxel |
 | The canonical palette (role → colour) | [`GameCore/Palette.h`](GameCore/Palette.h) for the index map, [`GameCore/Palette.cpp`](GameCore/Palette.cpp) for colours and the emissive material table |
-| The generator that wrote the models | [`AssetGenerator/`](AssetGenerator/) — one recipe per model |
 | VOX → world conversion | [`NeuronCore/ModelAxes.h`](NeuronCore/ModelAxes.h), explained in ADR-002 |
 | Renderer and shaders | [`NeuronClient/Renderer.cpp`](NeuronClient/Renderer.cpp), [`NeuronClient/Shaders/`](NeuronClient/Shaders/), explained in ADR-003 |
 
 **VOX to world.** VOX is right-handed, +Z up, with ships facing +Y; the world is Direct3D left-handed with +Y up. A VOX point `v` in a model with pivot `p` and voxel size `s` lands at `((v.x−p.x), (v.z−p.z), (v.y−p.y))·s`, then goes through the instance's scale, yaw/pitch/roll and position. Socket, engine and light positions in `Scene.txt` are VOX coordinates of their model.
 
-### Regenerating the models
+### Editing the models
 
-```powershell
-.\x64\Release\AssetGenerator.exe --out Assets     # rewrite all 19 .vox files (deterministic, ~0.4 s)
-.\x64\Release\AssetGenerator.exe --check          # exit 1 if any committed file is stale
-```
+Edit the committed files under `Assets/Models/` directly in MagicaVoxel. Keep one model per file and preserve its palette indices. Rebuild Debug or Release to copy saved edits beside the executable, or launch with `--assets Assets` from the repository root. If geometry moves relative to its origin, check its sockets, lights and engines in `Assets/Scene.txt`.
 
 A **new** asset file must also be added to the `Outpost` project in Visual Studio (*Add › Existing Item*, Item Type *Copy file*, destination `$(OutDir)Assets\Models`), or the build will not copy it next to the executable.
 
@@ -134,7 +139,7 @@ Every library has its own test project under `Tests\`. In Visual Studio, *Test �
 | `Tests\NeuronCoreTests` | 28 | VOX read/write and a hand-authored fixture that pins the palette offset; rejection of bad magic, truncated chunks, invalid dimensions and out-of-bounds voxels; meshing of single and adjacent voxels; wireframes and the side profile; VOX-to-world axes, handedness and socket mating; the wire format's byte order and round trips; the in-process transport's order and datagram budget |
 | `Tests\NeuronClientTests` | 14 | Selection maths: ships ahead, beside the view, straddling the near plane and behind the camera; pick rays; click versus drag; orbit-camera limits; pixel differences between captures, the report's image line, and the `--expect` tolerance |
 | `Tests\NeuronServerTests` | 5 | The tick clock at 60 Hz (ADR-007): whole ticks, carried remainders, ten minutes exactly 36,000 ticks, stall catch-up, interpolation |
-| `Tests\GameCoreTests` | 66 | The canonical palette, including byte equality across every generated file; scene parsing and validation; the shipped blueprint landing on its dock; the message catalogue: round trips, header, refusals, routes, the datagram budget, and applying messages to the client's world; world objects and poses; ship records; the flight model against chapter 02's worked example; the manoeuvre layer |
+| `Tests\GameCoreTests` | 66 | The canonical palette, including byte equality across every model; scene parsing and validation; the shipped blueprint landing on its dock; the message catalogue: round trips, header, refusals, routes, the datagram budget, and applying messages to the client's world; world objects and poses; ship records; the flight model against chapter 02's worked example; the manoeuvre layer |
 | `Tests\GameLogicTests` | 11 | The world: its objects, the first state, exact income per minute, fractional income, capacity, reloading; the observer: one message per object, nothing sent twice, only what changed |
 | `Tests\GameAppTests` | 11 | The HUD: every vertex on screen at 720p, 1080p and 4K with ships off screen and behind the camera; build slots; scaling; fonts. The draw constants the voxel shader unprojects through. Input scripts: parsing, drags and clicks expanded per tick, mistakes reported with the line |
 
@@ -144,7 +149,7 @@ Smoke-test options:
 - `--script <file>` plays input commands at fixed server ticks: `drag`, `click`, `wheel`, `reset`, `help` and `status`. An example is `Design\Measurements\ScriptedSmoke.txt`.
 - `--expect <report>` fails the run when the image statistics leave a stored report's tolerance.
 
-`--benchmark` times every frame on the GPU, and `AssetGenerator --crowd <dir>` writes the F6 crowd scenes ([F6-RendererBaseline.md](Design/Measurements/F6-RendererBaseline.md)).
+`--benchmark` times every frame on the GPU. The F6 crowd scenes it was measured on came from a generator that left the tree with `AssetGenerator` ([F6-RendererBaseline.md](Design/Measurements/F6-RendererBaseline.md)).
 
 Checking against the stored references is described in [SmokeBaseline.md](Design/Measurements/SmokeBaseline.md). The smoke test always renders in a window of exactly `--size`, never fullscreen, so its captures do not depend on the monitor.
 
@@ -192,7 +197,6 @@ The earlier record, for the sample as first published: all of the following pass
   - composition similarity 0.794 to the reference image.
 - **Smoke test on hardware:** Release, 120 frames at 1920×1080, and Debug with the debug layer, 60 frames at 1280×720. Both exited 0 with 0 debug-layer errors. The screenshot above is the Release capture.
 - **Interactive Debug build, driven by a script:** two resizes, minimise to 0×0, restore, another resize, an orbit drag, an F12 capture, then close. It exited 0 with 0 debug-layer errors. The close path was repeated 10 times after the shutdown fix described in ADR-003, with no hangs.
-- **`AssetGenerator --check`:** the Debug- and Release-built generators both reproduce the committed `.vox` files byte for byte.
 - **Formatting:** clang-format **18.1.3**, the version CI pins, over every `.h`/`.cpp`: no changes needed.
 - **clang-tidy:** the repository's `.clang-tidy` over all 42 translation units: 0 findings. This was the 22.1.3 shipped with Visual Studio; CI pins 22.1.8.
 
@@ -202,7 +206,7 @@ Not run here:
 
 ## Scope
 
-In scope: one static tactical scene; camera control; ship selection and inspection; HUD; asset generation; tests.
+In scope: one static tactical scene; camera control; ship selection and inspection; HUD; editable voxel models; tests.
 
 Out of scope, by the brief: a ship editor, live destruction, combat and networking. The client builds its picture of the world from the server's encoded messages over the in-process transport. `QuicSpike` carries the same messages over MsQuic, so that is where a network transport goes.
 

@@ -26,7 +26,7 @@ One solution, `Outpost.Frontier.slnx`, x64 only, Debug and Release:
 | Game | `GameLogic` | lib | `World`, the authoritative server state, which ticks and publishes snapshots |
 | Game | `GameApp` | lib | The client: scene assets, the tactical scene, the HUD, input |
 | *(root)* | `Outpost` | exe | Window, message loop, command line, smoke test |
-| Tools | `AssetGenerator` | console exe | Writes every model as a `.vox` file |
+| Assets/Models | Committed VOX files | Content | Edited directly in MagicaVoxel and copied by the Outpost project |
 | Tests | `<Library>Tests` ×6 | test DLLs | One CppUnitTest suite per library, under `Tests\` (see ADR-006); no GPU |
 
 Engine code is namespace `Neuron` and never names a game concept: the renderer draws voxels, lines, glows and HUD triangles, and the game decides what they are. Game code is namespace `Outpost`.
@@ -52,7 +52,7 @@ The edges run one way. `GameLogic` (server) and `GameApp` (client) share `GameCo
 ## Consequences
 
 - A new project has to be added to the solution, to the table in AGENTS.md §2, and to `.clang-tidy`'s `HeaderFilterRegex`, or its headers go unlinted.
-- `NeuronClient` is the only project that links D3D12; `NeuronCore`, `GameCore` and the tool build and test without a GPU.
+- `NeuronClient` is the only project that links D3D12; `NeuronCore` and `GameCore` build and test without a GPU.
 - Splitting `Outpost.exe` into separate client and server processes is a transport behind the snapshot, not a restructuring.
 - Assets are copied, not linked: editing `Assets/Scene.txt` takes effect at the next build, or immediately with `--assets Assets`.
 - *Added with the design:* what each project takes on as the game is built is listed in [GameDesign.md](../GameDesign.md) §9. The projects and the edges decided here do not change.

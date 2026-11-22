@@ -4,7 +4,7 @@ Operating instructions for every agent (and human) writing code in this reposito
 
 *Outpost:Frontier* is a greenfield C++23 game and a hobby project with one developer: a Direct3D 12 game for Windows, built with MSVC and MSBuild. This file is about **how code is written here** — naming, layout, build settings and the standing rules of the codebase. It is not the design: what the game *is* belongs in [`Design/GameDesign.md`](Design/GameDesign.md).
 
-**The tree is young.** It holds the first runnable sample — `Outpost.Frontier.slnx`, the projects in §2, the asset generator and the assets it wrote — and that code was written to these rules from its first line. Nothing below is a target to migrate towards; it describes the code as it must be written. There is no legacy here and nothing is grandfathered, so a whole-tree run of any checker comes back clean, and a finding is a defect in the change that introduced it.
+**The tree is young.** It holds the first runnable sample — `Outpost.Frontier.slnx`, the projects in §2 and the editable voxel models — and that code was written to these rules from its first line. Nothing below is a target to migrate towards; it describes the code as it must be written. There is no legacy here and nothing is grandfathered, so a whole-tree run of any checker comes back clean, and a finding is a defect in the change that introduced it.
 
 **Where these rules come from.** They are carried over from two sibling repositories: `Outpost.Warzone`, where the formatter and linter settings were measured against roughly 223,000 lines, and `Nomad-Commander`. That lineage is why `.clang-format` and `.clang-tidy` are what they are, and it is why code can move between the trees without a rename or a reflow pass. **What did not come across is the other trees' design, their decisions or their plan.** A decision taken there binds nothing here.
 
@@ -150,7 +150,6 @@ The concrete layout is recorded in [ADR-001](Design/ADR/ADR-001-solution-layout.
 | `Game` | `GameLogic` | static library | `Outpost` | NeuronCore, NeuronServer, GameCore |
 | `Game` | `GameApp` | static library | `Outpost` | NeuronCore, NeuronClient, GameCore |
 | *(root)* | `Outpost` | Windows executable | `Outpost` | all of the above |
-| `Tools` | `AssetGenerator` | console executable | `Outpost` | NeuronCore, GameCore |
 | `Tools` | `QuicSpike` | console executable | `Outpost` | NeuronCore, GameCore; the MsQuic package ([ADR-017](Design/ADR/ADR-017-nuget-and-the-msquic-transport.md)) |
 | `Tests` | `NeuronCoreTests` | unit-test DLL | `NeuronCoreTests` | NeuronCore |
 | `Tests` | `NeuronClientTests` | unit-test DLL | `NeuronClientTests` | NeuronCore, NeuronClient |
