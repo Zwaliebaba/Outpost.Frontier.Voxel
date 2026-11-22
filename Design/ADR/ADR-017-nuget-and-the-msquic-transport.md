@@ -19,7 +19,7 @@ The MVP plan's task F7 asks for a spike before slice 2 grows the catalogue. It s
 - under loss, state stays current and the stream stays ordered;
 - a changed host certificate is refused.
 
-The spike is `QuicSpike`, a console tool in the `Tools` solution folder. Its results are below.
+The spike is `QuicSpike`, a console tool in the `Tools` solution folder, in `Tools/QuicSpike/` since [ADR-025](ADR-025-tool-projects-under-tools.md). Its results are below.
 
 ## Decision
 

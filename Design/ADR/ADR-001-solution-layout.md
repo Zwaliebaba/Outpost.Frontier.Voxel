@@ -28,6 +28,7 @@ One solution, `Outpost.Frontier.slnx`, x64 only, Debug and Release:
 | *(root)* | `Outpost` | exe | Window, message loop, command line, smoke test |
 | Assets/Models | Committed VOX files | Content | Edited directly in MagicaVoxel and copied by the Outpost project |
 | Tests | `<Library>Tests` ×6 | test DLLs | One CppUnitTest suite per library, under `Tests\` (see ADR-006); no GPU |
+| Tools | `QuicSpike` | exe | The MsQuic spike (ADR-017), under `Tools\` beside the asset scripts (ADR-025) |
 
 Engine code is namespace `Neuron` and never names a game concept: the renderer draws voxels, lines, glows and HUD triangles, and the game decides what they are. Game code is namespace `Outpost`.
 
