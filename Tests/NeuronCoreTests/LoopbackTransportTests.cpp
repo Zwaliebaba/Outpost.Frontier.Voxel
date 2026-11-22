@@ -21,8 +21,7 @@ namespace
   std::optional<Neuron::Packet> packet = _transport.Receive(_to);
   if (!packet.has_value())
   {
-    Assert::Fail(L"no packet was waiting");
-    return {};
+    Assert::Fail(L"no packet was waiting"); // does not return
   }
   return std::move(*packet);
 }

@@ -42,8 +42,7 @@ namespace
   auto decoded = Outpost::Decode(_bytes);
   if (!decoded.has_value())
   {
-    Assert::Fail(L"the bytes did not decode");
-    return {};
+    Assert::Fail(L"the bytes did not decode"); // does not return
   }
   return std::move(*decoded);
 }
@@ -53,8 +52,7 @@ void AssertError(const std::vector<std::uint8_t>& _bytes, Outpost::DecodeError _
   const auto decoded = Outpost::Decode(_bytes);
   if (decoded.has_value())
   {
-    Assert::Fail(_why);
-    return;
+    Assert::Fail(_why); // does not return
   }
   Assert::IsTrue(decoded.error() == _expected, _why);
 }
@@ -65,8 +63,7 @@ void AssertError(const std::vector<std::uint8_t>& _bytes, Outpost::DecodeError _
   std::optional<Neuron::Packet> packet = _transport.Receive(_to);
   if (!packet.has_value())
   {
-    Assert::Fail(L"no packet was waiting");
-    return {};
+    Assert::Fail(L"no packet was waiting"); // does not return
   }
   return std::move(*packet);
 }
