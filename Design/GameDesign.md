@@ -1,6 +1,6 @@
 # Outpost:Frontier — game design concept
 
-**Status:** concept, adopted as this repository's design; the decisions in §13 are partly open · **Date:** 2026-11-22
+**Status:** concept, adopted as this repository's design; the decisions in §13 are taken · **Date:** 2026-11-22
 
 This is the design document AGENTS.md refers to, at concept depth. It says what the game is, which systems it is made of, where each comes from, and in what order to build them. It does not fix numbers, write the per-system rules or invent a setting; those follow once this direction is accepted.
 
@@ -30,7 +30,7 @@ The Frontier blueprint has eight pillars (`Blueprint.md` §2). Six are kept as w
 | # | Pillar | Relation to the Frontier blueprint |
 |---|---|---|
 | 1 | **One ship, one cursor.** The player's own ship goes where its nose points and the guns follow the cursor | Kept (pillar 1). It is the first item on the blueprint's "do not cut" list |
-| 2 | **Fly or command.** The same world has a flight view and a tactical view. The player is in one at a time, time never stops for the switch, and a ship the player is not flying is flown by its pilot | New. Attention is the resource the hybrid is played with |
+| 2 | **Fly or command.** In space the player flies and leads the wing with a handful of commands; docked, the player commands everything from the tactical view. Time never stops for either, and a ship the player is not flying is flown by its pilot | New. Where the player chooses to be is the resource the hybrid is played with |
 | 3 | **Combat in layers, the inner ones made of voxels.** A regenerating shield absorbs everything until it collapses; in the window that follows, structure is carved away and modules fail | Extended (pillar 2). The shield layer is unchanged; hull points, parts and fuses are replaced |
 | 4 | **Speed regimes with prices.** Normal flight, thruster, cruise, lanes | Kept (pillar 3) |
 | 5 | **Place matters.** Zones say who lives somewhere and how dangerous it is. The outpost's site is a place like any other | Kept (pillar 4) |
@@ -46,17 +46,18 @@ A hybrid of a pilot game and a command game is two games unless most of their ma
 
 ### 3.1 One simulation, two views
 
-The Frontier blueprint already says that directives are the one way to tell a ship what to do, and that the player's own manoeuvre buttons, population and missions all issue them to the same manoeuvre layer (ch. 05; `Blueprint.md` §5). The tactical view is nothing more than a second place to issue directives from, to more than one ship.
+The Frontier blueprint already says that directives are the one way to tell a ship what to do, and that the player's own manoeuvre buttons, population and missions all issue them to the same manoeuvre layer (ch. 05; `Blueprint.md` §5). The tactical view is nothing more than a second place to issue directives from, to more than one ship. It is available only while docked (D10): in space the player has the flight view and the wing's command keys, and nothing else.
 
 | | Flight view | Tactical view |
+| Available | In space | Docked, at any base |
 |---|---|---|
 | Camera | Chase camera (ch. 09 §3.9) | The orbit camera the sample has |
-| The own ship | Flown by cursor: the "free flight" manoeuvre | Flown by its manoeuvre layer under the last directive; with none, it holds position |
-| Orders | A short command set for the wing: form up, attack my target, defend, dock, hold fire | Select ships, then: go to, attack, defend, dock, join formation, assign an itinerary |
+| The own ship | Flown by cursor: the "free flight" manoeuvre | In its berth. Launching leaves the tactical view |
+| Orders | A short command set for the wing: form up, attack my target, defend, dock, hold fire | Select owned ships anywhere in the system, then: go to, attack, defend, dock, join formation, assign an itinerary |
 | Other panels | The in-flight HUD (ch. 09 §3.7) | Build, yard, fleet; or a base's services when docked |
 | Sees | What the own ship's scanner reports | That, plus what owned ships and the outpost in the same system report |
 
-Three rules follow. Docked is always the tactical view, looking at the station the ship is docked in: this is the base screen of the game, and it is the screen the sample already draws. The tactical view never shows more than owned sensors can see. And the own ship must fight better in the player's hands than under a directive, or nobody will fly; the blueprint's separate accuracy of pilots against players (ch. 05, design notes) is the dial.
+Three rules follow. Docked is always the tactical view, looking at the station the ship is docked in: this is the base screen of the game, and it is the screen the sample already draws. The tactical view never shows more than owned sensors can see. And neither place may dominate: if commanding from a berth wins a raid as surely as launching does, the player stops flying; if it never does, the tactical view is only a menu. The blueprint's separate accuracy of pilots against players (ch. 05, design notes) and the strength of the outpost's own defences are the dials.
 
 ### 3.2 A base is its modules
 
@@ -128,8 +129,7 @@ The state diagram of `Blueprint.md` §3 holds, with these changes.
 | Base | No rooms. The tactical view of the station, with one panel per service the station's modules provide |
 | Base, at the player's outpost | The same, plus build, yard and fleet |
 | Space: free flight | Unchanged |
-| Space: manoeuvre | Unchanged, and it is also the state the own ship is in whenever the player is in the tactical view |
-| Space: tactical view | New. Entered and left with one key at any time |
+| Space: manoeuvre | Unchanged |
 | Space: lane ride, docking sequence | Unchanged. Followers in formation receive the same order (ch. 05 §3.10) |
 | Cutscene | Scripted camera in space only; no acted scenes in rooms |
 | Death | Back to the last base with the ship as fitted there, cargo lost (D1, decided) |
@@ -150,7 +150,7 @@ For each chapter of the Frontier blueprint: what is kept as written, what is ada
 | 08 | Missions and base services | Kept, extended | Missions as content controllers, triggers, labels, directive lists, objectives, checkpoints, generated jobs and the job board as written. Added events: module completed, module destroyed, stockpile reached, ship built. Added actions: raid a solar, grant a plan, open a claim. The offer tree becomes a flat list of templates. Inhabitants become entries in a text panel; rumours and bribes keep their rules |
 | 09 | In-flight interface and presentation | Kept, restyled | The command layer, one cursor for pointing, steering and aiming, rate control, the scanner as the single source of contacts, the manoeuvre bar. The look is the sample's command-and-control HUD. Added: wing commands and the view toggle. The cockpit view is cut. Sub-targeting is kept, because choosing which module to cut is the point of §7.1 |
 | 10 | Bases, scenes, menus and text | Mostly replaced | Rooms, sets, placements, costumes, acted conversations and room scene scripts are cut. Kept: the base visit as a state machine, the service and inventory panels, the map, text by identifier, knowledge granted by reading |
-| 11 | Architecture, networking and persistence | Kept, tightened | Authority and presentation, one message catalogue, the event bus, systems that run only where a player is, the character as one record. Every "do not copy" of the chapter's §7 is followed from the start (§8). The repository already has the seam: the client draws a snapshot and never reads `World` |
+| 11 | Architecture, networking and persistence | Kept, tightened | Authority and presentation, one message catalogue, the event bus, systems that run only where a player is, the character as one record. Every "do not copy" of the chapter's §7 is followed from the start (§8). The network transport is MsQuic, not a reliable ordered channel for everything (§8.1). The repository already has the seam: the client draws a snapshot and never reads `World` |
 | 12 | Data model and content census | The proposal is adopted | The chapter's eleven-point modern form, not the original's format: typed records, checked references, no load order, templates and inheritance. `Scene.txt` and `RecordFile` are the starting point. The census is the basis of §10 |
 
 Cut outright, each named as affordable in `Blueprint.md` §9 or in its chapter's design notes: staged rooms, acted conversations, fragment-spliced speech, the offer tree, the cockpit view, a physics library. Also cut: the cloak device, which only NPCs carry. Cut by the owner's decision: a player ship designer. Not cut, although the blueprint lists them as cuttable: lanes as real travel, damage to parts of a ship, itineraries, empathy, approach flight when docking, discovery. Each of those is where this game's own systems plug in.
@@ -187,7 +187,7 @@ A mining tool is a launcher whose damage is high against rock and low against ev
 | Kind | What the player does with it | How it behaves |
 |---|---|---|
 | Own ship | Flies it. Changes it only while docked at the outpost | Free flight, or the manoeuvre layer under a directive |
-| Wing | Orders it, from either view | Escorts in formation on the own ship. They dock, ride lanes and jump with it |
+| Wing | Orders it with command keys in flight, or from the tactical view while docked | Escorts in formation on the own ship. They dock, ride lanes and jump with it |
 | Utility ships | Assigns an itinerary once | Tugs and miners run it unattended: claim to outpost, outpost to a base and back |
 | Garrison | Sets a defend directive | Stays at the outpost |
 
@@ -197,7 +197,7 @@ Every owned ship is a blueprint NPC ship definition (ch. 06 §3.6): an archetype
 
 Single player ships first. These constraints apply from the first slice, because the Frontier blueprint is explicit that the split costs little early and a great deal late. Constraints 1 to 7 and 9 shape code and are written in AGENTS.md as R18 to R24; 8 and 10 are game behaviour and stay here.
 
-1. **One message catalogue.** Presentation and authority exchange messages and never call each other. The in-process transport and a network transport carry the same messages. `GameApp` does not reference `GameLogic`; that edge is already forbidden.
+1. **One message catalogue.** Presentation and authority exchange messages and never call each other. The in-process transport and the network transport, MsQuic (§8.1), carry the same messages. `GameApp` does not reference `GameLogic`; that edge is already forbidden.
 2. **The authority decides.** Damage, purchases, builds, mining yields, docking, standing and discovery are computed by the authority from commands. The original's trust in the player's machine (ch. 11 §3.8) is not copied.
 3. **The own ship is predicted, and bounded.** The presentation integrates the player's ship from input and is not corrected in normal play; the authority checks speed, fire rate and energy against the shared model.
 4. **A fixed tick is the clock.** `TickClock` already provides it. No rule reads wall time.
@@ -208,19 +208,40 @@ Single player ships first. These constraints apply from the first slice, because
 9. **Content has stable text identifiers,** and both sides compare a hash of the simulation data when a session starts.
 10. **A character is one self-contained record,** including the outpost's modules and masks and the fleet; content saves its own part.
 
+### 8.1 The network transport: MsQuic
+
+When the game goes over a network, it goes over QUIC, using Microsoft's MsQuic library. Single player never uses it: the authority and the presentation in one process keep the in-process transport, which is also what every test runs on. The owner decided this on 2026-11-22, and with it the three choices below; it is the one third-party library the executable may use, and the one package the build may restore (AGENTS.md R14).
+
+QUIC answers the Frontier blueprint's list of what not to copy in one piece (ch. 11 §7). The original sent everything, positions included, reliable and in order, and had to throttle itself with a saturation gate because a stale update could not be dropped; its wire had no length, version, integrity check or encryption; and its account identifier went in clear as a bearer token. QUIC gives encrypted, authenticated connections over TLS 1.3, congestion control, reliable streams and unreliable datagrams on one connection, and survives a change of client address.
+
+| Concern | How the game uses MsQuic |
+|---|---|
+| Sessions | One QUIC connection per player session |
+| Commands, discrete events, inventory, chat | A reliable bidirectional stream. Order matters for these, and the blueprint already treats them as facts sent once (ch. 11 §3.7) |
+| Object state | Unreliable datagrams (RFC 9221), each carrying a sequence number; a receiver keeps the newest and discards older ones. A lost state update is replaced by the next, never retransmitted. This replaces the blueprint's saturation gate |
+| Voxel damage events | The reliable stream: R22 requires every event, in order, on both sides |
+| Message size | A state message must fit one datagram. The budget is set by the MTU, about 1,200 bytes to be safe, so state for many objects is split across datagrams and never assumes they arrive together |
+| Encoding | Every message carries its kind, its length and the catalogue version, as constraint 9's data hash and the blueprint's design notes require |
+| Identity and trust | The host proves itself with a self-signed certificate, and the client pins it on first connection and warns if it ever changes (decided). There is no certificate authority to configure, and every connection after the first is protected. Accounts authenticate over the encrypted stream, never by a bare identifier |
+| Threads | MsQuic calls back on its own worker threads. Callbacks only enqueue; the tick drains the queue at its first step (ch. 11 §3.2), so content and rules stay on one thread |
+| Platform | The Schannel build (decided). It uses Windows' own TLS 1.3, which exists from Windows 11 and Windows Server 2022, so that is the floor for networked play; single player keeps today's. Schannel does not offer QUIC's 0-RTT reconnect, which the game does not need |
+| Acquisition | The NuGet package `Microsoft.Native.Quic.MsQuic.Schannel`, at an exact pinned version (decided). It is the one package the build restores |
+
+Which project references the package, whether `msquic.dll` is loaded at run time or linked, how the restore runs in CI, and how the package's imported build files square with ADR-005's plain project files are ADR-017's to decide. It is due before the first code that touches MsQuic, which is the MVP's spike (ImplementationPlan.md, task F7), well before slice 10. The constraint it must meet is AGENTS.md R14's: single player and the test suites never load MsQuic.
+
 ## 9. How it lands in the repository
 
 | Project | Takes on |
 |---|---|
-| `NeuronCore` | Voxel masks, the carving and connectivity arithmetic, typed records and reference checking |
-| `NeuronServer` | The tick, sessions, the transport interface and the in-process transport, save infrastructure |
-| `NeuronClient` | Rendering of voxels that change, the chase camera beside the orbit camera, devices to commands, audio |
+| `NeuronCore` | Voxel masks, the carving and connectivity arithmetic, typed records and reference checking; the transport interface and the in-process transport, which client and server both need and which neither may take from the other's library. The MsQuic transport (§8.1) sits here too, or in a new engine library that both halves reference; ADR-017 decides which |
+| `NeuronServer` | The tick, listening for and admitting sessions, save infrastructure |
+| `NeuronClient` | Rendering of voxels that change, the chase camera beside the orbit camera, devices to commands, audio, connecting to a host |
 | `GameCore` | What both sides share: archetypes, materials, the flight and equipment model, zones, the message catalogue |
 | `GameLogic` | The authority: systems, world objects, regard, markets, the outpost and its ledger, and the content controllers for population, missions and the campaign |
 | `GameApp` | The presentation: flight view, tactical view, HUD, base panels, the map |
 | `AssetGenerator` | Recipes for families of hulls and modules, so that content volume is generated, not drawn |
 
-Decisions this design forces, each an ADR before the slice that needs it: the deterministic mask and the damage event; the shared flight model on a fixed tick; the record schema that grows `Scene.txt` into system, base and archetype definitions; the message catalogue; rendering of changing voxels (today the surface is extracted once and the shadow map is drawn once); world scale. On scale: the sample's ship models, read as one metre per voxel, give escorts of 42 to 52 m and a frigate of about 190 m, which fits the blueprint's metric constants, so those can be carried over unchanged.
+Decisions this design forces, each an ADR before the slice that needs it: the deterministic mask and the damage event; the shared flight model on a fixed tick; the record schema that grows `Scene.txt` into system, base and archetype definitions; the message catalogue; the network transport over MsQuic; rendering of changing voxels (today the surface is extracted once and the shadow map is drawn once); world scale. On scale: the sample's ship models, read as one metre per voxel, give escorts of 42 to 52 m and a frigate of about 190 m, which fits the blueprint's metric constants, so those can be carried over unchanged.
 
 ## 10. Content budget
 
@@ -248,52 +269,50 @@ Vertical slices, each playable, after the Frontier blueprint's own order (`Bluep
 | Slice | Result | Draws on | It works when |
 |---|---|---|---|
 | 0. A scene | The tactical sample | Done | — |
-| 1. A ship that flies | An escort flown by cursor around the shipyard: throttle, strafe, thruster, engine kill, cruise, chase camera; the view toggle | 02 §3.7 to 3.10; 09 §3.1 to 3.5, 3.9; 11 | Top speed and turn rate come out of thrust and drag as ch. 02 predicts. In the tactical view the same ship obeys a go-to order |
+| 1. A ship that flies | An escort flown by cursor around the shipyard: throttle, strafe, thruster, engine kill, cruise, chase camera | 02 §3.7 to 3.10; 09 §3.1 to 3.5, 3.9; 11 | Top speed and turn rate come out of thrust and drag as ch. 02 predicts. Another ship obeys a go-to directive through the same manoeuvre layer |
 | 2. A place to be | Dock at the shipyard and launch again; docked is the tactical view; one system with zones and a hazard; save on launch | 01 §3.1 to 3.5; 04 §3.1 to 3.5; 11 §3.10 | A full loop of launch, fly, dock and resume from a save |
 | 3. A fight in voxels | Guns, shield, damage events, modules that fail, core death, wrecks; one opponent that attacks, evades and flees; the combat HUD | 03 §3.1 to 3.5; 05 §3.1 to 3.8; 09 §3.6 to 3.8; §7.1 | A duel has the rhythm of shield break and window. The ship panel's percentages are measured from masks. Carving holds the frame rate |
 | 4. An outpost that grows | Sockets, build plans, Alloy, modules with services, power, crew and Water; repair | §3.2 to 3.5; §7.2 | "Finish hangar extension F-03" is completed by building it. A module shot off takes its service with it and can be rebuilt |
 | 5. Mining and haulage | Carving rock into Ore; tractor; miner and tug itineraries; refinery; the ledger | 01 §3.6; 03 §3.9; 06 §3.8; §7.3 | The outpost sustains itself from the claim, present or away, at the same rate |
-| 6. A wing | The yard builds escorts; formation; wing commands; tactical orders; raids | 05 §3.9 to 3.11; 06; §7.4 | "Defend the shipyard" can be won from the cockpit or from the tactical view, and "escort tug T-041 to dock" can be lost |
+| 6. A wing | The yard builds escorts; formation; wing commands; tactical orders; raids | 05 §3.9 to 3.11; 06; §7.4 | "Defend the shipyard" can be won from the cockpit or from the tactical view while docked at the outpost, and "escort tug T-041 to dock" can be lost |
 | 7. A living system | Factions and regard; population with patrols and traders that dock; cargo scans; text comms | 06 §3.2 to 3.8; 07 §3.1 to 3.6 | Shooting one faction's ship changes how two others treat the player and who raids the outpost |
 | 8. An economy and a universe | Goods, markets, dealers, worth and level; several systems, jumps, lanes, routes, locks; the map and discovery | 07 §3.8 to 3.15; 01 §3.6 to 3.10; 04 §3.6 to 3.10 | A trade run, a fight and a shift at the outpost all raise worth. A route across three systems can be plotted and flown |
 | 9. Jobs and a campaign | The trigger language, the job board, generated and scripted missions, checkpoints | 08 | An author builds an escort-and-ambush mission that ends at the outpost, from data alone |
-| 10. Multiplayer | A network transport, observers and replication, accounts | 11 §3.6 to 3.13 | Two players meet, fight the same ships and see the same holes in them |
+| 10. Multiplayer | The MsQuic transport, observers and replication, accounts | 11 §3.6 to 3.13; §8.1 | Two players meet, fight the same ships and see the same holes in them |
 
 The first six slices are the MVP; [ImplementationPlan.md](ImplementationPlan.md) breaks them into work. Slices 1 to 3 prove the feel and carry the largest technical risk. Nothing after them should start until a duel is good.
 
 ## 12. Where this design is weakest
 
 1. **Scope.** The hybrid was the largest of the three options on offer. The design answers with the five identities of §3, the cut list of §6 and the budget of §10, but two views still mean two cameras, two interfaces and a pilot AI that has to serve as opponent, wingman and stand-in for the player. Slice 6 is the honest checkpoint: if the first six slices have not produced a game worth playing in one scene, the universe will not rescue it.
-2. **Home against frontier.** The blueprint's difficulty curve is a journey outward: danger and profit grow with distance and the player rarely goes back. An outpost is an anchor. The further the player ranges, the longer the trip home; the more they stay home, the less the map matters. A small map, a central claim and lanes soften this and do not remove it. Open decision D3 is the real answer and it is not taken yet.
+2. **Home against frontier.** The blueprint's difficulty curve is a journey outward: danger and profit grow with distance and the player rarely goes back. An outpost is an anchor. The further the player ranges, the longer the trip home; the more they stay home, the less the map matters. A small map, a central claim and lanes soften this and do not remove it. D3 answers it with one claim now and forward claims further out as campaign rewards, so that the anchor moves outward with the player. Whether that is enough is untested.
 3. **Destruction as the damage model.** It has to give a readable fight with the blueprint's rhythm, hold the frame rate while surfaces change, and replay identically on two machines. The sample's renderer assumes a static scene. This is why slice 3 comes before any outpost work.
-4. **Fly or command.** If a pilot flies the own ship as well as the player does, the flight half is optional; if the tactical view is never worth the lost seconds, the command half is. The balance is one tuning dial and will take more than one try.
+4. **Fly or command.** With the tactical view only in a berth (D10), the choice is made by docking or launching. If staying docked and commanding wins a raid as reliably as flying, the flight half is optional; if commanding never pays, the command half is. And in space the player cannot reassign a tug or a miner at all, which the wing's command keys do not cover. The balance will take more than one try.
 5. **An unbounded faucet.** The blueprint's economy has fixed prices and unlimited stock, and stays bounded because a hold is small and a trip takes time. Mining and refining add a source that runs while the player does something else. Haulage throughput has to be the limit, and the ledger must never pay better than being present.
 6. **Leaving as a tactic.** If raids happen only around a present player, a player in trouble can jump out to stop one. Constraint 8 needs a companion rule for a raid already in progress.
 7. **What the blueprint does not know.** Rendering, effects and audio are requirements only (ch. 09 §3.10 to 3.14), and campaign failure was never recovered (ch. 08). Those gaps are inherited.
 
 ## 13. Open decisions
 
-*D1, D2, D5, D6 and D12 were decided by the owner on 2026-11-22, as recommended, for the MVP plan ([ImplementationPlan.md](ImplementationPlan.md)). The others remain open.*
+*All twelve were decided by the owner on 2026-11-22: D1, D2, D5, D6 and D12 for the MVP plan ([ImplementationPlan.md](ImplementationPlan.md)), the rest the same day. Eleven follow the recommendation; D10 does not, and the rest of this document follows the decision.*
 
-Each is the owner's. The recommendation is what the rest of this document assumes.
-
-| # | Decision | Recommendation |
+| # | Question | Decision |
 |---|---|---|
 | D1 | What death costs — *decided* | One rule for both modes, the blueprint's multiplayer rule (ch. 11 §3.12): back to the last base with the ship as it was fitted there, cargo lost. Reloading a save then stays a convenience and is not a rule |
 | D2 | Can the outpost be lost — *decided* | No. The command block is the blueprint's indestructible solar: everything attached to it can be shot off, the claim itself survives |
-| D3 | One claim or several | One in the first release. Forward claims further out as campaign rewards, to answer weakness 2 |
-| D4 | What sizes a raid | The place and the owner's standings, as for all population. Not the outpost's worth: the blueprint keeps danger a property of the map |
+| D3 | One claim or several — *decided* | One in the first release. Forward claims further out as campaign rewards, to answer weakness 2 |
+| D4 | What sizes a raid — *decided* | The place and the owner's standings, as for all population. Not the outpost's worth: the blueprint keeps danger a property of the map |
 | D5 | The HUD's DESIGN tab — *decided* | Rename it YARD: build and refit ships from bought hull plans. With no ship designer it has nothing to design |
 | D6 | Which ships the player may fly — *decided* | Fighters and freighters. Frigates are owned and commanded, not piloted: cursor flight is tuned for hulls that turn at 23 to 96 degrees a second |
-| D7 | Can the outpost sell to visiting traffic | No. Surplus is hauled to a base, by the player or a tug. Profit stays a matter of knowing the map |
-| D8 | The setting | Not part of this document. The sample's names (Kessler Reach, Shipyard Command, F-317) are working titles |
-| D9 | Campaign in the first release | A short one (§10), since worth gates and locked jump points are what pace the open game |
-| D10 | Where the tactical view is available | Anywhere, limited to owned sensors |
-| D11 | Voice | None at first. Comms are text; the rules of chatter (ch. 06 §3.12) are kept |
+| D7 | Can the outpost sell to visiting traffic — *decided* | No. Surplus is hauled to a base, by the player or a tug. Profit stays a matter of knowing the map |
+| D8 | The setting — *decided* | Not part of this document. The sample's names (Kessler Reach, Shipyard Command, F-317) are working titles; the MVP needs no setting. The setting is its own document, written before slice 7 brings factions |
+| D9 | Campaign in the first release — *decided* | A short one (§10), since worth gates and locked jump points are what pace the open game |
+| D10 | Where the tactical view is available — *decided* | Only while docked, at any base, limited to owned sensors. In space the player flies and has the wing's command keys. (The recommendation was anywhere; the owner chose otherwise) |
+| D11 | Voice — *decided* | None at first. Comms are text; the rules of chatter (ch. 06 §3.12) are kept |
 | D12 | Wing size — *decided* | About three, capped by crew |
 
 ## 14. Basis
 
-Read in full for this document: `Blueprint.md` and blueprint chapters 00, 01, 02, 03, 07 and 11. Read for purpose, structure and design notes, with selected sections: chapters 04, 05, 06, 08, 09, 10 and 12. From this repository: `README.md`, `AGENTS.md`, ADR-001 to ADR-003, `Assets/Scene.txt`, `GameLogic/World.h`, `GameCore/WorldSnapshot.h`, `GameCore/Palette.h` and the reference screenshot. Model sizes in §9 were read from the `SIZE` chunks of the committed `.vox` files.
+Read in full for this document: `Blueprint.md` and blueprint chapters 00, 01, 02, 03, 07 and 11. Read for purpose, structure and design notes, with selected sections: chapters 04, 05, 06, 08, 09, 10 and 12. From this repository: `README.md`, `AGENTS.md`, ADR-001 to ADR-003, `Assets/Scene.txt`, `GameLogic/World.h`, `GameCore/WorldSnapshot.h`, `GameCore/Palette.h` and the reference screenshot. Model sizes in §9 were read from the `SIZE` chunks of the committed `.vox` files. For §8.1: MsQuic's own documentation (`README.md`, `docs/Platforms.md`, `docs/API.md`, `docs/Release.md` in `github.com/microsoft/msquic`) and Microsoft Learn's MsQuic and Schannel pages, read on 2026-11-22.
 
 Nothing here was built or run. Every number in §10 is a proposal, and every blueprint number quoted is the blueprint's own.

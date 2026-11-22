@@ -177,7 +177,7 @@ These are the standing constraints the layout satisfies, and any change to it ha
 
 **Filters are functional.** A `.filters` file groups a project by what the code *does* — `Rendering`, `Audio`, `Input`, `Shader` — never by what kind of file it is. The Visual Studio defaults `Source Files`, `Header Files` and `Resource Files` are deleted when a project is created and never come back, and a `.h` sits in the same filter as its `.cpp`.
 
-**There are no vendored SDKs and no package manager.** The build depends on the Windows SDK and the MSVC standard library, and on nothing else. See R14.
+**There are no vendored SDKs, and one package.** The build depends on the Windows SDK, the MSVC standard library and nothing else, with one exception that R14 names: MsQuic, restored from NuGet.
 
 **Build and IDE output is never committed** — `x64/`, `.vs/`, `*.user`, and anything a build step generates.
 
@@ -248,6 +248,15 @@ python Build\RunClangTidy.py          # needs a Developer PowerShell (INCLUDE mu
 
 **R14 — No third-party dependencies and no package manager.** The Windows SDK and the MSVC standard library, and nothing else. If you believe something is unavoidable, propose it in your report with what it buys and what it costs — do not add it. This is a closed list, not a high bar.
 
+**One exception, decided by the owner on 2026-11-22: MsQuic is the network transport** ([`Design/GameDesign.md`](Design/GameDesign.md) §8.1). It is the only third-party library the executable may use, and it is bounded:
+
+- It comes from the NuGet package `Microsoft.Native.Quic.MsQuic.Schannel`, at an exact version pinned in the repository. NuGet is allowed for this package and no other; vcpkg, a CMake build of MsQuic's sources, and any other package remain excluded.
+- It is used for networked play only. Single player and every test suite run on the in-process transport and never load `msquic.dll`.
+- Its licence text ships with `msquic.dll`, under the rule for third-party content below.
+- Which project references the package, run-time loading or linking, the restore step in CI, and the exception to ADR-005 that a package's imported build files need, are ADR-017's to decide, before the first code that touches MsQuic. Updating the pinned version is a commit of its own.
+
+Adding anything else is still a proposal in your report, never a commit.
+
 **It binds what the executable is built from, not what a development tool needs.** Scripts under `Build/` and `Tools/` never ship and never link, so a baker that needs Pillow does not reopen this rule. The same holds for test projects: they link the Microsoft C++ Unit Test Framework that ships with Visual Studio, and they are the only projects allowed to. **Third-party *content* is a different question and it is the owner's**: art, fonts and sound are allowed, and anything under a licence needs the owner's approval before it lands, with the licence text travelling with the bytes.
 
 For Direct3D that list means what the Windows SDK installs: `d3d12.h`, `dxgi1_6.h`, `DirectXMath.h`, `wrl/client.h` (`Microsoft::WRL::ComPtr` is the COM smart pointer R12 asks for) and the `fxc`/`dxc` compilers that `FXCompile` drives. It excludes what a D3D12 sample reaches for by reflex, because each is NuGet or GitHub content and not SDK content: the DirectX Agility SDK and its `d3dx12.h`, DirectX-Headers, DirectXTK12, DirectXTex, and the DirectX Shader Compiler as a redistributable. Resource barriers and heap descriptions are written by hand.
@@ -264,7 +273,7 @@ For Direct3D that list means what the Windows SDK installs: `d3d12.h`, `dxgi1_6.
 
 **R18 to R24 come from the design.** A design document does not only say what to build; some of what it says constrains how the code is *shaped*. [`Design/GameDesign.md`](Design/GameDesign.md) §8 lists what keeps multiplayer possible in a game that ships single-player first, and the constraints in that list that shape code are the seven rules below. They bind from the first line of game code, because the split they protect costs little now and a great deal to retrofit. The design says *authority* and *presentation*; in this tree those are the server half (`GameLogic` on `NeuronServer`) and the client half (`GameApp` on `NeuronClient`). The constraints that are game behaviour — what an absent player's outpost does, what a saved character holds — stay in the design. All seven are review's to enforce.
 
-**R18 — Client and server exchange data and never call each other.** `GameApp` does not reference `GameLogic` and `GameLogic` does not reference `GameApp` (§2); what crosses between them is a type defined in `GameCore`, handed over by the executable. Today that is `WorldSnapshot`, passed by reference. When commands flow up and object state flows down, they are messages from one catalogue in `GameCore`, and the in-process hand-over and a network transport carry the same ones. A fact one half needs from the other is a message, never a pointer.
+**R18 — Client and server exchange data and never call each other.** `GameApp` does not reference `GameLogic` and `GameLogic` does not reference `GameApp` (§2); what crosses between them is a type defined in `GameCore`, handed over by the executable. Today that is `WorldSnapshot`, passed by reference. When commands flow up and object state flows down, they are messages from one catalogue in `GameCore`, and the in-process hand-over and the MsQuic network transport carry the same ones. A fact one half needs from the other is a message, never a pointer.
 
 **R19 — The server decides; the client asks.** Damage, purchases, construction, mining yields, docking, standing and discovery are computed in `GameLogic` from commands. `GameApp` shows results and may predict them for display, but nothing it computes becomes true by being reported. The one exception the design grants is the motion of the player's own ship, which the client integrates from input and the server checks against the shared flight model.
 
@@ -305,7 +314,7 @@ For Direct3D that list means what the Windows SDK installs: `d3d12.h`, `dxgi1_6.
 - [ ] New, removed or moved files are in the `.vcxproj` **and** the `.filters` of every project involved.
 - [ ] No project's `ConformanceMode`, `LanguageStandard`, `WarningLevel` or `TreatWarningAsError` was changed, and no warning was silenced with a pragma.
 - [ ] Debug and Release still agree on everything §3 says they must.
-- [ ] No new third-party dependency (R14).
+- [ ] No new third-party dependency (R14); MsQuic only within the bounds R14 sets.
 - [ ] The checkers pass — or, for one not yet written, the report says which and why.
 - [ ] It builds Debug|x64, and every test suite runs and passes.
 - [ ] If it touches rendering, input, audio or presentation: it was **run**, not just built.

@@ -10,7 +10,7 @@ This plan turns the first six slices of [GameDesign.md](GameDesign.md) §11 into
 
 | Objective | Completed by | Slice that makes it real |
 |---|---|---|
-| Defend the shipyard | Destroying or driving off a raid, from the cockpit or the tactical view | 6 (raid), on 3 (combat) |
+| Defend the shipyard | Destroying or driving off a raid, from the cockpit or, docked at the outpost, from the tactical view | 6 (raid), on 3 (combat) |
 | Finish hangar extension F-03 | Building the planned `HangarSection` on the `ExtensionDock` socket | 4 |
 | Escort tug T-041 to dock | The tug reaching its docking point alive through an ambush | 6, on 2 (docking) and 5 (tug itinerary) |
 
@@ -25,6 +25,13 @@ This plan turns the first six slices of [GameDesign.md](GameDesign.md) §11 into
 | D5 | The DESIGN tab becomes YARD | Renamed in slice 4, filled in slice 6 |
 | D6 | Only fighters and freighters are flyable | The two escort hulls are the flyable ships of the MVP; frigate, tug and miners are commanded |
 | D12 | A wing of about three, capped by crew | Slice 6 |
+| D3 | One claim | The MVP's one outpost is the design's whole first release, not a cut |
+| D4 | Raids are sized by place and standings | With no factions in the MVP, by the claim's zone alone (task 6.5) |
+| D7 | The outpost does not sell to traffic | No market module in the MVP or later |
+| D10 | The tactical view only while docked | It is the docked view of slice 2. Slice 1 has no in-flight tactical view; a debug key stands in until docking exists. In slice 6, tactical orders are given from a berth |
+| D11 | Text comms, no voice | No audio content beyond effects in the MVP |
+
+D8 (setting before slice 7) and D9 (a short campaign) fall outside the MVP. All twelve are recorded in GameDesign.md §13.
 
 ## 2. Where the code starts
 
@@ -59,18 +66,19 @@ The same four kinds of evidence, every slice. A slice is not finished until all 
 
 ## 4. Foundations (before slice 1)
 
-Six pieces of work that every slice stands on. None of them is visible to a player.
+Seven pieces of work that every slice stands on. None of them is visible to a player.
 
-**ADRs due:** ADR-007, ADR-008, ADR-009 (section 10).
+**ADRs due:** ADR-007, ADR-008, ADR-009, and ADR-017 before F7 (section 12).
 
 | # | Task | Where | Tests |
 |---|---|---|---|
 | F1 | Write the three checkers AGENTS.md names: `Build/CheckFormat.py` (clang-format over the tree, `--fix`), `Build/CheckProjectFiles.py` (build shape, project registration, R2 affixes, R7 file names, R11 spellings, flat directories, functional filters, Debug/Release alignment), `Build/RunClangTidy.py`. CI picks them up through its existing guards | `Build/` | Each checker passes over today's tree and fails on a planted violation of every rule it claims |
 | F2 | Set the simulation tick per ADR-007 and give every rule a tick-based time type. Recommendation: 60 Hz for both halves in the MVP. The blueprint's authority ran at 30 Hz. At 60 Hz cursor flight needs no latency hiding, and the fastest response the blueprint authors (a fighter's roll, 0.03 s) stays longer than one tick; with the exponential form of the damping every rate is stable, so the choice is about feel and cost, and the cost of a few dozen ships is small | `NeuronServer/TickClock.h`, `GameLogic/World.cpp` | `TickClockTests` and `WorldTests` updated; income per minute still exact |
-| F3 | The message catalogue and the in-process transport per ADR-008: commands up (player input per tick, directives, requests), state down (object states, discrete events), handed over by `Outpost.exe`. Recommendation: messages are encoded to bytes even in process, so that a pointer or a reference cannot cross by accident and slice 10 is a socket, not a rewrite | `GameCore/Messages.*`, `GameCore/MessageCodec.*`, `NeuronServer/Transport.*`, `Outpost/Main.cpp` | Round trip of every message kind; the transport preserves order and drops nothing; the encoder rejects an unknown kind |
+| F3 | The message catalogue and the in-process transport per ADR-008: commands up (player input per tick, directives, requests), state down (object states, discrete events), handed over by `Outpost.exe`. Recommendation: messages are encoded to bytes even in process, so that a pointer or a reference cannot cross by accident and slice 10 is MsQuic behind the same interface, not a rewrite. Every message kind declares from the start the delivery class it will have over MsQuic (GameDesign.md §8.1): reliable and ordered, or newest-wins state; and every state message fits the datagram budget. The transport interface lives in `NeuronCore`, because `GameApp` and `GameLogic` both need it and neither references the other's engine library | `GameCore/Messages.*`, `GameCore/MessageCodec.*`, `NeuronCore/Transport.*`, `Outpost/Main.cpp` | Round trip of every message kind; the transport preserves order and drops nothing; the encoder rejects an unknown kind and a wrong catalogue version; every state message encodes within the datagram budget |
 | F4 | The server owns the world: it loads its own content from the asset root, creates world objects with stable identifiers, archetype, owner and pose, and publishes their state. `WorldSnapshot` carries object states; the client draws poses from it instead of from scene positions | `GameLogic/World.*`, `GameCore/WorldSnapshot.*`, `GameApp/TacticalScene.*` | The first snapshot reproduces every scene pose; identifiers are stable across reloads; the smoke capture is unchanged against today's reference |
 | F5 | Scripted smoke test: `--script <file>` plays a timeline of commands at fixed ticks and `--frames` runs past it. Optionally add a WARP smoke run to CI's Windows job once it is stable | `Outpost/CommandLine.*`, `Outpost/Main.cpp` | A script that orbits and selects reproduces a capture whose statistics match a stored report |
 | F6 | Measure the baseline: frame time percentiles with `--no-vsync`, written to the smoke report; the time `ExtractSurface` takes for each shipped model | `Outpost/Main.cpp`, a benchmark mode in the smoke test | Numbers recorded in ADR-009 or a measurement note, with how they were taken |
+| F7 | The MsQuic spike, after F3: a console tool under `Tools\`, the first and only project to reference the NuGet package `Microsoft.Native.Quic.MsQuic.Schannel` (GameDesign.md §8.1). It sends the real encoded catalogue between two endpoints on localhost: one reliable stream, datagrams for state with sequence numbers, a self-signed certificate pinned on first connection, callbacks that only enqueue. It is not part of the game or the test suites, and it adds a row to AGENTS.md §2 and to `.clang-tidy`'s `HeaderFilterRegex` like any project | `Tools/QuicSpike/` (new), ADR-017 | Run by hand on Windows 11: every message kind crosses in its delivery class; every state message fits the datagram budget; with induced loss, state stays current and the stream stays ordered; a changed host certificate is refused. Results recorded in ADR-017 |
 
 Content records (ADR-009) come with F4. `Scene.txt` stays the placement file; archetypes move into typed record files under `Assets/Content/` (ships, weapons, shields, modules, materials), read with `RecordFile`, with every reference checked at load (R24). The same ADR gives sockets a **class** (dock, module, equipment, clamp), which slice 2 needs for docking points and slice 4 for building.
 
@@ -90,11 +98,11 @@ Content records (ADR-009) come with F4. `Scene.txt` stays the placement file; ar
 | 1.6 | Mouse flight: cursor offset to axis demand, the 0.25 s hold before steering, the lock toggle, rate control, banking into the turn; the cursor confined to the window while flying | `GameApp/FlightInput.*` | Demand from offset at screen centre, edge and corner; the hold threshold; banking scaled by throttle with the 0.4 floor |
 | 1.7 | Own-ship prediction: the client runs the same flight model on the same input commands and draws its own ship from the prediction, interpolated between ticks; every other object is interpolated between received states | `GameApp/Prediction.*` | In loopback, prediction and server state are identical tick for tick |
 | 1.8 | The chase camera of chapter 09 §3.9: per-hull offset, speed lag, turn look-ahead, its own up vector, shake. Pure math beside `OrbitCamera` | `NeuronClient/ChaseCamera.*` | Offset at rest, lag under acceleration, look-ahead direction, levelling |
-| 1.9 | The flight view and the view toggle: one key switches between chase and orbit camera without pausing; in the tactical view the own ship holds or follows its last directive. A minimal flight HUD: speed, throttle, both pools, cruise state | `GameApp/FlightView.*`, `GameApp/TacticalClient.*`, `GameApp/TacticalHud.*` | HUD layout tests at 720p, 1080p and 4K as for the tactical HUD |
+| 1.9 | The flight view: the chase camera, the cursor confined while flying, and a minimal flight HUD (speed, throttle, both pools, cruise state). The tactical view becomes the docked view in slice 2 (D10); until then a debug-only key switches to it for development, and slice 2 removes the key | `GameApp/FlightView.*`, `GameApp/TacticalClient.*`, `GameApp/TacticalHud.*` | HUD layout tests at 720p, 1080p and 4K as for the tactical HUD |
 | 1.10 | Moving instances: transforms from the snapshot every frame; bounds and picking follow; engine plumes follow their ship and scale with throttle; the shadow map redrawn each frame over a shadow camera fitted to the play area (ADR-010) | `GameApp/TacticalScene.*`, `GameApp/TacticalClient.cpp` | Picking a moving ship; the smoke capture with a script that flies a ship across the hangar |
 | 1.11 | Collisions, minimal: ship against the bounds of stations, rocks and ships, swept, with chapter 02's bounce and collision damage recorded but not yet applied | `GameCore/Collision.*`, `GameLogic/World.*` | A ship flown into the hangar wall stops outside it at every speed regime, cruise included |
 
-**It works when** top speed and turn rate come out of thrust and drag as chapter 02 predicts (1.2's tests), an input timeline flies the same path at 30, 60 and 144 rendered frames a second (1.4), and in the tactical view the same ship flies to a clicked point (scenario plus a run by hand). By hand: flying feels immediate, and the frame budget holds with the shadow map redrawn every frame.
+**It works when** top speed and turn rate come out of thrust and drag as chapter 02 predicts (1.2's tests), an input timeline flies the same path at 30, 60 and 144 rendered frames a second (1.4), and another ship flies to a point under a go-to directive through the same manoeuvre layer (scenario test). By hand: flying feels immediate, and the frame budget holds with the shadow map redrawn every frame.
 
 **Risks.** Redrawing a 4096² shadow map of every voxel each frame may not fit the budget (F6 will tell). Fallbacks in order: draw static structures into a cached map and only moving ships each frame; lower the resolution of a dynamic cascade; shadow moving ships only near the camera.
 
@@ -110,7 +118,7 @@ Content records (ADR-009) come with F4. `Scene.txt` stays the placement file; ar
 | 2.2 | Docking points as `dock`-class sockets on `HangarBay` and `DockingCollar`, with a docking class on each hull | `Assets/Scene.txt` or `Assets/Content/`, `GameCore/SceneDefinition.*` | Validation: every dockable station has at least one point; classes resolve |
 | 2.3 | The dock request on the authority with chapter 04's checks that apply without factions or missions: has docking points, a point accepts the class, a point is free, the target is at rest. Answers proceed, wait, cannot dock; the waiting list | `GameLogic/Docking.*` | Each check's refusal in order; two ships queue for one pad; the 90 s abandonment |
 | 2.4 | The dock manoeuvre and the approach: go to the approach point, then a scripted mover along the point's approach path with collisions off; completion makes the ship docked. Launch plays it backwards with launch invulnerability | `GameCore/Manoeuvre.*`, `GameLogic/World.*` | Scenario: a docking from several start poses completes; launch places the ship clear and protected |
-| 2.5 | Docked state on the client: the tactical view framed on the station, a services panel listing what the station's modules provide (in slice 2: launch and a placeholder repair), launch refused without engine or power plant | `GameApp/BaseView.*`, `GameApp/TacticalHud.*` | HUD layout at three resolutions; the launch refusal |
+| 2.5 | Docked state on the client, the only place the tactical view exists (D10): the tactical view framed on the station, launching leaves it, and the slice-1 debug key goes, a services panel listing what the station's modules provide (in slice 2: launch and a placeholder repair), launch refused without engine or power plant | `GameApp/BaseView.*`, `GameApp/TacticalHud.*` | HUD layout at three resolutions; the launch refusal |
 | 2.6 | The character record: location (docked at a base, or a pose in space), ship and fit, cargo, money, the base snapshot, interface state. Content appends its own sections through a save interface, not file handles (ADR-011) | `GameLogic/Character.*`, `GameLogic/SaveGame.*`, `NeuronServer/` for the file layer | Round trip of every field; an unknown section is kept on rewrite; a truncated file is refused with a reason |
 | 2.7 | Saving as the design says: autosave on launch, manual save only while docked, load on start; the save written completely before it replaces the old one | `GameLogic/SaveGame.*`, `Outpost/Main.cpp`, `GameApp/` pause panel | Scenario: launch, fly, dock, save, reload, and the state is equal field by field |
 | 2.8 | Hazard effects: accumulated zone damage applied as chapter 03 §3.7 says once slice 3 has damage; until then the HUD warning and scanner interference | `GameLogic/World.*`, `GameApp/` | The warning appears inside the zone and not outside |
@@ -203,13 +211,13 @@ Content records (ADR-009) come with F4. `Scene.txt` stays the placement file; ar
 | 6.1 | Owned ships: an NPC ship definition (archetype, loadout, pilot) with the player as owner, saved in the character record; crew capacity caps the fleet (D12) | `GameLogic/Fleet.*`, `GameLogic/Character.*` | Save round trip; the cap |
 | 6.2 | The yard: builds a hull the player holds the plan for, consuming Alloy and time; refits under the hardpoint rules; the YARD tab | `GameLogic/Yard.*`, `GameApp/TacticalHud.*` | Build cost and time exact; a refit that breaks the class rules is refused |
 | 6.3 | Formations of chapter 05 §3.10: slots, follow, cruise together, break and regroup | `GameCore/Formation.*`, `GameLogic/Ai.*` | Followers hold slots through a turn; regroup after a break |
-| 6.4 | Wing commands in the flight view (form up, attack my target, defend, dock, hold fire) and orders in the tactical view (multiple selection, go to, attack, defend, dock, join formation, assign itinerary), all issued as directives | `GameApp/FlightView.*`, `GameApp/TacticalClient.*`, `GameLogic/World.*` | Each order becomes the right directive; box selection |
+| 6.4 | Wing commands in the flight view (form up, attack my target, defend, dock, hold fire) and, while docked, orders in the tactical view to any owned ship in the system (multiple selection, go to, attack, defend, dock, join formation, assign itinerary), all issued as directives | `GameApp/FlightView.*`, `GameApp/TacticalClient.*`, `GameLogic/World.*` | Each order becomes the right directive; box selection |
 | 6.5 | Raids: an encounter record, an "assault this solar" itinerary, spawn around the present player from the claim's zone, a battle cap and a relief time (chapter 06) | `Assets/Content/Encounters.txt`, `GameLogic/Population.*` | Raid size from the zone; no second wave inside the relief time |
 | 6.6 | Outpost defence: turret platforms and the shield generator as equipment on sockets, flown by a pilot record; a garrison on a defend directive | `GameLogic/Combat.*`, `GameLogic/Ai.*` | Turrets fire at hostiles only; a stripped turret stops |
 | 6.7 | The scenario: the three objectives as an authored opening, using the event bus and objective evaluator: a raid to defend against, F-03 to build, T-041 arriving with an ambush on its way to dock; failure when the tug dies | `Assets/Content/Opening.txt`, `GameLogic/Objectives.*` | Scenario: each objective completed; the tug's loss fails its objective; the opening survives save and reload at any point |
-| 6.8 | The fly-or-command dial: pilot accuracy against players and the own ship's handling under a directive, tuned until the player's own flying is measurably better than the stand-in's in the duel of slice 3 | `Assets/Content/Pilots.txt` | The headless duel run with the player's ship under a directive loses more often than the scripted player input |
+| 6.8 | The fly-or-command dial: with the tactical view only in a berth, the choice is docking or launching. Pilot accuracy, the wing's strength and the outpost's own defences are tuned so that neither staying docked and commanding nor launching wins a raid reliably on its own | `Assets/Content/Pilots.txt`, `Assets/Content/Encounters.txt` | Headless: the same raid run with the player commanding from the berth, and with the player's scripted flying plus the wing, both succeed less than always and better together than either alone |
 
-**It works when** "defend the shipyard" can be won from the cockpit and from the tactical view, "escort tug T-041 to dock" can be lost, and all three objectives complete in one session that survives a save and reload.
+**It works when** "defend the shipyard" can be won from the cockpit and, docked at the outpost, from the tactical view, "escort tug T-041 to dock" can be lost, and all three objectives complete in one session that survives a save and reload.
 
 **The checkpoint.** At the end of slice 6, play the MVP for an hour and answer the design's §12 honestly: is the scene worth playing, do the two views both earn their place, does the outpost pull the player back too strongly? The answer decides whether slices 7 to 10 start as designed, start changed, or do not start.
 
@@ -222,14 +230,14 @@ Content records (ADR-009) come with F4. `Scene.txt` stays the placement file; ar
 | Markets, money, worth, level | The player starts with plans and Alloy; money exists in the record and nothing spends it | Slice 8 |
 | Other systems, lanes, jumps, map | One system | Slice 8 |
 | Trigger language, campaign, job board | The event bus with a minimal objective evaluator and one authored opening | Slice 9 |
-| Network transport | The in-process transport over encoded messages | Slice 10 |
+| Network transport | The in-process transport over encoded messages, each with its MsQuic delivery class already declared | Slice 10, as MsQuic (ADR-017) |
 
 ## 12. Decisions to write as ADRs
 
 | ADR | Subject | Due before | The question it answers |
 |---|---|---|---|
 | 007 | The simulation tick and time | F2 | The tick rate, how render frames relate to ticks, interpolation |
-| 008 | Commands, state and the in-process transport | F3 | What travels up and down, encoding, ordering, who pumps |
+| 008 | Commands, state and the in-process transport | F3 | What travels up and down, encoding with kind, length and version, ordering, who pumps, and each message's delivery class over MsQuic |
 | 009 | Content records and identifiers | F4 | Which record files, typed fields, reference checking, socket classes, how `Scene.txt` divides |
 | 010 | Moving instances and the shadow map | Slice 1 | Per-frame transforms, shadow camera and redraw policy, with the F6 measurement |
 | 011 | The character record and save format | Slice 2 | Sections, content's save interface, atomic replacement, mask encoding |
@@ -238,6 +246,7 @@ Content records (ADR-009) come with F4. `Scene.txt` stays the placement file; ar
 | 014 | Materials and module regions | Slice 3 | Material fields, the ore family, regions emitted by the generator |
 | 015 | Modules, construction and outpost rates | Slice 4 | Module records, build order of cells, integer rates and shortage priority |
 | 016 | The event bus and objectives | Slice 4 | Event types, priority order, re-entrancy, the objective evaluator's limits |
+| 017 | The network transport over MsQuic | F7 (the spike), long before slice 10 | Which project references the NuGet package and at which pinned version; run-time loading or linking, so that single player and tests never load it; the restore step in CI; the exception to ADR-005 for the package's imported build files; streams and datagrams per message class; certificate pinning and account authentication; how worker-thread callbacks reach the tick. The Schannel build, NuGet and pinning are already decided (GameDesign.md §8.1) |
 
 ## 13. Order and dependencies
 
@@ -245,13 +254,14 @@ Content records (ADR-009) come with F4. `Scene.txt` stays the placement file; ar
 F2 tick ── F3 messages ── F4 server owns the world ──┐
 F5 scripted smoke test ──────────────────────────────┼── slice 1 ── slice 2 ── slice 3 ── slice 4 ── slice 5 ── slice 6
 F6 measurements ── (decide ADR-010, ADR-013) ────────┘
+F3 messages ── ADR-017 ── F7 MsQuic spike: alongside slice 1, before the catalogue grows in slice 2
 F1 checkers: alongside everything
 ```
 
-Slice 3 needs slice 2's save (task 2.6) for D1's return to base. Its palette change (task 3.2) regenerates every model, so it lands before any new model of slices 4 and 5. Inside a slice, the server-side rules and their tests come first, then the client. F1 can run alongside everything else; F6 must finish before ADR-010 and ADR-013 are written, because both are decided by its numbers.
+Slice 3 needs slice 2's save (task 2.6) for D1's return to base. Its palette change (task 3.2) regenerates every model, so it lands before any new model of slices 4 and 5. Inside a slice, the server-side rules and their tests come first, then the client. F1 can run alongside everything else. F7 does not gate slice 1, but its findings about delivery classes and the datagram budget should reach the catalogue before slices 2 and 3 add most of its messages. F6 must finish before ADR-010 and ADR-013 are written, because both are decided by its numbers.
 
 ## 14. Basis
 
-The code as of commit `d331bcf`: `Outpost/Main.cpp`, `Outpost/MainWindow.h`, `NeuronServer/TickClock.h`, `GameLogic/World.*`, `GameCore/WorldSnapshot.h`, `GameCore/SceneDefinition.h`, `GameCore/Palette.h`, `NeuronCore/VoxModel.h`, `NeuronCore/VoxelMesher.h`, `NeuronCore/RecordFile.h`, `NeuronCore/ModelAxes.h`, `NeuronClient/Renderer.h`, `NeuronClient/GpuTypes.h`, `NeuronClient/OrbitCamera.h`, `GameApp/TacticalClient.*`, `GameApp/TacticalScene.h`, `GameApp/SceneAssets.h`, `.github/workflows/build.yml`, and the model sizes in the `.vox` files. The design: [GameDesign.md](GameDesign.md). The Frontier blueprint's chapters 01 to 06, 09 and 11, for every rule and number cited.
+The code as of commit `d331bcf`: `Outpost/Main.cpp`, `Outpost/MainWindow.h`, `NeuronServer/TickClock.h`, `GameLogic/World.*`, `GameCore/WorldSnapshot.h`, `GameCore/SceneDefinition.h`, `GameCore/Palette.h`, `NeuronCore/VoxModel.h`, `NeuronCore/VoxelMesher.h`, `NeuronCore/RecordFile.h`, `NeuronCore/ModelAxes.h`, `NeuronClient/Renderer.h`, `NeuronClient/GpuTypes.h`, `NeuronClient/OrbitCamera.h`, `GameApp/TacticalClient.*`, `GameApp/TacticalScene.h`, `GameApp/SceneAssets.h`, `.github/workflows/build.yml`, and the model sizes in the `.vox` files. The design: [GameDesign.md](GameDesign.md), including §8.1 on MsQuic. The Frontier blueprint's chapters 01 to 06, 09 and 11, for every rule and number cited.
 
 Nothing here was built or measured. Every figure in this plan is the blueprint's or arithmetic on file sizes, and the choices marked "recommendation" are for the ADRs to confirm or overturn with measurements.
