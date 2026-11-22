@@ -1,0 +1,22 @@
+# A saved game of Outpost: Frontier, a text record (ADR-011)
+save version=1
+section name=Character
+character money=0
+location kind=space position=55.65142203872553,-98.49576274741746,3.1447133419786972 orientation=-0.35470858,-0.031517383,-0.9342308,-0.020034598 velocity=3.5653692e-19,2.3950708e-20,4.0075864e-19 spin=6.731259e-23,3.8543705e-29,5.8127604e-08 power=1000 thrust=1000 thruster=0 cruise=off cruisetimer=0 cruiseramp=0
+ship instance=Lancer hull=92
+module name=Shields health=88
+module name=Drives health=100
+baseship instance=Lancer hull=92
+basemodule name=Shields health=88
+basemodule name=Drives health=100
+section name=Universe
+universe tick=1501
+resource name=Alloy amount=12495 remainder=180
+resource name=Ore amount=8749 remainder=2195
+resource name=Water amount=4125 remainder=-12
+resource name=Power amount=2306 remainder=2440
+resource name=Crew amount=36 remainder=0
+objective text="Defend the shipyard" complete=1
+objective text="Finish hangar extension F-03" complete=0
+objective text="Escort tug T-041 to dock" complete=0
+end sections=2 records=17
