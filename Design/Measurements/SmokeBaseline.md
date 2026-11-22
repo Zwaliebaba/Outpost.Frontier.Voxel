@@ -1,6 +1,6 @@
 # Smoke-test baseline
 
-**Taken:** 2026-11-22, first at commit `381bbc5` (F1 to F3 done), and stored again after F4, after the new station, after slice 1, after the signal and glazing materials and for slice 2's docked start, for the reasons given below. **Purpose:** the reference that every change that must not alter the picture is checked against.
+**Taken:** 2026-11-22, first at commit `381bbc5` (F1 to F3 done), and stored again after F4, after the new station, after slice 1, after the signal and glazing materials and for slice 2's docked start, for the reasons given below. The hazard reference and the rewritten flight script were added for slice 2's task 2.8. **Purpose:** the reference that every change that must not alter the picture is checked against.
 
 ## How it was taken
 
@@ -128,6 +128,35 @@ What was checked when it was stored again, on the current station:
 - A `--frames` shorter than the script was refused with exit code 1, when it was first stored.
 - The RTX 3070 Ti Laptop GPU run matches the WARP report within the tolerance: 649 distinct colours against WARP's 650, the rest identical. So the WARP report also serves as the hardware reference.
 
+## The hazard reference (task 2.8)
+
+`HazardSmokeSave.txt` is a save with the player's ship at rest in space under the Frigate, inside the `FrigateBreach` zone: the pose `FlightSmoke.txt` ends in. Resuming it shows the flight HUD with the hazard warning after three frames, so the warning can be drawn and checked without the flight that leads to it. The game saves when it quits, so resume a copy:
+
+```powershell
+Copy-Item Design\Measurements\HazardSmokeSave.txt Save.txt
+.\x64\Debug\Outpost.exe --smoke-test --warp --save Save.txt --capture HazardWarning.png --report HazardWarning.txt
+```
+
+CI's Windows job does this on every run, at 1280 x 720, fails unless the report names the warning, and uploads the capture and the report as the `hazard-review` artifact.
+
+**Where the save came from.** The game's own save code wrote it (`Universe::MakeSave` and `FormatSaveGame`), in the headless replica described under the flight reference, with the flight script's inputs and 390 more ticks at rest. It was not written on Windows.
+
+**What CI's run showed**, on 2026-11-22 at commit `76154d8`, Debug on WARP, run 29 of the Build workflow:
+
+- `save: resumed HazardReview\Save.txt at tick 1501, in space`, and `view: flight`.
+- `own ship: at 55.65, -98.50, 3.14, 0.00 m/s, 0 contact(s)`.
+- `hazard warning: FrigateBreach, immersion 0.30, scanner -18 %, danger to hull`.
+- The prediction matched the server on all 3 ticks.
+- `image 1280x720: mean luminance 0.084, lit 6.4%, cyan 0.94%, warm 0.26%, 407 distinct colours`, and `debug layer: on, 0 error(s), 0 warning(s)`.
+
+**Nobody has looked at the frame.** The report proves the warning was computed and that the HUD drew without a debug-layer error. Whether it reads well is for a person to judge from the artifact, or from a run by hand. No capture is stored here: one at 1920 x 1080 from a Windows machine can be, as `HazardSmokeWarp.png` and `.txt`.
+
+`GameLogicTests` keeps the save fitting the content: it restores in space, inside the zone, and a second of ticks neither moves the ship nor touches anything.
+
+| File | What it is |
+|---|---|
+| `HazardSmokeSave.txt` | The save, a text record (ADR-011) |
+
 ## The flight reference (slice 1, rewritten for slice 2)
 
 **The script is new and its capture is not stored yet.** `FlightSmoke.txt` was rewritten on 2026-11-22 for the docked start and for task 2.8's hazard warning. `FlightSmokeWarp.png` and `FlightSmokeWarp.txt` are still the slice 1 capture: they show a run the script no longer makes, and they stay only until one WARP run of the new script replaces them. That run needs Windows; it is the open item of slice 2's close-out.
@@ -155,7 +184,12 @@ Remove the machine-specific lines (`assets:`, `captured:`) from the report befor
 - The ship's collision sphere, 30.9 m in radius, never comes closer than 6.6 m to a body. At the end it is 6.6 m clear of the Frigate's box above it and 9.1 m inside the zone's surface.
 - **The run does not depend on the exact tick of the release.** With every flight input moved 19 ticks earlier, and 120 ticks later, the ship ends at the same position to the centimetre. So a release anywhere from 120 ticks before tick 700 to 19 after it flies the same path.
 
-MSVC's floating-point results differ from g++'s in the last place (AGENTS.md R16), so the hardware run may end a few centimetres from those figures. If it ends outside the zone or records a contact, the script needs adjusting: that is a finding about the script, not about the game.
+MSVC's floating-point results differ from g++'s in the last place (AGENTS.md R16), so the run on Windows may not end at exactly those figures. If it ends outside the zone or records a contact, the script needs adjusting: that is a finding about the script, not about the game.
+
+**Its last frame has been drawn on Windows.** The hazard reference below resumes a save of the pose the script ends in, and CI drew it on WARP. There the ship sits at 55.65, -98.50, 3.14 and the report reads the warning line above, word for word, so MSVC and the replica agree on where the run ends. In the replica, the ship's orientation and the chase camera's forward and up at the script's last frame equal the saved pose's to four decimals; the camera's offset differs by 0.2 m. So that frame is a rehearsal of this run's capture, at 1280 x 720. Two things about it are worth knowing before spending 25 minutes on the run:
+
+- **The lit share is 6.4 %, against the image check's floor of 5 %.** The view from under the Frigate is mostly open space. The run should pass the check, with 1.4 points to spare.
+- **The ship ends upside down.** Half a loop downwards leaves it inverted, and with no turn demanded nothing rolls it upright.
 
 **Why under the Frigate.** The breach vents a trail of debris, each piece a collision body, on the side of the hull the zone is centred on, and the Lancer's sphere cannot pass between them. Above the hull, the part of the zone the sphere can reach without touching the Frigate's box is a band about 4 m deep. Below the hull that band is about 16 m deep, so that is where the run ends.
 
