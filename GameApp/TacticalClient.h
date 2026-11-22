@@ -1,7 +1,9 @@
 #pragma once
 
+#include "DockedView.h"
 #include "ChaseCamera.h"
 #include "CommandMap.h"
+#include "ControlFocus.h"
 #include "FlightHud.h"
 #include "FlightInput.h"
 #include "FontAtlas.h"
@@ -15,6 +17,7 @@
 #include "Renderer.h"
 #include "SceneAssets.h"
 #include "ShipArchetype.h"
+#include "SystemContent.h"
 #include "SpriteSheet.h"
 #include "TacticalHud.h"
 #include "TacticalScene.h"
@@ -106,9 +109,23 @@ public:
   [[nodiscard]] bool SendTick(Neuron::LoopbackTransport& _transport, std::uint32_t _ticksPerSecond);
   /// Asks the server to dock, cancel or launch; sent with the next tick. While the server says the
   /// ship is docking, docked or launching, it flies the ship and the client draws it where it says.
-  void RequestDock(DockCommand _command) noexcept
+  void RequestDock(DockCommand _command)
   {
     m_pendingDock = _command;
+    if (_command == DockCommand::Launch && m_universe.ownDock.phase == DockPhase::Docked)
+    {
+      m_launchPending = true;
+      m_launchRefused.clear();
+    }
+  }
+  /// The docked view's section and launch state, for tests and the smoke report.
+  [[nodiscard]] DockedSection Section() const noexcept
+  {
+    return m_section;
+  }
+  [[nodiscard]] const std::string& LaunchRefusal() const noexcept
+  {
+    return m_launchRefused;
   }
 
   /// Decodes every message waiting for the client and applies it to the client's universe. False,
@@ -171,9 +188,14 @@ private:
   [[nodiscard]] std::string StatusLine(float _framesPerSecond) const;
   void RebuildSceneIfChanged();
   void TakeOwnShipNews(std::uint32_t _ticksPerSecond);
+  /// The view follows the dock (D10): the tactical view while docked and only then, framed on the
+  /// station with the services open; the flight view from the launch on.
+  void FollowDock();
   void ProcessCommands();
+  [[nodiscard]] DockedViewInput MakeDockedViewInput() const;
   void OrderAt(float _x, float _y);
-  void ResetChaseCamera();
+  /// Sizes the chase camera for the own ship's archetype and points it along _orientation.
+  void ResetChaseCamera(const DirectX::XMFLOAT4& _orientation);
 
   Neuron::GraphicsDevice* m_device = nullptr;
   Neuron::Renderer m_renderer;
@@ -204,9 +226,22 @@ private:
   std::uint64_t m_bodiesRevision = ~0ull;
   std::uint64_t m_seenOwnShipRevision = 0;
   std::optional<DockCommand> m_pendingDock; // asked by a key or the services panel, sent with the next tick
+  std::uint64_t m_seenDockRevision = 0;
+  SystemContent m_system; // the stations' names, for the docked view
+  DockedView m_dockedView;
+  Neuron::ControlFocus m_controls;
+  DockedSection m_section = DockedSection::Services;
+  bool m_uiPress = false;       // the left press went to a control, not the view
+  bool m_launchPending = false; // asked, and the server has not stated anything since
+  std::string m_launchRefused;  // the server's last refusal, until the next request
   float m_maxBankDegrees = 0.0f;
   std::uint32_t m_ticksPerSecond = 60;
   float m_lastFrameTime = -1.0f;
+  // While the server carries the own ship (docking or launching), the chase camera follows the pose
+  // the server states, and its speed is measured from one frame to the next.
+  std::optional<UniversePosition> m_carriedFrom;
+  float m_carriedSpeedMetresPerSecond = 0.0f;
+  ObjectId m_chaseFor = NO_OBJECT; // the ship the chase camera was sized for
   std::string m_protocolError;
   std::string m_initialSelection; // applied once the selected ship's object has arrived
   std::string m_selected;

@@ -182,6 +182,7 @@ public:
 
     // Every hull's docking class is offered by a point of the station a new game starts at.
     std::vector<Outpost::UniverseObject> objects;
+    objects.reserve(scene.instances.size());
     for (std::size_t i = 0; i < scene.instances.size(); ++i)
     {
       objects.push_back(Outpost::ObjectFromInstance(scene, i, static_cast<Outpost::ObjectId>(i + 1)));

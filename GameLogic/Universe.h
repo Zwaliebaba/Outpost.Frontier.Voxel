@@ -99,7 +99,7 @@ public:
   /// that does not apply in the ship's phase.
   bool Command(const DockCommandMessage& _command);
   /// Where a ship is in docking, and the answer to its last command.
-  [[nodiscard]] DockStatusState DockStatus(ObjectId _ship) const noexcept;
+  [[nodiscard]] DockStatusState DockStatus(ObjectId _ship) const;
   /// Whether nothing may harm the ship: while it is carried in, docked, or carried out (D16).
   [[nodiscard]] bool Protected(ObjectId _ship) const noexcept;
   [[nodiscard]] const SystemContent& System() const noexcept
@@ -187,6 +187,7 @@ private:
     Manoeuvre manoeuvre;
     bool arrived = false;
     std::uint64_t divergedAt = 0;
+    std::uint64_t takenAt = 0; // the first tick the server flies the ship, from a Dock command between ticks
     DockStatusState dock;
     std::size_t dockStation = SpaceSupport::NO_POINT;
     std::size_t dockPoint = SpaceSupport::NO_POINT;

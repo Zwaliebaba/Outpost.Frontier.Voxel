@@ -241,7 +241,9 @@ void Universe::FlyShips()
       const bool commanded = !m_commands.empty() && m_commands.front().first == tick;
       if (flyer.dock.phase != DockPhase::None)
       {
-        // The server flies the ship: the player's commands are set aside, and none is missed.
+        // The server flies the ship: the player's commands are set aside, and none is missed. The
+        // first tick it flies, the client still predicted on its own command: it has not yet heard.
+        flyer.divergedAt = commanded && tick == flyer.takenAt ? tick : flyer.divergedAt;
       }
       else if (commanded)
       {
@@ -468,6 +470,10 @@ void Universe::BeatSupport()
 void Universe::StateDock(Flyer& _flyer, DockPhase _phase, DockAnswer _answer, std::string _reason)
 {
   const bool freed = _flyer.dock.phase != DockPhase::None && _phase == DockPhase::None;
+  if (_flyer.dock.phase == DockPhase::None && _phase != DockPhase::None)
+  {
+    _flyer.takenAt = m_state.tick + 1;
+  }
   _flyer.dock.tick = m_state.tick;
   _flyer.dock.phase = _phase;
   _flyer.dock.answer = _answer;
@@ -685,7 +691,7 @@ bool Universe::Command(const DockCommandMessage& _command)
   return false;
 }
 
-DockStatusState Universe::DockStatus(ObjectId _ship) const noexcept
+DockStatusState Universe::DockStatus(ObjectId _ship) const
 {
   const Flyer* flyer = FindFlyer(_ship);
   return flyer != nullptr ? flyer->dock : DockStatusState{};

@@ -1,6 +1,9 @@
 #include "FileSys.h"
 #include "Messages.h"
 #include "SaveGame.h"
+#include "SceneDefinition.h"
+#include "ShipArchetype.h"
+#include "SystemContent.h"
 #include "TickClock.h"
 #include "Universe.h"
 
@@ -35,6 +38,22 @@ void LoadShipped(Outpost::Universe& _universe)
   Assert::IsTrue(root.has_value(), L"Assets/Scene.txt above the test DLL");
   std::string error;
   Assert::IsTrue(_universe.LoadContent(*root, error), Wide(error).c_str());
+}
+
+/// The shipped content with its ship parts changed first: a ship that cannot fly, for instance.
+template <typename Change> void LoadShippedWith(Outpost::Universe& _universe, Change _change)
+{
+  const auto root = Neuron::FindAssetRoot(Neuron::ModuleDirectory(&g_moduleAnchor), L"Scene.txt");
+  Assert::IsTrue(root.has_value(), L"Assets/Scene.txt above the test DLL");
+  std::string error;
+  Outpost::SceneDefinition scene;
+  Outpost::ShipContent ships;
+  Outpost::SystemContent system;
+  Assert::IsTrue(Outpost::LoadSceneContent(*root, scene, error), Wide(error).c_str());
+  Assert::IsTrue(Outpost::LoadShipContent(*root / "Content" / "Ships.txt", ships, error), Wide(error).c_str());
+  Assert::IsTrue(Outpost::LoadSystemContent(*root / "Content" / "System.txt", scene, system, error), Wide(error).c_str());
+  _change(ships);
+  _universe.Load(scene, ships, system);
 }
 
 [[nodiscard]] double Distance(const Outpost::UniversePosition& _a, const Outpost::UniversePosition& _b)
@@ -143,7 +162,7 @@ public:
     PlaceInSpace(universe, Outpost::UniversePosition{0.0, 16.0, -600.0});
     const Outpost::ObjectId ship = universe.PlayerShip();
     Assert::IsTrue(universe.Command(Outpost::DockCommandMessage{0, ship, Outpost::DockCommand::Dock}));
-    const std::uint64_t diverged = universe.DivergedAt(ship);
+    const std::uint64_t taken = universe.State().tick + 1;
     for (int i = 0; i < 5 * static_cast<int>(TICKS_PER_SECOND); ++i)
     {
       Outpost::ShipCommand command;
@@ -153,7 +172,9 @@ public:
       static_cast<void>(universe.SubmitCommand(Outpost::FlightInputMessage{universe.State().tick + 1, ship, command}));
       universe.Tick();
     }
-    Assert::AreEqual(diverged, universe.DivergedAt(ship), L"no tick the server flew counts as missed");
+    // The first tick the server flies, the client predicted on its own command, not having heard of
+    // the dock yet: that one tick diverges, and no later one counts as missed.
+    Assert::AreEqual(taken, universe.DivergedAt(ship), L"only the takeover tick diverges");
     Assert::IsTrue(PhaseOf(universe) != Outpost::DockPhase::None, L"still docking");
   }
 
@@ -170,7 +191,7 @@ public:
     Assert::IsTrue(universe.MakeSave().character.location.kind == Outpost::LocationKind::Docked, L"saved in the berth it leaves");
 
     std::uint64_t ticks = 0;
-    while (PhaseOf(universe) == Outpost::DockPhase::Launching && ticks < 60 * TICKS_PER_SECOND)
+    while (PhaseOf(universe) == Outpost::DockPhase::Launching && ticks < std::uint64_t{60} * TICKS_PER_SECOND)
     {
       Assert::IsTrue(universe.Protected(ship), L"protected while carried out");
       universe.Tick();
@@ -333,6 +354,44 @@ public:
     save.universe.resources.front().name = "Unobtainium";
     Assert::IsFalse(universe.Restore(save, error));
     Assert::IsTrue(universe.MakeSave() == before, L"a refused save leaves the universe as it was");
+  }
+
+  TEST_METHOD(ALaunchIsRefusedWithoutAnEngineOrAPowerPlant)
+  {
+    const auto check = [](auto _change, const std::string& _reason)
+    {
+      Outpost::Universe universe;
+      LoadShippedWith(universe, _change);
+      std::string error;
+      Assert::IsTrue(universe.NewGame(error), Wide(error).c_str());
+      const Outpost::ObjectId ship = universe.PlayerShip();
+      Assert::IsTrue(universe.Command(Outpost::DockCommandMessage{0, ship, Outpost::DockCommand::Launch}), L"answered");
+      const Outpost::DockStatusState status = universe.DockStatus(ship);
+      Assert::IsTrue(status.phase == Outpost::DockPhase::Docked, L"still docked");
+      Assert::IsTrue(status.answer == Outpost::DockAnswer::LaunchRefused);
+      Assert::AreEqual(_reason, status.reason);
+      Assert::IsFalse(universe.TakeSaveRequest(), L"a refused launch is not a launch");
+      universe.Tick();
+      Assert::IsTrue(universe.DockStatus(ship).phase == Outpost::DockPhase::Docked);
+    };
+    check(
+      [](Outpost::ShipContent& _ships)
+      {
+        for (Outpost::EngineArchetype& engine : _ships.engines)
+        {
+          engine.thrustNewtons = 0.0f;
+        }
+      },
+      "the ship has no working engine");
+    check(
+      [](Outpost::ShipContent& _ships)
+      {
+        for (Outpost::PowerPlantArchetype& plant : _ships.powerPlants)
+        {
+          plant.powerCapacity = 0.0f;
+        }
+      },
+      "the ship has no power plant");
   }
 };
 

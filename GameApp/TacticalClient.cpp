@@ -6,6 +6,7 @@
 #include "ScreenProjection.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <optional>
@@ -107,6 +108,10 @@ bool TacticalClient::Initialize(Neuron::GraphicsDevice& _device, const std::file
     _outError = problems.front();
     return false;
   }
+  if (!LoadSystemContent(_assetRoot / "Content" / "System.txt", m_assets.Scene(), m_system, _outError))
+  {
+    return false;
+  }
   if (!Neuron::CommandMap::Load(_assetRoot / "Content" / "Bindings.txt", m_commands, _outError))
   {
     return false;
@@ -181,7 +186,12 @@ void TacticalClient::OnPointerDown(PointerButton _button, float _x, float _y, st
   }
   if (_button == PointerButton::Left)
   {
-    m_gesture.Press(_x, _y, _timeMilliseconds);
+    m_controls.PointerMove(_x, _y);
+    m_uiPress = m_controls.PointerDown();
+    if (!m_uiPress)
+    {
+      m_gesture.Press(_x, _y, _timeMilliseconds);
+    }
   }
   else if (_button == PointerButton::Right)
   {
@@ -198,6 +208,7 @@ void TacticalClient::OnPointerMove(float _x, float _y)
   m_flightInput.SetCursor(_x, _y, static_cast<float>(m_device->Width()), static_cast<float>(m_device->Height()));
   if (m_view == ClientView::Tactical)
   {
+    m_controls.PointerMove(_x, _y);
     float dx = 0.0f;
     float dy = 0.0f;
     if (m_gesture.IsPressed())
@@ -245,6 +256,12 @@ void TacticalClient::OnPointerUp(PointerButton _button, float _x, float _y, std:
     m_panning = false;
     return;
   }
+  if (m_uiPress)
+  {
+    m_uiPress = false;
+    m_controls.PointerUp();
+    return;
+  }
   if (!m_gesture.IsPressed() || !m_gesture.Release(_x, _y, _timeMilliseconds))
   {
     return; // that was a drag
@@ -258,6 +275,8 @@ void TacticalClient::OnPointerUp(PointerButton _button, float _x, float _y, std:
 
 void TacticalClient::OnPointerCancel()
 {
+  m_controls.PointerLeave();
+  m_uiPress = false;
   m_gesture.Cancel();
   m_orderGesture.Cancel();
   m_panning = false;
@@ -336,11 +355,7 @@ void TacticalClient::ProcessCommands()
     if (event.phase == Neuron::CommandPhase::Pressed)
     {
       const std::string& name = m_commands.CommandName(event.command);
-      if (name == "ToggleTacticalView")
-      {
-        SetView(m_view == ClientView::Flight ? ClientView::Tactical : ClientView::Flight);
-      }
-      else if (name == "Dock")
+      if (name == "Dock")
       {
         RequestDock(DockCommand::Dock);
       }
@@ -379,6 +394,78 @@ void TacticalClient::ProcessCommands()
     }
     m_flightInput.OnCommand(event);
   }
+  for (Neuron::ControlId click = m_controls.TakeClick(); click != Neuron::NO_CONTROL; click = m_controls.TakeClick())
+  {
+    DockedSection section = m_section;
+    if (DockedView::SectionOf(click, section))
+    {
+      m_section = section;
+    }
+    else if (click == DockedView::LAUNCH)
+    {
+      RequestDock(DockCommand::Launch);
+    }
+  }
+  static_cast<void>(m_controls.TakeRefusal()); // a disabled control shows its reason already
+}
+
+void TacticalClient::FollowDock()
+{
+  if (m_universe.ownDockRevision != m_seenDockRevision)
+  {
+    // Any statement answers a pending launch: the ship is launching, or the launch was refused.
+    m_seenDockRevision = m_universe.ownDockRevision;
+    m_launchPending = false;
+    m_launchRefused = m_universe.ownDock.answer == DockAnswer::LaunchRefused ? m_universe.ownDock.reason : std::string();
+  }
+  const bool docked = m_universe.ownDock.phase == DockPhase::Docked;
+  if (docked && m_view != ClientView::Tactical)
+  {
+    SetView(ClientView::Tactical);
+    ResetView();
+    m_section = DockedSection::Services;
+  }
+  else if (!docked && m_view == ClientView::Tactical)
+  {
+    SetView(ClientView::Flight);
+  }
+}
+
+DockedViewInput TacticalClient::MakeDockedViewInput() const
+{
+  DockedViewInput input;
+  input.width = static_cast<float>(m_device->Width());
+  input.height = static_cast<float>(m_device->Height());
+  input.scale = HudScaleFor(m_device->Height());
+  input.section = m_section;
+  const StationDefinition* station = m_system.FindStation(m_universe.ownDock.station);
+  input.stationLabel = station != nullptr ? station->label : m_universe.ownDock.station;
+  const UniverseObject* object = m_universe.FindObject(m_universe.ownShip);
+  const ShipState* ship = object != nullptr ? m_universe.FindShip(object->name) : nullptr;
+  input.shipLabel = object != nullptr ? object->name : std::string("the ship");
+  if (ship != nullptr && !ship->callsign.empty())
+  {
+    input.shipLabel += " " + ship->callsign;
+  }
+  // The server decides (R19); the client offers launch only when the same check would pass.
+  const ShipArchetype* archetype = object != nullptr ? FlyingArchetype(m_ships, *object) : nullptr;
+  if (archetype == nullptr)
+  {
+    input.launchAvailable = false;
+    input.launchUnavailable = "the ship cannot fly";
+  }
+  else
+  {
+    const ShipFlightSpec spec = ShipBodyFor(m_assets.Scene(), m_ships, *archetype, *object).spec;
+    input.launchAvailable = spec.engineThrustNewtons > 0.0f && spec.powerCapacity > 0.0f;
+    input.launchUnavailable = !(spec.engineThrustNewtons > 0.0f) ? "the ship has no working engine"
+                              : !(spec.powerCapacity > 0.0f)     ? "the ship has no power plant"
+                                                                 : std::string();
+  }
+  input.launchPending = m_launchPending;
+  input.launchRefused = m_launchRefused;
+  input.focus = &m_controls;
+  return input;
 }
 
 bool TacticalClient::TakeQuitRequest() noexcept
@@ -396,7 +483,7 @@ bool TacticalClient::TakeCaptureRequest() noexcept
   return std::exchange(m_captureRequested, false);
 }
 
-void TacticalClient::ResetChaseCamera()
+void TacticalClient::ResetChaseCamera(const XMFLOAT4& _orientation)
 {
   Neuron::ChaseCameraDesc desc;
   const UniverseObject* object = m_universe.FindObject(m_universe.ownShip);
@@ -409,7 +496,8 @@ void TacticalClient::ResetChaseCamera()
     desc.lookUpDegrees = record->lookUpDegrees;
     desc.lookDownDegrees = record->lookDownDegrees;
   }
-  m_chase.Reset(desc, m_prediction.State().orientation);
+  m_chase.Reset(desc, _orientation);
+  m_chaseFor = m_universe.ownShip;
 }
 
 void TacticalClient::TakeOwnShipNews(std::uint32_t _ticksPerSecond)
@@ -448,7 +536,7 @@ void TacticalClient::TakeOwnShipNews(std::uint32_t _ticksPerSecond)
   }
   m_prediction.Begin(ShipBodyFor(m_assets.Scene(), m_ships, *archetype, *object), m_universe.ownShipTick, m_universe.ownShipState);
   m_maxBankDegrees = archetype->maxBankDegrees;
-  ResetChaseCamera();
+  ResetChaseCamera(m_prediction.State().orientation);
 }
 
 bool TacticalClient::SendTick(Neuron::LoopbackTransport& _transport, std::uint32_t _ticksPerSecond)
@@ -467,6 +555,7 @@ bool TacticalClient::SendTick(Neuron::LoopbackTransport& _transport, std::uint32
     }
   }
   TakeOwnShipNews(_ticksPerSecond);
+  FollowDock();
   if (!m_prediction.Active())
   {
     return true;
@@ -732,6 +821,20 @@ FlightHudInput TacticalClient::MakeFlightHudInput(float _timeSeconds, float _fra
   input.throttle = m_flightInput.Throttle();
   input.powerShare = spec.powerCapacity > 0.0f ? state.powerPool / spec.powerCapacity : 0.0f;
   input.thrustShare = spec.thrustCapacity > 0.0f ? state.thrustPool / spec.thrustCapacity : 0.0f;
+  if (m_universe.ownDock.phase != DockPhase::None)
+  {
+    // Carried by the station: the speed the client sees, and the phase in place of an order.
+    input.speedMetresPerSecond = m_carriedSpeedMetresPerSecond;
+    if (m_prediction.Body().object != m_universe.ownShip)
+    {
+      // Not flown yet: the pools are full, as the server starts them.
+      input.powerShare = 1.0f;
+      input.thrustShare = 1.0f;
+    }
+    input.order = DockPhaseName(m_universe.ownDock.phase);
+    std::ranges::transform(input.order, input.order.begin(),
+                           [](char _c) { return static_cast<char>(std::toupper(static_cast<unsigned char>(_c))); });
+  }
   input.cruise = state.cruise;
   const float chargeTicks = spec.cruiseChargeSeconds * static_cast<float>(m_ticksPerSecond);
   input.cruiseChargeShare = chargeTicks > 0.0f ? static_cast<float>(state.cruiseTimerTicks) / chargeTicks : 0.0f;
@@ -744,7 +847,7 @@ FlightHudInput TacticalClient::MakeFlightHudInput(float _timeSeconds, float _fra
   input.cursor = m_flightInput.Cursor();
   input.clickRadiusPixels = input.width * FlightInput::CLICK_RADIUS_SHARE_OF_WIDTH;
   const Manoeuvre& order = m_flightInput.Order();
-  if (order.kind == ManoeuvreKind::GoTo)
+  if (order.kind == ManoeuvreKind::GoTo && input.order.empty())
   {
     const double dx = order.target.x - state.position.x;
     const double dy = order.target.y - state.position.y;
@@ -844,6 +947,7 @@ bool TacticalClient::Render(float _timeSeconds, float _interpolation, bool _capt
   const bool predicted = m_prediction.Active() && m_prediction.Body().object == m_universe.ownShip;
   m_poses.resize(m_universe.objects.size());
   Pose ship;
+  bool shipKnown = false;
   for (std::size_t i = 0; i < m_universe.objects.size(); ++i)
   {
     const UniverseObject& object = m_universe.objects[i];
@@ -851,6 +955,7 @@ bool TacticalClient::Render(float _timeSeconds, float _interpolation, bool _capt
     if (object.id == m_universe.ownShip)
     {
       ship = m_poses[i];
+      shipKnown = true;
     }
   }
 
@@ -865,7 +970,30 @@ bool TacticalClient::Render(float _timeSeconds, float _interpolation, bool _capt
     chase.frameSeconds = frameSeconds;
     m_chase.Update(chase);
   }
-  const bool flying = m_view == ClientView::Flight && predicted;
+  const bool carried = !predicted && shipKnown && m_universe.ownDock.phase != DockPhase::None;
+  if (carried)
+  {
+    if (m_chaseFor != m_universe.ownShip)
+    {
+      // A game that starts docked has not flown yet, so the camera is sized on the way out.
+      ResetChaseCamera(ship.orientation);
+    }
+    XMFLOAT3 velocity{};
+    if (m_carriedFrom.has_value() && frameSeconds > 0.0f)
+    {
+      velocity = XMFLOAT3{static_cast<float>((ship.position.x - m_carriedFrom->x) / frameSeconds),
+                          static_cast<float>((ship.position.y - m_carriedFrom->y) / frameSeconds),
+                          static_cast<float>((ship.position.z - m_carriedFrom->z) / frameSeconds)};
+    }
+    m_carriedSpeedMetresPerSecond = std::sqrt(velocity.x * velocity.x + velocity.y * velocity.y + velocity.z * velocity.z);
+    Neuron::ChaseInput chase;
+    chase.shipOrientation = ship.orientation;
+    chase.shipVelocityMetresPerSecond = velocity;
+    chase.frameSeconds = frameSeconds;
+    m_chase.Update(chase);
+  }
+  m_carriedFrom = carried ? std::optional<UniversePosition>(ship.position) : std::nullopt;
+  const bool flying = m_view == ClientView::Flight && (predicted || carried);
   UniversePosition camera;
   if (flying)
   {
@@ -912,6 +1040,15 @@ bool TacticalClient::Render(float _timeSeconds, float _interpolation, bool _capt
     m_renderer.DrawHud(m_batch.Vertices(Neuron::HudBatch::BACK));
     RenderThumbnails(layout, _timeSeconds);
     RenderSilhouette(layout, _timeSeconds);
+  }
+  m_controls.BeginLayout();
+  if (m_view == ClientView::Tactical)
+  {
+    m_batch.SetLayer(Neuron::HudBatch::FRONT);
+    for (const DockedControl& control : m_dockedView.Build(m_batch, MakeDockedViewInput()).controls)
+    {
+      m_controls.Add(control.id, control.rect, control.enabled, control.reason);
+    }
   }
   m_renderer.BeginPass(hudFrame);
   m_renderer.DrawHud(m_batch.Vertices(Neuron::HudBatch::FRONT));

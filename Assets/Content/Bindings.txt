@@ -53,7 +53,6 @@ command name=Launch
 
 # Every view.
 command name=Cancel
-command name=ToggleTacticalView
 command name=Quit
 command name=Fullscreen
 command name=Capture
@@ -87,7 +86,6 @@ bind command=ResetView context=Tactical key=R
 bind command=Dock context=Always key=G
 bind command=Launch context=Always key=L
 bind command=Cancel context=Always key=Escape
-bind command=ToggleTacticalView context=Always key=F9
 bind command=Quit context=Always key=F10
 bind command=Fullscreen context=Always key=F11
 bind command=Capture context=Always key=F12

@@ -96,6 +96,7 @@
     <ClInclude Include="HudPalette.h" />
     <ClInclude Include="FlightInput.h" />
     <ClInclude Include="Prediction.h" />
+    <ClInclude Include="DockedView.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="InputScript.cpp" />
@@ -106,6 +107,7 @@
     <ClCompile Include="FlightHud.cpp" />
     <ClCompile Include="FlightInput.cpp" />
     <ClCompile Include="Prediction.cpp" />
+    <ClCompile Include="DockedView.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NeuronCore\NeuronCore.vcxproj">
