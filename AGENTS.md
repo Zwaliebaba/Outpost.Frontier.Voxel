@@ -153,7 +153,7 @@ The concrete layout is recorded in [ADR-001](Design/ADR/ADR-001-solution-layout.
 | `Tools` | `QuicSpike` | console executable | `Outpost` | NeuronCore, GameCore; the MsQuic package ([ADR-017](Design/ADR/ADR-017-nuget-and-the-msquic-transport.md)) |
 | `Tests` | `NeuronCoreTests` | unit-test DLL | `NeuronCoreTests` | NeuronCore |
 | `Tests` | `NeuronClientTests` | unit-test DLL | `NeuronClientTests` | NeuronCore, NeuronClient |
-| `Tests` | `NeuronServerTests` | unit-test DLL | `NeuronServerTests` | NeuronServer |
+| `Tests` | `NeuronServerTests` | unit-test DLL | `NeuronServerTests` | NeuronCore, NeuronServer |
 | `Tests` | `GameCoreTests` | unit-test DLL | `GameCoreTests` | NeuronCore, GameCore |
 | `Tests` | `GameLogicTests` | unit-test DLL | `GameLogicTests` | NeuronCore, NeuronServer, GameCore, GameLogic |
 | `Tests` | `GameAppTests` | unit-test DLL | `GameAppTests` | NeuronCore, NeuronClient, GameCore, GameApp |

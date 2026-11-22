@@ -7,6 +7,9 @@
     <Filter Include="World">
       <UniqueIdentifier>{B12C9F29-8C8F-5215-9475-BB92871B216E}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Persistence">
+      <UniqueIdentifier>{04FBF547-C595-4092-B510-A4EF31D45985}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Observer.h">
@@ -18,6 +21,15 @@
     <ClInclude Include="Commands.h">
       <Filter>Replication</Filter>
     </ClInclude>
+    <ClInclude Include="Character.h">
+      <Filter>Persistence</Filter>
+    </ClInclude>
+    <ClInclude Include="SaveGame.h">
+      <Filter>Persistence</Filter>
+    </ClInclude>
+    <ClInclude Include="SaveRecord.h">
+      <Filter>Persistence</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Observer.cpp">
@@ -28,6 +40,15 @@
     </ClCompile>
     <ClCompile Include="Commands.cpp">
       <Filter>Replication</Filter>
+    </ClCompile>
+    <ClCompile Include="Character.cpp">
+      <Filter>Persistence</Filter>
+    </ClCompile>
+    <ClCompile Include="SaveGame.cpp">
+      <Filter>Persistence</Filter>
+    </ClCompile>
+    <ClCompile Include="SaveRecord.cpp">
+      <Filter>Persistence</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

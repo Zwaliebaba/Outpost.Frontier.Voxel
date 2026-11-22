@@ -4,15 +4,24 @@
     <Filter Include="Simulation">
       <UniqueIdentifier>{D78E6437-148A-5754-998E-5E2F06761B59}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Persistence">
+      <UniqueIdentifier>{27E7A8AE-D301-414E-BC00-E0E6E253D9E5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TickClock.h">
       <Filter>Simulation</Filter>
     </ClInclude>
+    <ClInclude Include="SaveFile.h">
+      <Filter>Persistence</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="TickClock.cpp">
       <Filter>Simulation</Filter>
+    </ClCompile>
+    <ClCompile Include="SaveFile.cpp">
+      <Filter>Persistence</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

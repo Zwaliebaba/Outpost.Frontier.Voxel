@@ -2,6 +2,8 @@
 
 #include <DirectXMath.h>
 
+#include <cstdint>
+
 #include <string>
 #include <string_view>
 #include <vector>
@@ -41,9 +43,18 @@ struct Record
 
 [[nodiscard]] bool ParseRecords(std::string_view _text, std::vector<Record>& _outRecords, std::string& _outError);
 
+/// One record as a line of the format, without the line break: the keyword, then key=value for each
+/// field in order, a value quoted when it is empty or holds a space, a tab or a '#'. ParseRecords
+/// reads the line back to the same record. False for what the format cannot hold: a quote or a line
+/// break anywhere, or a keyword or key that is empty or holds a space, a tab, a '#' or an '='.
+[[nodiscard]] bool FormatRecord(const Record& _record, std::string& _outLine);
+
 /// Locale-independent number parsing shared by the record accessors.
 [[nodiscard]] bool ParseFloat(std::string_view _text, float& _out) noexcept;
 [[nodiscard]] bool ParseInt(std::string_view _text, int& _out) noexcept;
+[[nodiscard]] bool ParseInt64(std::string_view _text, std::int64_t& _out) noexcept;
+[[nodiscard]] bool ParseUInt64(std::string_view _text, std::uint64_t& _out) noexcept;
+[[nodiscard]] bool ParseDouble(std::string_view _text, double& _out) noexcept;
 [[nodiscard]] bool ParseFloatList(std::string_view _text, float* _out, int _count) noexcept;
 
 } // namespace Neuron

@@ -87,6 +87,31 @@ bool ParseInt(std::string_view _text, int& _out) noexcept
   return result.ec == std::errc{} && result.ptr == _text.data() + _text.size();
 }
 
+bool ParseInt64(std::string_view _text, std::int64_t& _out) noexcept
+{
+  _text = Trim(_text);
+  const auto result = std::from_chars(_text.data(), _text.data() + _text.size(), _out);
+  return result.ec == std::errc{} && result.ptr == _text.data() + _text.size();
+}
+
+bool ParseUInt64(std::string_view _text, std::uint64_t& _out) noexcept
+{
+  _text = Trim(_text);
+  const auto result = std::from_chars(_text.data(), _text.data() + _text.size(), _out);
+  return result.ec == std::errc{} && result.ptr == _text.data() + _text.size();
+}
+
+bool ParseDouble(std::string_view _text, double& _out) noexcept
+{
+  _text = Trim(_text);
+  if (!_text.empty() && _text.front() == '+')
+  {
+    _text.remove_prefix(1);
+  }
+  const auto result = std::from_chars(_text.data(), _text.data() + _text.size(), _out);
+  return result.ec == std::errc{} && result.ptr == _text.data() + _text.size();
+}
+
 bool ParseFloatList(std::string_view _text, float* _out, int _count) noexcept
 {
   for (int i = 0; i < _count; ++i)
@@ -227,6 +252,40 @@ bool ParseRecords(std::string_view _text, std::vector<Record>& _outRecords, std:
     }
     _outRecords.push_back(std::move(record));
   }
+  return true;
+}
+
+bool FormatRecord(const Record& _record, std::string& _outLine)
+{
+  const auto writable = [](std::string_view _text) { return _text.find_first_of("\"\r\n") == std::string_view::npos; };
+  const auto isName = [&writable](std::string_view _text)
+  { return !_text.empty() && writable(_text) && _text.find_first_of(" \t#=") == std::string_view::npos; };
+  if (!isName(_record.keyword))
+  {
+    return false;
+  }
+  std::string line = _record.keyword;
+  for (const RecordField& field : _record.fields)
+  {
+    if (!isName(field.key) || !writable(field.value))
+    {
+      return false;
+    }
+    line += ' ';
+    line += field.key;
+    line += '=';
+    const bool quoted = field.value.empty() || field.value.find_first_of(" \t#") != std::string::npos;
+    if (quoted)
+    {
+      line += '"';
+    }
+    line += field.value;
+    if (quoted)
+    {
+      line += '"';
+    }
+  }
+  _outLine = std::move(line);
   return true;
 }
 

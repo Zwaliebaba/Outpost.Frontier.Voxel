@@ -16,6 +16,9 @@
     <Filter Include="Network">
       <UniqueIdentifier>{52931AA7-C1E4-4B6A-9518-65EDD66663D4}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Records">
+      <UniqueIdentifier>{A8EF9A3D-5FD5-4F96-BF70-846CF9CF5E9E}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TestSupport.h">
@@ -40,6 +43,9 @@
     </ClCompile>
     <ClCompile Include="WireFormatTests.cpp">
       <Filter>Network</Filter>
+    </ClCompile>
+    <ClCompile Include="RecordFileTests.cpp">
+      <Filter>Records</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

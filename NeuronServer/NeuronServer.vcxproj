@@ -88,9 +88,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="TickClock.h" />
+    <ClInclude Include="SaveFile.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="TickClock.cpp" />
+    <ClCompile Include="SaveFile.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NeuronCore\NeuronCore.vcxproj">

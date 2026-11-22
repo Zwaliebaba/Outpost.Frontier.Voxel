@@ -7,6 +7,9 @@
     <Filter Include="World">
       <UniqueIdentifier>{678ADF7D-51AC-53C7-99E2-11BF1C18B8C8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Persistence">
+      <UniqueIdentifier>{953A1F63-1E09-4CC0-A79A-9196A34E755D}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ObserverTests.cpp">
@@ -17,6 +20,9 @@
     </ClCompile>
     <ClCompile Include="FlightTests.cpp">
       <Filter>World</Filter>
+    </ClCompile>
+    <ClCompile Include="SaveGameTests.cpp">
+      <Filter>Persistence</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

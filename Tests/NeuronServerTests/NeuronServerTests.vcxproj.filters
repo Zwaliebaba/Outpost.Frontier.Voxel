@@ -4,10 +4,16 @@
     <Filter Include="Simulation">
       <UniqueIdentifier>{6CECEF7D-23F5-51B9-A054-CA8C2B45DCB0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Persistence">
+      <UniqueIdentifier>{AFD41C56-EE52-41AD-AC7C-6DCDB52C665D}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="TickClockTests.cpp">
       <Filter>Simulation</Filter>
+    </ClCompile>
+    <ClCompile Include="SaveFileTests.cpp">
+      <Filter>Persistence</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
