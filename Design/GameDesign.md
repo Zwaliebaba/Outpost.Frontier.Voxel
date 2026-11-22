@@ -1,6 +1,6 @@
 # Outpost:Frontier — game design concept
 
-**Status:** concept, adopted as this repository's design; the decisions in §13 are taken · **Date:** 2026-11-22
+**Status:** concept, adopted as this repository's design; the decisions in §13 are taken but for D13 · **Date:** 2026-11-22
 
 This is the design document AGENTS.md refers to, at concept depth. It says what the game is, which systems it is made of, where each comes from, and in what order to build them. It does not fix numbers, write the per-system rules or invent a setting; those follow once this direction is accepted.
 
@@ -162,7 +162,7 @@ Cut outright, each named as affordable in `Blueprint.md` §9 or in its chapter's
 - **Materials.** Each palette family (ADR-002) is a material with a strength, a mass and a yield. Armour is a stronger outer material, not a divisor. This sits beside the emissive table in `GameCore/Palette`.
 - **Modules.** A module is a named region of a model's voxels with a function: reactor, engines, weapons mount, sensors, hangar, refinery. Its health is the share of its voxels present. Below one threshold it works at a reduced rate, below a second it stops. The engine rule of the blueprint (ch. 02 §3.4: no nozzle left, no thrust) becomes the general rule.
 - **The core.** Every ship and station has one core module. A ship whose core stops is destroyed and breaks up; this replaces "hull at zero". "Hull" on the HUD is the share of structural voxels present.
-- **Separation.** Voxels that lose their connection to the core become a wreck: a drifting object that can be salvaged. This replaces shed parts and dropped equipment.
+- **Separation.** Voxels that lose their connection to the core become a wreck: a drifting object that can be salvaged. This replaces shed parts and dropped equipment. Connectivity is tracked incrementally, not refilled from the core on every hit (§8.2).
 - **Damage events.** The blueprint's damage list (ch. 03 §2) becomes a damage event: object, impact position, shape, energy, cause, inflictor. Weapons, explosions, collisions and hazard zones all produce them. The authority decides which voxels go and sends the event; the presentation replays it.
 - **Shields** are untouched: no bleed-through, collapse at a threshold, a rebuild time, energy damage drains the pool that rebuilds them.
 - **Repair.** A hangar restores a docked ship's mask and a station's own modules, consuming Alloy at the outpost or money elsewhere (ch. 07 §3.12 gives the price rule). A repair consumable patches structure in the field and leaves modules for a hangar, as the blueprint's hull item leaves parts (ch. 03 §3.10).
@@ -195,13 +195,13 @@ Every owned ship is a blueprint NPC ship definition (ch. 06 §3.6): an archetype
 
 ## 8. Rules that keep multiplayer possible
 
-Single player ships first. These constraints apply from the first slice, because the Frontier blueprint is explicit that the split costs little early and a great deal late. Constraints 1 to 7 and 9 shape code and are written in AGENTS.md as R18 to R24; 8 and 10 are game behaviour and stay here.
+Single player ships first. These constraints apply from the first slice, because the Frontier blueprint is explicit that the split costs little early and a great deal late. Constraints 1 to 7 and 9 shape code and are written in AGENTS.md as R18 to R24, and §8.2 adds R25; 8 and 10 are game behaviour and stay here.
 
 1. **One message catalogue.** Presentation and authority exchange messages and never call each other. The in-process transport and the network transport, MsQuic (§8.1), carry the same messages. `GameApp` does not reference `GameLogic`; that edge is already forbidden.
 2. **The authority decides.** Damage, purchases, builds, mining yields, docking, standing and discovery are computed by the authority from commands. The original's trust in the player's machine (ch. 11 §3.8) is not copied.
 3. **The own ship is predicted, and bounded.** The presentation integrates the player's ship from input and is not corrected in normal play; the authority checks speed, fire rate and energy against the shared model.
 4. **A fixed tick is the clock.** `TickClock` already provides it. No rule reads wall time.
-5. **Masks change only by events from the authority,** applied with integer arithmetic so that both sides arrive at the same voxels. This is the one part of the game that must be deterministic (R16), and it needs an ADR before slice 3.
+5. **Masks change only by data from the authority:** damage events applied with integer arithmetic so that both sides arrive at the same voxels, or exact snapshots and brick diffs that name the last event they include (§8.2). This is the one part of the game that must be deterministic (R16), and it needs an ADR before slice 3.
 6. **No rule depends on pausing, on reloading or on seeing the whole system.** The view switch does not stop time; death has one rule for both modes; the tactical view shows sensor coverage only.
 7. **State belongs to a character or to the world,** never to the process: locks, ambient switches, knowledge, the outpost and the fleet.
 8. **What an absent player owns advances by ledger and cannot be attacked.**
@@ -210,38 +210,71 @@ Single player ships first. These constraints apply from the first slice, because
 
 ### 8.1 The network transport: MsQuic
 
-When the game goes over a network, it goes over QUIC, using Microsoft's MsQuic library. Single player never uses it: the authority and the presentation in one process keep the in-process transport, which is also what every test runs on. The owner decided this on 2026-11-22, and with it the three choices below; it is the one third-party library the executable may use, and the one package the build may restore (AGENTS.md R14).
+When the game goes over a network, it goes over QUIC, using Microsoft's MsQuic library. Single player never uses it: the authority and the presentation in one process keep the in-process transport, which is also what every test runs on. The owner decided this on 2026-11-22, and with it the three choices below; it is the first library approved under AGENTS.md R14.
 
 QUIC answers the Frontier blueprint's list of what not to copy in one piece (ch. 11 §7). The original sent everything, positions included, reliable and in order, and had to throttle itself with a saturation gate because a stale update could not be dropped; its wire had no length, version, integrity check or encryption; and its account identifier went in clear as a bearer token. QUIC gives encrypted, authenticated connections over TLS 1.3, congestion control, reliable streams and unreliable datagrams on one connection, and survives a change of client address.
 
 | Concern | How the game uses MsQuic |
 |---|---|
 | Sessions | One QUIC connection per player session |
-| Commands, discrete events, inventory, chat | A reliable bidirectional stream. Order matters for these, and the blueprint already treats them as facts sent once (ch. 11 §3.7) |
-| Object state | Unreliable datagrams (RFC 9221), each carrying a sequence number; a receiver keeps the newest and discards older ones. A lost state update is replaced by the next, never retransmitted. This replaces the blueprint's saturation gate |
-| Voxel damage events | The reliable stream: R22 requires every event, in order, on both sides |
-| Message size | A state message must fit one datagram. The budget is set by the MTU, about 1,200 bytes to be safe, so state for many objects is split across datagrams and never assumes they arrive together |
+| Commands, discrete events, inventory, chat | Reliable streams. Order matters for these, and the blueprint already treats them as facts sent once (ch. 11 §3.7). Unrelated traffic goes on separate streams, so that a lost packet stalls only its own stream |
+| Flight input | Datagrams, stamped with the tick they are for, each repeating the last few inputs so that one loss costs nothing; the server buffers a few ticks against jitter (§8.2) |
+| Object state | Unreliable datagrams (RFC 9221), each carrying a sequence number; a receiver keeps the newest and discards older ones. A lost state update is replaced by the next, never retransmitted. What goes into each datagram is chosen per observer by interest, priority and a byte budget, delta-compressed against the last state the client acknowledged (§8.2). QUIC's congestion control replaces the blueprint's saturation gate: datagrams are built when the connection can send, and the send state MsQuic reports for each one tells the server what was lost |
+| Voxel damage events | Reliable streams sharded by target object: R22 needs every event in order per object, not one global order, so a lost packet delays only the objects on its stream. Observers far from an object receive coalesced brick diffs at a low rate instead; a mask snapshot brings a newcomer up to date (§8.2) |
+| Message size | A state message must fit one datagram. The size is the maximum MsQuic reports for the connection, about 1,200 bytes at worst, so state for many objects is split across datagrams and never assumes they arrive together |
 | Encoding | Every message carries its kind, its length and the catalogue version, as constraint 9's data hash and the blueprint's design notes require |
 | Identity and trust | The host proves itself with a self-signed certificate, and the client pins it on first connection and warns if it ever changes (decided). There is no certificate authority to configure, and every connection after the first is protected. Accounts authenticate over the encrypted stream, never by a bare identifier |
 | Threads | MsQuic calls back on its own worker threads. Callbacks only enqueue; the tick drains the queue at its first step (ch. 11 §3.2), so content and rules stay on one thread |
 | Platform | The Schannel build (decided). It uses Windows' own TLS 1.3, which exists from Windows 11 and Windows Server 2022, so that is the floor for networked play; single player keeps today's. Schannel does not offer QUIC's 0-RTT reconnect, which the game does not need |
-| Acquisition | The NuGet package `Microsoft.Native.Quic.MsQuic.Schannel`, at an exact pinned version (decided). It is the one package the build restores |
+| Acquisition | The NuGet package `Microsoft.Native.Quic.MsQuic.Schannel`, at an exact pinned version (decided), restored by NuGet, the repository's package manager |
 
 Which project references the package, whether `msquic.dll` is loaded at run time or linked, how the restore runs in CI, and how the package's imported build files square with ADR-005's plain project files are ADR-017's to decide. It is due before the first code that touches MsQuic, which is the MVP's spike (ImplementationPlan.md, task F7), well before slice 10. The constraint it must meet is AGENTS.md R14's: single player and the test suites never load MsQuic.
+
+### 8.2 Scale target: 100 players in one scene
+
+The design must still work when a host holds 100 players and all of them meet in one place. This section was written as a review of the rest of the design against that case, on 2026-11-22. Where the design as first written would not have held, the fix is stated here, and the sections it touches point back to this one. Every figure below is a target or arithmetic, not a measurement; the plan's load tests have to confirm or overturn them.
+
+**The load.** 100 players in one system, all within a few kilometres of each other: one battle, or one crowded hub. Each flies a ship and leads a wing of up to three (D12), so 400 player-owned ships; raiders and other traffic add about 200 more. Up to 20 outposts are in view. Wrecks and debris come and go.
+
+**What that costs to draw.** Measured from the committed models: an escort has about 2,000 surface voxels, the frigate 17,000, the outpost as the sample shows it about 48,000 plus 52,000 for its claim asteroid. The sample draws about 128,000 surface voxels a frame. The load above is roughly 1.2 million for the ships and 2 to 6 million for 20 outposts as they grow, so 25 to 55 times today's figure, before damage: carving exposes interior voxels, so a shredded hull has several times its intact surface. The renderer of ADR-003 costs a vertex-stage quad per drawn surface voxel per pass, at every distance, and draws the scene twice (main pass and shadow map).
+
+**What that costs to send.** A ship's state, quantized, is about 20 bytes. Sending all 600 to every client at 20 Hz is about 1.9 Mbit/s per client and 190 Mbit/s from the host. A battle produces some 300 to 1,600 voxel damage events a second at about 24 bytes each, which every client that sees the target needs: up to 0.3 Mbit/s per client, 30 Mbit/s from the host. Input from 100 clients is negligible.
+
+**Verdict.** The design's seams are right: the split into server and client, one message catalogue, damage as integer events (R22), QUIC with streams and datagrams, and the blueprint's observers and dead reckoning. As first written, six things would not have held, and they are now part of the design:
+
+| # | What would break | What the design now says |
+|---|---|---|
+| 1 | **Drawing cost grows with everything in range.** No level of detail, no culling beyond per-voxel tests, one shadow map fitted to the whole scene and redrawn whole, a fixed list of 16 point lights | Voxel level of detail: each brick keeps coarser versions (2×, 4×, 8×), chosen by projected voxel size, so distant objects cost a fraction of their full surface. Bricks are culled against the view and, later, against occlusion, on the GPU, with indirect draws. Shadows are cascades around the camera, with static structures cached and casters drawn at reduced detail. Lights are gathered per screen cluster, so engines, muzzle flashes, breaches and explosions are not capped at 16. Effects come from GPU particle pools with a global budget |
+| 2 | **Re-meshing per damage event.** Re-extracting a whole object for every hit does not survive hundreds of events a second | Damageable models are always stored as 16³ bricks. Events mark bricks dirty; dirty bricks are re-extracted at most once a frame, closest and largest on screen first, within a time budget. The mask itself is always current; only its drawing may lag a frame or two at a distance |
+| 3 | **Connectivity by flood fill from the core after every event.** A full-grid fill per hit multiplies into hundreds of millions of cell visits a second | Connectivity is incremental: a graph of bricks and their contacts, a local fill only where a removal could cut a bridge, and separation decided a tick later. A wreck appearing a tick late is invisible |
+| 4 | **Everything to everyone, and one stream.** A whole-world snapshot does not fit 100 clients' bandwidth, and one reliable stream lets a single lost packet stall every command and damage event behind it | Each client is an **observer** (blueprint ch. 11 §3.7), also in single player: the server picks per observer which objects it knows (interest), sends the most important first (priority by distance, relevance and staleness), within a byte budget per client, delta-compressed against the last state the client acknowledged, and only when dead reckoning would be wrong. The simulation runs at its tick rate; state is sent at 20 to 30 Hz. Order is kept per target object, not globally, so damage events travel on several streams sharded by object, and per-tick flight input travels in datagrams that each repeat the last few inputs. (AGENTS.md R25) |
+| 5 | **Masks only by event.** A player who comes into range of an outpost carved for an hour, or joins late, cannot replay an hour of events | A mask is brought up to date by an exact snapshot, or by a diff of dirty bricks, that names the last event it includes; events then continue from there. Observers far from an object get coalesced brick diffs at a low rate instead of every event. Joining streams outposts and their masks progressively, nearest first (AGENTS.md R22) |
+| 6 | **Hits against the server's present.** With slow bolts and 100 to 200 ms of round trip, a shot that hits on the shooter's screen misses on the server unless the server allows for what the shooter saw | The server keeps a short pose history for every object, from slice 3, so that lag compensation can be added in slice 10: the first part of a bolt's flight is traced against targets rewound to the shooter's view, with a bounded rewind so that nobody is hit behind cover long after the fact |
+
+Four further points complete the picture:
+
+- **Positions.** A developed system is 80 to 100 km across, where a 32-bit float resolves only to about 8 mm. Positions are held in double precision (or an equivalent fixed-point form) on both sides; the renderer works relative to the camera; the wire quantizes positions relative to a coarse cell.
+- **The server's tick.** The rules stay single-threaded and in a fixed order, as the blueprint has them. Replication then reads the world without changing it, so the 100 observers are encoded in parallel. Bolts are traced through a spatial index, and voxels are walked only inside candidate bricks.
+- **Population and raids per place, not per player.** The blueprint generates traffic and caps battle size around each player (ch. 06). Around 100 players in one place that would spawn a hundred times the traffic. In multiplayer the budget belongs to the zone: one population and one battle cap per area, shared by every player in it.
+- **The host.** 100 players need a dedicated, headless server with roughly 50 to 100 Mbit/s of upstream after the measures above. A home connection is realistic for about a dozen players. The server already builds without Direct3D; a headless server executable joins the solution in slice 10.
+
+**Budgets to validate.** Client: 60 frames a second at 1920×1080 on the reference GPU in the load above. Server: the simulation tick within half its period on one core, replication alongside. Network: at most about 0.5 Mbit/s per client in the worst case and about 0.15 Mbit/s typical. A crowd benchmark in the MVP's foundations measures the renderer early (plan task F6), and a 100-bot load test over MsQuic gates slice 10.
+
+**Not decided here** and added to §13 as D13: how many outposts a system can hold. Twenty claim sites per system is the figure the drawing budget above assumes.
 
 ## 9. How it lands in the repository
 
 | Project | Takes on |
 |---|---|
 | `NeuronCore` | Voxel masks, the carving and connectivity arithmetic, typed records and reference checking; the transport interface and the in-process transport, which client and server both need and which neither may take from the other's library. The MsQuic transport (§8.1) sits here too, or in a new engine library that both halves reference; ADR-017 decides which |
-| `NeuronServer` | The tick, listening for and admitting sessions, save infrastructure |
-| `NeuronClient` | Rendering of voxels that change, the chase camera beside the orbit camera, devices to commands, audio, connecting to a host |
+| `NeuronServer` | The tick, listening for and admitting sessions, observers with interest, priority and per-client budgets (§8.2), save infrastructure |
+| `NeuronClient` | Rendering of voxels that change, in bricks with levels of detail, culled on the GPU, with cascaded shadows and clustered lights (§8.2); the chase camera beside the orbit camera, devices to commands, audio, connecting to a host |
 | `GameCore` | What both sides share: archetypes, materials, the flight and equipment model, zones, the message catalogue |
 | `GameLogic` | The authority: systems, world objects, regard, markets, the outpost and its ledger, and the content controllers for population, missions and the campaign |
 | `GameApp` | The presentation: flight view, tactical view, HUD, base panels, the map |
 | `AssetGenerator` | Recipes for families of hulls and modules, so that content volume is generated, not drawn |
 
-Decisions this design forces, each an ADR before the slice that needs it: the deterministic mask and the damage event; the shared flight model on a fixed tick; the record schema that grows `Scene.txt` into system, base and archetype definitions; the message catalogue; the network transport over MsQuic; rendering of changing voxels (today the surface is extracted once and the shadow map is drawn once); world scale. On scale: the sample's ship models, read as one metre per voxel, give escorts of 42 to 52 m and a frigate of about 190 m, which fits the blueprint's metric constants, so those can be carried over unchanged.
+Decisions this design forces, each an ADR before the slice that needs it: the deterministic mask and the damage event; the shared flight model on a fixed tick; the record schema that grows `Scene.txt` into system, base and archetype definitions; the message catalogue; the network transport over MsQuic; replication through observers; levels of detail and culling; lag compensation; rendering of changing voxels (today the surface is extracted once and the shadow map is drawn once); world scale. On scale: the sample's ship models, read as one metre per voxel, give escorts of 42 to 52 m and a frigate of about 190 m, which fits the blueprint's metric constants, so those can be carried over unchanged.
 
 ## 10. Content budget
 
@@ -278,7 +311,7 @@ Vertical slices, each playable, after the Frontier blueprint's own order (`Bluep
 | 7. A living system | Factions and regard; population with patrols and traders that dock; cargo scans; text comms | 06 §3.2 to 3.8; 07 §3.1 to 3.6 | Shooting one faction's ship changes how two others treat the player and who raids the outpost |
 | 8. An economy and a universe | Goods, markets, dealers, worth and level; several systems, jumps, lanes, routes, locks; the map and discovery | 07 §3.8 to 3.15; 01 §3.6 to 3.10; 04 §3.6 to 3.10 | A trade run, a fight and a shift at the outpost all raise worth. A route across three systems can be plotted and flown |
 | 9. Jobs and a campaign | The trigger language, the job board, generated and scripted missions, checkpoints | 08 | An author builds an escort-and-ambush mission that ends at the outpost, from data alone |
-| 10. Multiplayer | The MsQuic transport, observers and replication, accounts | 11 §3.6 to 3.13; §8.1 | Two players meet, fight the same ships and see the same holes in them |
+| 10. Multiplayer | The MsQuic transport, observers with interest, priority and budgets, lag compensation, accounts, a headless server | 11 §3.6 to 3.13; §8.1, §8.2 | Two players meet, fight the same ships and see the same holes in them; a 100-bot load test holds §8.2's budgets |
 
 The first six slices are the MVP; [ImplementationPlan.md](ImplementationPlan.md) breaks them into work. Slices 1 to 3 prove the feel and carry the largest technical risk. Nothing after them should start until a duel is good.
 
@@ -291,10 +324,11 @@ The first six slices are the MVP; [ImplementationPlan.md](ImplementationPlan.md)
 5. **An unbounded faucet.** The blueprint's economy has fixed prices and unlimited stock, and stays bounded because a hold is small and a trip takes time. Mining and refining add a source that runs while the player does something else. Haulage throughput has to be the limit, and the ledger must never pay better than being present.
 6. **Leaving as a tactic.** If raids happen only around a present player, a player in trouble can jump out to stop one. Constraint 8 needs a companion rule for a raid already in progress.
 7. **What the blueprint does not know.** Rendering, effects and audio are requirements only (ch. 09 §3.10 to 3.14), and campaign failure was never recovered (ch. 08). Those gaps are inherited.
+8. **A hundred players is a target, not a measurement.** §8.2 changes the design so that nothing in it prevents the scale, and states budgets. Whether the voxel renderer reaches them with levels of detail, and whether a hobby project can run a dedicated host, are open until the crowd benchmark and the load test say so.
 
 ## 13. Open decisions
 
-*All twelve were decided by the owner on 2026-11-22: D1, D2, D5, D6 and D12 for the MVP plan ([ImplementationPlan.md](ImplementationPlan.md)), the rest the same day. Eleven follow the recommendation; D10 does not, and the rest of this document follows the decision.*
+*D1 to D12 were decided by the owner on 2026-11-22: D1, D2, D5, D6 and D12 for the MVP plan ([ImplementationPlan.md](ImplementationPlan.md)), the rest the same day. Eleven follow the recommendation; D10 does not, and the rest of this document follows the decision. D13 came out of the scale review (§8.2) and is open.*
 
 | # | Question | Decision |
 |---|---|---|
@@ -310,6 +344,7 @@ The first six slices are the MVP; [ImplementationPlan.md](ImplementationPlan.md)
 | D10 | Where the tactical view is available — *decided* | Only while docked, at any base, limited to owned sensors. In space the player flies and has the wing's command keys. (The recommendation was anywhere; the owner chose otherwise) |
 | D11 | Voice — *decided* | None at first. Comms are text; the rules of chatter (ch. 06 §3.12) are kept |
 | D12 | Wing size — *decided* | About three, capped by crew |
+| D13 | How many outposts one system can hold | *Open.* Recommendation: a fixed set of authored claim sites per system, about twenty, so that a crowded system has a bounded amount of player-built structure to draw and send (§8.2). In multiplayer, claims are first come, first served |
 
 ## 14. Basis
 

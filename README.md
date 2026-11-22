@@ -29,9 +29,9 @@ How the code is written is in [AGENTS.md](AGENTS.md); the engineering decisions 
 | GPU | Direct3D 12, feature level 12_1, shader model 6.7 — or WARP (`--warp`) |
 | CPU | AVX2 (the projects compile `/arch:AVX2`) |
 
-Nothing else: no NuGet, no vcpkg, no Agility SDK, no `d3dx12.h`.
+Nothing else today: no packages, no Agility SDK, no `d3dx12.h`. NuGet is the repository's package manager and libraries are approved one at a time (AGENTS.md R14); none is used yet.
 
-That stays true for building, testing and single player. Networked play, the design's slice 10, will add one library: MsQuic, Microsoft's QUIC implementation, restored from the NuGet package `Microsoft.Native.Quic.MsQuic.Schannel`, the one package the build is allowed (AGENTS.md R14). It will also need Windows 11 or Windows Server 2022, whose TLS 1.3 the Schannel build uses. Nothing in the tree uses it yet.
+That stays true for building, testing and single player. Networked play, the design's slice 10, will add one library: MsQuic, Microsoft's QUIC implementation, restored from the NuGet package `Microsoft.Native.Quic.MsQuic.Schannel`, the first library approved under AGENTS.md R14. It will also need Windows 11 or Windows Server 2022, whose TLS 1.3 the Schannel build uses. Nothing in the tree uses it yet.
 
 ## Build and run
 
@@ -161,4 +161,4 @@ In scope: one static tactical scene; camera control; ship selection and inspecti
 
 Out of scope, by the brief: a ship editor, live destruction, combat and networking. The client draws a server snapshot in-process, which is where a transport would go.
 
-Where the design puts those ([Design/GameDesign.md](Design/GameDesign.md) §11): combat and live destruction arrive together in slice 3, as voxel damage; networking is slice 10, over QUIC with MsQuic (GameDesign.md §8.1), and the rules that keep it possible bind from slice 1 (AGENTS.md R18 to R24); a ship editor is not part of the game. The hull and module percentages and the resources the HUD shows are read from `Scene.txt` today; in the design they are measured from voxel masks and produced by the outpost.
+Where the design puts those ([Design/GameDesign.md](Design/GameDesign.md) §11): combat and live destruction arrive together in slice 3, as voxel damage; networking is slice 10, over QUIC with MsQuic (GameDesign.md §8.1), and the rules that keep it possible bind from slice 1 (AGENTS.md R18 to R25); a ship editor is not part of the game. The hull and module percentages and the resources the HUD shows are read from `Scene.txt` today; in the design they are measured from voxel masks and produced by the outpost.
