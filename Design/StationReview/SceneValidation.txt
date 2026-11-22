@@ -1,0 +1,5 @@
+PASS: 27 VOX files; canonical palettes; valid dimensions; lossless round trips
+PASS: 53 scene instances; references; socket origins/normals/up; light/engine bounds
+PASS: Debug/Release asset-copy registration and Visual Studio filters
+PASS: 27 connected station modules; 30 physical contact edges
+Station occupied bounds (world X,Y,Z): [629.25, 253.5, 214.0]

@@ -1,0 +1,464 @@
+{
+  "models": {
+    "AsteroidMajor": {
+      "dimensions": [
+        128,
+        128,
+        160
+      ],
+      "solidVoxels": 578479,
+      "surfaceVoxels": 52000,
+      "sha256": "29be9be7a6f3c5ccc68a54afe57e9e70688a3b688ba9eb25c479cf128a0bd0b9",
+      "beforeSurfaceVoxels": 52000,
+      "changed": false
+    },
+    "AsteroidSmallA": {
+      "dimensions": [
+        22,
+        20,
+        18
+      ],
+      "solidVoxels": 1186,
+      "surfaceVoxels": 515,
+      "sha256": "0404410b21e5c87fb4d0099b7f6cb5dd48e0c434044b379030b76a150c51745b",
+      "beforeSurfaceVoxels": 515,
+      "changed": false
+    },
+    "AsteroidSmallB": {
+      "dimensions": [
+        16,
+        18,
+        14
+      ],
+      "solidVoxels": 640,
+      "surfaceVoxels": 307,
+      "sha256": "24faa93ed7bd7da240a63ddd58f6af5af3b1da4b9cfab1e703a4b461b71ea984",
+      "beforeSurfaceVoxels": 307,
+      "changed": false
+    },
+    "AsteroidSmallC": {
+      "dimensions": [
+        11,
+        10,
+        10
+      ],
+      "solidVoxels": 202,
+      "surfaceVoxels": 130,
+      "sha256": "f003eac2f320bb18357c978f964d2ae5280e1d4d95652bab7b2c95e4eed4e7a9",
+      "beforeSurfaceVoxels": 130,
+      "changed": false
+    },
+    "CargoModule": {
+      "dimensions": [
+        22,
+        30,
+        20
+      ],
+      "solidVoxels": 8826,
+      "surfaceVoxels": 3206,
+      "sha256": "cf3436d8833c86165b2166c76f573fcda8400dccabeca888b7504becfdadd97a",
+      "beforeSurfaceVoxels": 3206,
+      "changed": false
+    },
+    "CommandBlock": {
+      "dimensions": [
+        96,
+        80,
+        92
+      ],
+      "solidVoxels": 322881,
+      "surfaceVoxels": 35545,
+      "sha256": "10d250a6b7c43ce1d902f5d231c24562bd5228fc5772de64a1ee71769ef0441b",
+      "beforeSurfaceVoxels": 7209,
+      "changed": true
+    },
+    "DebrisA": {
+      "dimensions": [
+        5,
+        4,
+        3
+      ],
+      "solidVoxels": 26,
+      "surfaceVoxels": 25,
+      "sha256": "7749c45c89b7c0ad6b02736cf84ff86b4f0157f6da773d1473757eba8a1a8061",
+      "beforeSurfaceVoxels": 25,
+      "changed": false
+    },
+    "DebrisB": {
+      "dimensions": [
+        3,
+        3,
+        2
+      ],
+      "solidVoxels": 13,
+      "surfaceVoxels": 13,
+      "sha256": "edf78dd8abed99303cdbff8859315d71f2b3161b473e12978f38e0697cc14671",
+      "beforeSurfaceVoxels": 13,
+      "changed": false
+    },
+    "DebrisC": {
+      "dimensions": [
+        4,
+        2,
+        3
+      ],
+      "solidVoxels": 9,
+      "surfaceVoxels": 9,
+      "sha256": "9a55e2d4f480a84b809eb5dadd14647198f1e1584ca4d0b7d63f3f9195fb3a9d",
+      "beforeSurfaceVoxels": 9,
+      "changed": false
+    },
+    "DockingCollar": {
+      "dimensions": [
+        36,
+        24,
+        36
+      ],
+      "solidVoxels": 11560,
+      "surfaceVoxels": 4328,
+      "sha256": "3dd2249e3f37dae364ffe4d172b1d3c4e221908bee89f73e7b9b6c9517c7b49a",
+      "beforeSurfaceVoxels": 1088,
+      "changed": true
+    },
+    "EscortLancer": {
+      "dimensions": [
+        28,
+        52,
+        18
+      ],
+      "solidVoxels": 4230,
+      "surfaceVoxels": 2118,
+      "sha256": "565da12cbea5e8213018fb7fa9b1ded69876cb21c399fd6a3709c74b5218fd92",
+      "beforeSurfaceVoxels": 2118,
+      "changed": false
+    },
+    "EscortTalon": {
+      "dimensions": [
+        44,
+        42,
+        16
+      ],
+      "solidVoxels": 3158,
+      "surfaceVoxels": 1818,
+      "sha256": "ae83d320c7bc383830d2ae7d76f209b5724da3d4f7e46e2a4123d4e4b69b2493",
+      "beforeSurfaceVoxels": 1818,
+      "changed": false
+    },
+    "Frigate": {
+      "dimensions": [
+        48,
+        150,
+        40
+      ],
+      "solidVoxels": 76306,
+      "surfaceVoxels": 16981,
+      "sha256": "49ef869674e593ebe1e9c82fd077a08b4332ec0ed35b827677754b967a865bbb",
+      "beforeSurfaceVoxels": 16981,
+      "changed": false
+    },
+    "Habitat": {
+      "dimensions": [
+        120,
+        84,
+        48
+      ],
+      "solidVoxels": 267173,
+      "surfaceVoxels": 30572,
+      "sha256": "0b533f08fd8fdc57b8c5708b4def917a4d8faa079a8f5f3df0b020b1f373cfd1",
+      "beforeSurfaceVoxels": 4592,
+      "changed": true
+    },
+    "HangarBay": {
+      "dimensions": [
+        128,
+        104,
+        76
+      ],
+      "solidVoxels": 408349,
+      "surfaceVoxels": 89086,
+      "sha256": "ac7e368c4647cadb9386d81679cbcc6437632e0a11c0dd787d15933388a01b8b",
+      "beforeSurfaceVoxels": 22970,
+      "changed": true
+    },
+    "HangarSection": {
+      "dimensions": [
+        96,
+        72,
+        60
+      ],
+      "solidVoxels": 327047,
+      "surfaceVoxels": 30095,
+      "sha256": "5c9886cf3d6ee4adb2119b6b9f01cbb0535cab2dac305fa4c9395e8d5b735f82",
+      "beforeSurfaceVoxels": 6961,
+      "changed": true
+    },
+    "RadiatorArray": {
+      "dimensions": [
+        224,
+        128,
+        24
+      ],
+      "solidVoxels": 105011,
+      "surfaceVoxels": 59288,
+      "sha256": "d17c1df72d37f8a8a79b58c1d761444eb52a9f296b09828e6ae09c68e008bbb0"
+    },
+    "Raider": {
+      "dimensions": [
+        48,
+        54,
+        20
+      ],
+      "solidVoxels": 7496,
+      "surfaceVoxels": 2894,
+      "sha256": "183fead3acda033b3a4d8f90ab2cfb85ab1b3059335877bccc581cbb69d5849f",
+      "beforeSurfaceVoxels": 2894,
+      "changed": false
+    },
+    "Reactor": {
+      "dimensions": [
+        102,
+        84,
+        78
+      ],
+      "solidVoxels": 215619,
+      "surfaceVoxels": 59138,
+      "sha256": "04b9f106509b2eaf6ceda6972f737479d23cb63c7fff454d2040a82e031a6bb8",
+      "beforeSurfaceVoxels": 7529,
+      "changed": true
+    },
+    "Refinery": {
+      "dimensions": [
+        108,
+        86,
+        82
+      ],
+      "solidVoxels": 241165,
+      "surfaceVoxels": 35624,
+      "sha256": "a7d11a6b81d0a9e41441e9b57150f4307857f693e72534fc238777b962226891",
+      "beforeSurfaceVoxels": 5766,
+      "changed": true
+    },
+    "ShieldGenerator": {
+      "dimensions": [
+        104,
+        84,
+        92
+      ],
+      "solidVoxels": 144442,
+      "surfaceVoxels": 29671,
+      "sha256": "2c53fef57fb3c7027b4f551ccd4ca419c86c7c61d2414a428459bdc0261e2abb",
+      "beforeSurfaceVoxels": 4428,
+      "changed": true
+    },
+    "TankCluster": {
+      "dimensions": [
+        56,
+        32,
+        68
+      ],
+      "solidVoxels": 63488,
+      "surfaceVoxels": 12706,
+      "sha256": "64aab34852441a4271e4691edd8796f99c8382c4a5e12665a670c900d18cb9f4",
+      "beforeSurfaceVoxels": 2332,
+      "changed": true
+    },
+    "TrussBeam": {
+      "dimensions": [
+        192,
+        16,
+        16
+      ],
+      "solidVoxels": 9800,
+      "surfaceVoxels": 8706,
+      "sha256": "c4c83576e6b921e451d1609389e7df080cf3d6bb91802762679a5d8a1f61e56f",
+      "beforeSurfaceVoxels": 980,
+      "changed": true
+    },
+    "TrussTower": {
+      "dimensions": [
+        24,
+        24,
+        96
+      ],
+      "solidVoxels": 9431,
+      "surfaceVoxels": 6588,
+      "sha256": "a43de98989b64debbb1cdf0da03864a67e9cbf881b89f16c1b86a32dbaf0e17d",
+      "beforeSurfaceVoxels": 1068,
+      "changed": true
+    },
+    "Tug": {
+      "dimensions": [
+        26,
+        38,
+        22
+      ],
+      "solidVoxels": 6870,
+      "surfaceVoxels": 2412,
+      "sha256": "a319e1922e5876632d1238216e60821869e542dd10f3c8eee63d1862d8862895",
+      "beforeSurfaceVoxels": 2412,
+      "changed": false
+    },
+    "TurretPlatform": {
+      "dimensions": [
+        92,
+        100,
+        62
+      ],
+      "solidVoxels": 128724,
+      "surfaceVoxels": 22621,
+      "sha256": "96434f0bb83a5176c1605a1965d84424a8afd199ed1ed6e1d8bb244ebf1d67d6",
+      "beforeSurfaceVoxels": 3085,
+      "changed": true
+    },
+    "Yard": {
+      "dimensions": [
+        180,
+        240,
+        128
+      ],
+      "solidVoxels": 348597,
+      "surfaceVoxels": 116698,
+      "sha256": "90f316ba62584cddd8d6b11e4732159a4b385db9b57030c5c6ddc0760ce2d224",
+      "beforeSurfaceVoxels": 6096,
+      "changed": true
+    }
+  },
+  "station": {
+    "solidInstances": 27,
+    "contactEdges": 30,
+    "boundsMinWorld": [
+      -374.0,
+      -66.75,
+      63.0
+    ],
+    "boundsMaxWorld": [
+      255.25,
+      186.75,
+      277.0
+    ],
+    "sizeWorld": [
+      629.25,
+      253.5,
+      214.0
+    ],
+    "contacts": {
+      "Hangar": [
+        "CrewSupport",
+        "DockBridgeLo",
+        "PylonDown",
+        "SectionF02"
+      ],
+      "SectionF02": [
+        "CrewSupport",
+        "Hangar",
+        "RefineryWest"
+      ],
+      "Command": [
+        "DockBridgeHi",
+        "SensorMast"
+      ],
+      "HabitatLower": [
+        "RefineryWest",
+        "TowerWest"
+      ],
+      "HabitatUpper": [
+        "CommsArray",
+        "DefenseWest",
+        "TowerWest"
+      ],
+      "ReactorWest": [
+        "UtilitySpine"
+      ],
+      "RefineryWest": [
+        "CrewSupport",
+        "HabitatLower",
+        "SectionF02",
+        "TanksReserve",
+        "TanksWest"
+      ],
+      "TanksWest": [
+        "CollarWest",
+        "RefineryWest",
+        "TrussUpper"
+      ],
+      "TanksReserve": [
+        "RefineryWest"
+      ],
+      "DryDock": [
+        "DockBridgeHi",
+        "DockBridgeLo"
+      ],
+      "TrussUpper": [
+        "TanksWest"
+      ],
+      "TrussLower": [
+        "CollarWest"
+      ],
+      "CrewSupport": [
+        "Hangar",
+        "RefineryWest",
+        "SectionF02"
+      ],
+      "UtilitySpine": [
+        "CollarLower",
+        "PylonDown",
+        "ReactorWest"
+      ],
+      "DockBridgeHi": [
+        "Command",
+        "DryDock",
+        "TowerEast"
+      ],
+      "DockBridgeLo": [
+        "DryDock",
+        "Hangar"
+      ],
+      "TowerWest": [
+        "CommsArray",
+        "HabitatLower",
+        "HabitatUpper"
+      ],
+      "TowerEast": [
+        "DockBridgeHi"
+      ],
+      "SensorMast": [
+        "Command"
+      ],
+      "PylonDown": [
+        "CollarLower",
+        "Hangar",
+        "UtilitySpine"
+      ],
+      "CollarWest": [
+        "TanksWest",
+        "TrussLower"
+      ],
+      "CollarLower": [
+        "PylonDown",
+        "UtilitySpine"
+      ],
+      "DefenseWest": [
+        "HabitatUpper",
+        "ThermalBridge"
+      ],
+      "CommsArray": [
+        "HabitatUpper",
+        "TowerWest"
+      ],
+      "ThermalBridge": [
+        "DefenseWest",
+        "ThermalRiser"
+      ],
+      "ThermalRiser": [
+        "HeatRejection",
+        "ThermalBridge"
+      ],
+      "HeatRejection": [
+        "ThermalRiser"
+      ]
+    }
+  },
+  "sceneInstances": 53,
+  "sceneTextSha256": "1ea98ed94d10e7bf8b83964abc1aa5653780ab8a98f950e525eccd590a63162e",
+  "paletteSha256": "644fe81285ae70806c873eda5aa05d08c20cab026e8c464f8f87a2da2c3c6977"
+}
