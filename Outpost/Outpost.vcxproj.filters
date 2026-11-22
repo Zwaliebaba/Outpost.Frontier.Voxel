@@ -7,6 +7,9 @@
     <Filter Include="Assets\Content">
       <UniqueIdentifier>{C7D2E5A3-9B14-4F68-A0C3-6E1B8D4F2A57}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Assets\Hulls">
+      <UniqueIdentifier>{8A340433-CF4F-5C8F-B653-4B021AEA7C4E}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Assets\Models">
       <UniqueIdentifier>{A2B8C4D1-7E35-4F60-8B92-1C3D5E7F9A24}</UniqueIdentifier>
     </Filter>
@@ -34,6 +37,27 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <CopyFileToFolders Include="..\Assets\Models\FrigateIntact.vox">
+      <Filter>Assets\Models</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Models\EscortLancerIntact.vox">
+      <Filter>Assets\Models</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Models\EscortTalonIntact.vox">
+      <Filter>Assets\Models</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Models\TugIntact.vox">
+      <Filter>Assets\Models</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Models\RaiderIntact.vox">
+      <Filter>Assets\Models</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Hulls\Hulls.txt">
+      <Filter>Assets\Hulls</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Hulls\FrigateF317.txt">
+      <Filter>Assets\Hulls</Filter>
+    </CopyFileToFolders>
     <CopyFileToFolders Include="..\Assets\Models\Habitat.vox">
       <Filter>Assets\Models</Filter>
     </CopyFileToFolders>
