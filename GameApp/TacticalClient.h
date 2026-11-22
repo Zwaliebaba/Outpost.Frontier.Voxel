@@ -26,8 +26,9 @@ enum class PointerButton : std::uint8_t
   Middle
 };
 
-/// The client half of the sample: it loads the scene's assets, owns the camera and the selection,
-/// and draws a WorldSnapshot — it never reads the server's World directly.
+/// The client half of the game as far as it is built: the design's tactical view
+/// (Design/GameDesign.md §3.1). It loads the scene's assets, owns the camera and the selection,
+/// and draws a WorldSnapshot — it never reads the server's World directly (AGENTS.md R18).
 class TacticalClient
 {
 public:

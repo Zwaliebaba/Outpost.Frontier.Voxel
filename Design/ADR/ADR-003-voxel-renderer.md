@@ -70,5 +70,6 @@ The interactive Debug build on an RTX 3070 Ti Laptop GPU showed 165 fps on its s
 
 - Fill cost scales with screen coverage, not triangle count, and the pixel shader runs once per covered pixel per voxel quad. Very close voxels are the expensive case; the 12-pixel switch to box bounds keeps their quads tight.
 - The shadow map is drawn once, so anything that moves will need it redrawn; live destruction and moving ships are out of scope.
+- *Added with the design ([GameDesign.md](../GameDesign.md)):* that scope has ended. Ships move from the design's slice 1, and voxels are removed and restored from slice 3 (§7.1), so the surface extracted once and the shadow map drawn once both have to change. How is a new ADR, due before slice 3 (§9); this one stands for the static scene.
 - The renderer knows nothing about ships, stations or palette roles. The game supplies the material table and decides what to draw, which keeps R9's split.
 - The smoke test is a pixel-statistics gate, not a golden-image diff: it catches a blank, black, unlit or HUD-less frame and debug-layer errors, not a subtle shading regression.

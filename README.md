@@ -15,7 +15,9 @@ What is on screen:
 
 The HUD shows objectives, resources, a radar, the selected ship's panel with its damaged modules, and a build panel with live module thumbnails.
 
-How the code is written is in [AGENTS.md](AGENTS.md); the decisions behind it are in [Design/ADR/](Design/ADR/).
+**The sample is the starting point of a game, not the game.** [Design/GameDesign.md](Design/GameDesign.md) says what the game is: the player flies one ship with a cursor, owns an outpost built module by module on an asteroid, and commands a small fleet from this tactical view. Every solid thing is voxels, and removing voxels is the damage model. The design's build order starts from this scene, and its first six slices make the three objectives on the HUD things a player can complete.
+
+How the code is written is in [AGENTS.md](AGENTS.md); the engineering decisions behind it are in [Design/ADR/](Design/ADR/).
 
 ## Requirements
 
@@ -27,7 +29,9 @@ How the code is written is in [AGENTS.md](AGENTS.md); the decisions behind it ar
 | GPU | Direct3D 12, feature level 12_1, shader model 6.7 — or WARP (`--warp`) |
 | CPU | AVX2 (the projects compile `/arch:AVX2`) |
 
-Nothing else: no NuGet, no vcpkg, no Agility SDK, no `d3dx12.h`.
+Nothing else today: no packages, no Agility SDK, no `d3dx12.h`. NuGet is the repository's package manager and libraries are approved one at a time (AGENTS.md R14); none is used yet.
+
+That stays true for building, testing and single player. Networked play, the design's slice 10, will add one library: MsQuic, Microsoft's QUIC implementation, restored from the NuGet package `Microsoft.Native.Quic.MsQuic.Schannel`, the first library approved under AGENTS.md R14. It will also need Windows 11 or Windows Server 2022, whose TLS 1.3 the Schannel build uses. Nothing in the tree uses it yet.
 
 ## Build and run
 
@@ -74,6 +78,8 @@ Ships behind the camera or off screen get an edge arrow that points toward them;
 
 | What | Where |
 |---|---|
+| The design: what the game is, system by system, and the order to build it in | [`Design/GameDesign.md`](Design/GameDesign.md) |
+| The MVP implementation plan: the design's first six slices as tasks, tests, ADRs and exit criteria | [`Design/ImplementationPlan.md`](Design/ImplementationPlan.md) |
 | The scene: camera, lights, models, sockets, instances, ships, module damage, engines, objectives, resources, build items | [`Assets/Scene.txt`](Assets/Scene.txt) — plain text, documented in its header and in ADR-002 |
 | The models | `Assets/Models/*.vox` — genuine MagicaVoxel files, open them in MagicaVoxel |
 | The canonical palette (role → colour) | [`GameCore/Palette.h`](GameCore/Palette.h) for the index map, [`GameCore/Palette.cpp`](GameCore/Palette.cpp) for colours and the emissive material table |
@@ -154,3 +160,5 @@ Not run here:
 In scope: one static tactical scene; camera control; ship selection and inspection; HUD; asset generation; tests.
 
 Out of scope, by the brief: a ship editor, live destruction, combat and networking. The client draws a server snapshot in-process, which is where a transport would go.
+
+Where the design puts those ([Design/GameDesign.md](Design/GameDesign.md) §11): combat and live destruction arrive together in slice 3, as voxel damage; networking is slice 10, over QUIC with MsQuic (GameDesign.md §8.1), and the rules that keep it possible bind from slice 1 (AGENTS.md R18 to R25); a ship editor is not part of the game. The hull and module percentages and the resources the HUD shows are read from `Scene.txt` today; in the design they are measured from voxel masks and produced by the outpost.
