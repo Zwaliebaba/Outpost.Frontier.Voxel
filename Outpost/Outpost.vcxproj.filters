@@ -13,6 +13,9 @@
     <Filter Include="Assets\Models">
       <UniqueIdentifier>{A2B8C4D1-7E35-4F60-8B92-1C3D5E7F9A24}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Assets\Palettes">
+      <UniqueIdentifier>{D24BDE7F-748B-5FE1-9ACD-39D0A5885847}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Application">
       <UniqueIdentifier>{3B6548F8-A7F0-540B-A8FE-998FD0F9C7F2}</UniqueIdentifier>
     </Filter>
@@ -37,6 +40,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <CopyFileToFolders Include="..\Assets\Palettes\OutpostFrontier.png">
+      <Filter>Assets\Palettes</Filter>
+    </CopyFileToFolders>
     <CopyFileToFolders Include="..\Assets\Models\FrigateIntact.vox">
       <Filter>Assets\Models</Filter>
     </CopyFileToFolders>

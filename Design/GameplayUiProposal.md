@@ -3,6 +3,27 @@
 **Status:** proposal for review; no game implementation or approved gameplay rules change.
 **Confirmed constraint:** shipped UI artwork uses DDS textures, as requested on 2026-11-22.
 
+## Review files
+
+The proposal and its interactive study are now versioned together. Download/open
+[the standalone preview](GameplayUi/gameplay-ui-preview.html) in a browser to try Flight,
+Combat, Mining and Docked contexts. Its [editable source](GameplayUi/gameplay-ui-source.html)
+retains the original interaction study. The screenshots below are browser renders of that study,
+using example data; they are not captures of an implemented replacement game HUD.
+
+| Flight | Combat |
+|---|---|
+| ![Flight instruments](GameplayUi/Flight.png) | ![Combat targeting](GameplayUi/Combat.png) |
+
+| Mining | Docked command |
+|---|---|
+| ![Mining and cargo](GameplayUi/Mining.png) | ![Docked construction](GameplayUi/Docked.png) |
+
+The current game already has the flight work merged separately on `main`. This document proposes
+the broader UI/DDS direction; merging the review files does not implement the proposed DDS loader,
+management screens, combat or mining systems. [Preview checks](GameplayUi/PreviewChecks.json)
+record the standalone study's interactions and layout results.
+
 ## Direction
 
 Retain the sample's industrial command identity: deep blue panels, restrained cyan accents,

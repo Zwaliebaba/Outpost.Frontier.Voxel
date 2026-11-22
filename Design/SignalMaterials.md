@@ -13,6 +13,13 @@ definitions. Twenty-five manufactured models have distributed strobes. Seventeen
 or observation panes with inspection recesses behind them. Warm lit windows remain for contrast.
 Asteroids and loose debris retain their existing geometry and receive no new lamps.
 
+For MagicaVoxel's palette import, use
+[`Assets/Palettes/OutpostFrontier.png`](../Assets/Palettes/OutpostFrontier.png), a 256x1 RGBA strip.
+It preserves the exact shared colors and alpha, including indices 224 and 225. PNG cannot store
+Emit/Glass material settings; those remain in the VOX files. After a canonical palette change,
+regenerate it with `python Tools/ExportPalette.py`. Both build configurations copy the PNG beside
+the models under `Assets/Palettes`.
+
 Open any model in MagicaVoxel and reuse these palette slots. The yellow slot has the Emit material
 and the blue slot has Glass. MagicaVoxel renders yellow emission steadily; the game animates the
 double flash, including its halo. The game uses screen-door coverage for glass, so the background
