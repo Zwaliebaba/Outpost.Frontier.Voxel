@@ -1,0 +1,88 @@
+# Commands and the keys bound to them (plan task 1.5; blueprint ch. 09 §3.1).
+#
+#   context name= priority=        a set of bindings live together; the higher priority wins a key
+#                                  bound in two live contexts
+#   command name= hold= repeat=    hold: released when its key goes up. repeat: takes auto-repeat
+#   bind command= context= key=    key: a letter or digit, F1..F24, Tab, Space, Escape, Home, Up,
+#                                  Down, Left, Right, MouseLeft, MouseRight, MouseMiddle, WheelUp,
+#                                  WheelDown (NeuronClient/CommandMap.cpp has the full list)
+#
+# Always is live in every view; Flying in the chase view; Tactical in the tactical view. A key held
+# while the view changes releases what it pressed, so a held thruster cannot stick on.
+#
+# The tactical view's mouse is the view's own, not a binding: left drag orbits and a left click selects,
+# right or middle drag pans, a right click orders the own ship to go there, and the wheel zooms.
+
+context name=Always priority=0
+context name=Flying priority=10
+context name=Tactical priority=10
+
+# Flight: throttle and engine.
+command name=ThrottleUp hold=true
+command name=ThrottleDown hold=true
+command name=ThrottleStepUp
+command name=ThrottleStepDown
+command name=Reverse hold=true
+command name=EngineKill
+command name=Cruise
+command name=Thruster hold=true
+
+# Flight: strafe and keyboard steering.
+command name=StrafeLeft hold=true
+command name=StrafeRight hold=true
+command name=StrafeUp hold=true
+command name=StrafeDown hold=true
+command name=RollLeft hold=true
+command name=RollRight hold=true
+command name=NoseUp hold=true
+command name=NoseDown hold=true
+command name=YawLeft hold=true
+command name=YawRight hold=true
+
+# Flight: the mouse. Hold the left button to steer by the cursor, or lock it on with Space.
+command name=MouseFlight hold=true
+command name=MouseFlightLock
+
+# Tactical.
+command name=ResetView
+
+# Every view.
+command name=Cancel
+command name=ToggleTacticalView
+command name=Quit
+command name=Fullscreen
+command name=Capture
+command name=Status
+command name=Help
+
+bind command=ThrottleUp context=Flying key=W
+bind command=ThrottleDown context=Flying key=S
+bind command=ThrottleStepUp context=Flying key=WheelUp
+bind command=ThrottleStepDown context=Flying key=WheelDown
+bind command=Reverse context=Flying key=X
+bind command=EngineKill context=Flying key=Z
+bind command=Cruise context=Flying key=C
+bind command=Thruster context=Flying key=Tab
+bind command=StrafeLeft context=Flying key=A
+bind command=StrafeRight context=Flying key=D
+bind command=StrafeUp context=Flying key=R
+bind command=StrafeDown context=Flying key=F
+bind command=RollLeft context=Flying key=Q
+bind command=RollRight context=Flying key=E
+bind command=NoseUp context=Flying key=Up
+bind command=NoseDown context=Flying key=Down
+bind command=YawLeft context=Flying key=Left
+bind command=YawRight context=Flying key=Right
+bind command=MouseFlight context=Flying key=MouseLeft
+bind command=MouseFlightLock context=Flying key=Space
+
+bind command=ResetView context=Tactical key=Home
+bind command=ResetView context=Tactical key=R
+
+bind command=Cancel context=Always key=Escape
+bind command=ToggleTacticalView context=Always key=F9
+bind command=Quit context=Always key=F10
+bind command=Fullscreen context=Always key=F11
+bind command=Capture context=Always key=F12
+bind command=Status context=Always key=F3
+bind command=Help context=Always key=H

@@ -19,6 +19,8 @@ namespace
 constexpr XMFLOAT4 BLUEPRINT_COLOR{0.22f, 0.86f, 1.0f, 0.85f};
 constexpr XMFLOAT4 BLUEPRINT_GLOW{0.10f, 0.55f, 1.0f, 0.07f};
 constexpr XMFLOAT3 SELECTION_RIM{0.25f, 0.85f, 1.0f};
+// A flying ship's plume at zero throttle, as a share of its full length.
+constexpr float PLUME_IDLE = 0.2f;
 
 [[nodiscard]] XMFLOAT3 TransformPoint(const XMFLOAT3& _point, FXMMATRIX _matrix) noexcept
 {
@@ -43,11 +45,14 @@ void TacticalScene::Build(const SceneAssets& _assets, const WorldSnapshot& _worl
 {
   m_assets = &_assets;
   m_instances.clear();
+  m_blueprintLinesValid = false;
   const SceneDefinition& scene = _assets.Scene();
-  for (const WorldObject& object : _world.objects)
+  for (std::size_t i = 0; i < _world.objects.size(); ++i)
   {
+    const WorldObject& object = _world.objects[i];
     InstanceView view;
     view.object = object.id;
+    view.objectIndex = i;
     view.name = object.name;
     view.instance = scene.FindInstance(object.name);
     view.asset = scene.FindModel(object.model);
@@ -77,6 +82,64 @@ void TacticalScene::Build(const SceneAssets& _assets, const WorldSnapshot& _worl
     {
       view.kind = InstanceView::Kind::Debris;
     }
+    m_instances.push_back(view);
+  }
+  BuildStars();
+  // Placed at the snapshot's poses until the first Update says where the camera is.
+  Update(_world, {}, m_origin);
+}
+
+WorldPosition TacticalScene::RenderOriginFor(const WorldPosition& _camera) noexcept
+{
+  const auto snap = [](double _value) { return std::floor(_value / ORIGIN_CELL_METRES + 0.5) * ORIGIN_CELL_METRES; };
+  return WorldPosition{snap(_camera.x), snap(_camera.y), snap(_camera.z)};
+}
+
+XMFLOAT3 TacticalScene::ToRender(const WorldPosition& _position) const noexcept
+{
+  return XMFLOAT3{static_cast<float>(_position.x - m_origin.x), static_cast<float>(_position.y - m_origin.y),
+                  static_cast<float>(_position.z - m_origin.z)};
+}
+
+WorldPosition TacticalScene::FromRender(const XMFLOAT3& _position) const noexcept
+{
+  return WorldPosition{m_origin.x + static_cast<double>(_position.x), m_origin.y + static_cast<double>(_position.y),
+                       m_origin.z + static_cast<double>(_position.z)};
+}
+
+void TacticalScene::Update(const WorldSnapshot& _world, std::span<const Pose> _poses, const WorldPosition& _camera)
+{
+  if (m_assets == nullptr)
+  {
+    return;
+  }
+  m_origin = RenderOriginFor(_camera);
+  Place(_world, _poses);
+  if (!m_blueprintLinesValid || !(m_blueprintOrigin == m_origin))
+  {
+    BuildBlueprintLines();
+  }
+  BuildEffects(_world);
+  BuildShadowCamera(ToRender(_camera));
+}
+
+void TacticalScene::Place(const WorldSnapshot& _world, std::span<const Pose> _poses)
+{
+  for (InstanceView& view : m_instances)
+  {
+    if (view.objectIndex >= _world.objects.size())
+    {
+      continue;
+    }
+    WorldObject object = _world.objects[view.objectIndex];
+    if (view.objectIndex < _poses.size())
+    {
+      object.pose = _poses[view.objectIndex];
+    }
+    view.pose = object.pose;
+    // The pose relative to the render origin, so that the float matrix stays precise (ADR-010).
+    object.pose.position =
+      WorldPosition{object.pose.position.x - m_origin.x, object.pose.position.y - m_origin.y, object.pose.position.z - m_origin.z};
     const XMMATRIX voxToWorld = Neuron::VoxToModelMatrix(view.asset->pivotVox, view.asset->voxelSize) * ObjectToWorld(object);
     XMStoreFloat4x4(&view.voxToWorld, voxToWorld);
     XMStoreFloat4x4(&view.worldToVox, XMMatrixInverse(nullptr, voxToWorld));
@@ -94,37 +157,48 @@ void TacticalScene::Build(const SceneAssets& _assets, const WorldSnapshot& _worl
     XMStoreFloat3x3(&axes, XMMATRIX(XMVector3Normalize(voxToWorld.r[0]), XMVector3Normalize(voxToWorld.r[1]),
                                     XMVector3Normalize(voxToWorld.r[2]), XMVectorZero()));
     view.bounds.axes = axes;
-    m_instances.push_back(view);
   }
-  BuildEffects();
-  BuildShadowCamera();
 }
 
-void TacticalScene::BuildEffects()
+void TacticalScene::BuildBlueprintLines()
+{
+  m_blueprintLines.clear();
+  for (const InstanceView& view : m_instances)
+  {
+    if (view.kind != InstanceView::Kind::Blueprint)
+    {
+      continue;
+    }
+    const XMMATRIX voxToWorld = XMLoadFloat4x4(&view.voxToWorld);
+    // A soft wide pass under a crisp one: additive blending turns the pair into a glowing edge.
+    for (const XMFLOAT4& color : {BLUEPRINT_GLOW, BLUEPRINT_COLOR})
+    {
+      const float width = color.w < 0.5f ? 6.0f : 1.4f;
+      for (const Neuron::LatticeSegment& edge : view.model->blueprintEdges)
+      {
+        m_blueprintLines.push_back(Neuron::GpuLineSegment{TransformPoint(ToFloat3(edge.a), voxToWorld), width,
+                                                          TransformPoint(ToFloat3(edge.b), voxToWorld), 0.0f, color});
+      }
+    }
+  }
+  m_blueprintOrigin = m_origin;
+  m_blueprintLinesValid = true;
+}
+
+void TacticalScene::BuildEffects(const WorldSnapshot& _world)
 {
   const SceneDefinition& scene = m_assets->Scene();
-  m_blueprintLines.clear();
   m_staticGlows.clear();
   m_plumes.clear();
   m_pointLights.clear();
 
   for (const InstanceView& view : m_instances)
   {
-    const XMMATRIX voxToWorld = XMLoadFloat4x4(&view.voxToWorld);
     if (view.kind == InstanceView::Kind::Blueprint)
     {
-      // A soft wide pass under a crisp one: additive blending turns the pair into a glowing edge.
-      for (const XMFLOAT4& color : {BLUEPRINT_GLOW, BLUEPRINT_COLOR})
-      {
-        const float width = color.w < 0.5f ? 6.0f : 1.4f;
-        for (const Neuron::LatticeSegment& edge : view.model->blueprintEdges)
-        {
-          m_blueprintLines.push_back(Neuron::GpuLineSegment{TransformPoint(ToFloat3(edge.a), voxToWorld), width,
-                                                            TransformPoint(ToFloat3(edge.b), voxToWorld), 0.0f, color});
-        }
-      }
       continue;
     }
+    const XMMATRIX voxToWorld = XMLoadFloat4x4(&view.voxToWorld);
     for (const GlowPoint& glow : view.model->glows)
     {
       const float strength = std::max({glow.color.x, glow.color.y, glow.color.z, 1e-3f});
@@ -143,6 +217,18 @@ void TacticalScene::BuildEffects()
     {
       continue;
     }
+    // A ship that flies shows its engine as the server last told it; anything else burns steadily.
+    float strength = 1.0f;
+    if (const ShipMotionState* motion = _world.FindMotion(view->object))
+    {
+      const float throttle = std::clamp(std::abs(motion->throttle), 0.0f, 1.0f);
+      strength = !motion->engineOn ? 0.0f : (motion->thruster ? 1.6f : PLUME_IDLE + (1.0f - PLUME_IDLE) * throttle);
+      strength *= motion->cruise == CruiseState::Cruising ? 1.3f : 1.0f;
+    }
+    if (strength <= 0.0f)
+    {
+      continue;
+    }
     const XMMATRIX voxToWorld = XMLoadFloat4x4(&view->voxToWorld);
     Plume plume{};
     plume.nozzle = TransformPoint(engine.positionVox, voxToWorld);
@@ -150,12 +236,14 @@ void TacticalScene::BuildEffects()
     plume.radius = engine.radius;
     plume.length = engine.length;
     plume.phase = static_cast<float>(m_plumes.size()) * 1.7f;
+    plume.strength = strength;
     m_plumes.push_back(plume);
   }
 
   for (const PointLightDef& light : scene.lights)
   {
-    XMFLOAT3 position = light.position;
+    XMFLOAT3 position = ToRender(
+      WorldPosition{static_cast<double>(light.position.x), static_cast<double>(light.position.y), static_cast<double>(light.position.z)});
     if (!light.instance.empty())
     {
       const InstanceView* view = FindInstance(light.instance);
@@ -176,10 +264,15 @@ void TacticalScene::BuildEffects()
     const XMFLOAT3 glowPosition{plume.nozzle.x + plume.direction.x * plume.radius * 1.5f,
                                 plume.nozzle.y + plume.direction.y * plume.radius * 1.5f,
                                 plume.nozzle.z + plume.direction.z * plume.radius * 1.5f};
-    m_pointLights.push_back(Neuron::GpuPointLight{glowPosition, plume.radius * 6.0f, XMFLOAT3{0.35f, 0.62f, 1.0f}, 1.6f});
+    m_pointLights.push_back(
+      Neuron::GpuPointLight{glowPosition, plume.radius * 6.0f, XMFLOAT3{0.35f, 0.62f, 1.0f}, 1.6f * std::min(1.0f, plume.strength)});
   }
   m_pointLights.resize(std::min<std::size_t>(m_pointLights.size(), Neuron::MAX_POINT_LIGHTS));
+}
 
+void TacticalScene::BuildStars()
+{
+  const SceneDefinition& scene = m_assets->Scene();
   m_starDirections.clear();
   Neuron::Pcg32 rng(scene.stars.seed);
   for (int i = 0; i < scene.stars.count; ++i)
@@ -192,14 +285,18 @@ void TacticalScene::BuildEffects()
   }
 }
 
-void TacticalScene::BuildShadowCamera()
+void TacticalScene::BuildShadowCamera(const XMFLOAT3& _camera)
 {
+  // Fitted to what lies within SHADOW_RANGE_METRES of the camera: one cascade, which more can
+  // later split by distance (ADR-010).
   XMVECTOR lo = XMVectorReplicate(std::numeric_limits<float>::max());
   XMVECTOR hi = XMVectorReplicate(-std::numeric_limits<float>::max());
   bool bounded = false;
+  const XMVECTOR camera = XMLoadFloat3(&_camera);
   for (const InstanceView& view : m_instances)
   {
-    if (view.kind == InstanceView::Kind::Blueprint)
+    if (view.kind == InstanceView::Kind::Blueprint ||
+        XMVectorGetX(XMVector3Length(XMVectorSubtract(XMLoadFloat3(&view.bounds.center), camera))) > SHADOW_RANGE_METRES)
     {
       continue;
     }
@@ -212,9 +309,9 @@ void TacticalScene::BuildShadowCamera()
   }
   if (!bounded)
   {
-    // Nothing to shadow yet: the client draws before the server has said what exists.
-    lo = XMVectorZero();
-    hi = XMVectorZero();
+    // Nothing to shadow: the client draws before the server has said what exists, or far from it all.
+    lo = camera;
+    hi = camera;
   }
   const XMVECTOR center = (lo + hi) * 0.5f;
   XMStoreFloat3(&m_sceneCenter, center);
@@ -371,7 +468,7 @@ void TacticalScene::Render(Neuron::Renderer& _renderer, const ViewSetup& _view, 
   for (const Plume& plume : m_plumes)
   {
     const float flicker = 0.94f + 0.06f * std::sin(_timeSeconds * 23.0f + plume.phase) * std::sin(_timeSeconds * 7.0f + plume.phase * 2.0f);
-    const float length = plume.length * flicker;
+    const float length = plume.length * flicker * plume.strength;
     const XMFLOAT3 tail{plume.nozzle.x + plume.direction.x * length, plume.nozzle.y + plume.direction.y * length,
                         plume.nozzle.z + plume.direction.z * length};
     effects.push_back(Neuron::GpuEffect{plume.nozzle,

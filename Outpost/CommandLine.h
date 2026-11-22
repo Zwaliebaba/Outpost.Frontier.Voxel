@@ -19,8 +19,9 @@ enum class ExitCode : int
   DebugLayerErrors = 5,
   ImageCheck = 6,
   Capture = 7,
-  Protocol = 8, // a message between the halves could not be encoded, sent or decoded
-  Mismatch = 9  // the frame's statistics left the tolerance of the report given to --expect
+  Protocol = 8,   // a message between the halves could not be encoded, sent or decoded
+  Mismatch = 9,   // the frame's statistics left the tolerance of the report given to --expect
+  Prediction = 10 // the client's prediction of its own ship left the server's on a tick the server did not correct
 };
 
 // A benchmark's frame count unless --frames says otherwise, and the frames at its start that are

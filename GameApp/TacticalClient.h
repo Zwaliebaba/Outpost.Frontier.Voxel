@@ -1,5 +1,9 @@
 #pragma once
 
+#include "ChaseCamera.h"
+#include "CommandMap.h"
+#include "FlightHud.h"
+#include "FlightInput.h"
 #include "FontAtlas.h"
 #include "GraphicsDevice.h"
 #include "HudBatch.h"
@@ -7,8 +11,10 @@
 #include "LoopbackTransport.h"
 #include "OrbitCamera.h"
 #include "PointerGesture.h"
+#include "Prediction.h"
 #include "Renderer.h"
 #include "SceneAssets.h"
+#include "ShipArchetype.h"
 #include "TacticalHud.h"
 #include "TacticalScene.h"
 #include "WorldSnapshot.h"
@@ -22,10 +28,18 @@
 namespace Outpost
 {
 
-/// The client half of the game as far as it is built: the design's tactical view
-/// (Design/GameDesign.md §3.1). It loads the scene's assets, owns the camera and the selection,
-/// builds its own WorldSnapshot from the messages the server sends, and draws that — it never
-/// reads the server's World (AGENTS.md R18, R25).
+/// Which view the client draws: the chase camera behind the player's ship, or the tactical view of
+/// the whole yard (Design/GameDesign.md §3.1; plan tasks 1.8 and 1.10).
+enum class ClientView : std::uint8_t
+{
+  Flight,
+  Tactical
+};
+
+/// The client half of the game as far as it is built. It loads the scene's assets and the
+/// bindings, owns the cameras, the input layer and the prediction of its own ship, builds its own
+/// WorldSnapshot from the messages the server sends, and draws that; it never reads the server's
+/// World (AGENTS.md R18, R25). What it asks of the server it sends as a FlightInputMessage a tick.
 class TacticalClient
 {
 public:
@@ -35,6 +49,9 @@ public:
   static constexpr std::size_t TIMESTAMP_SHADOWS_END = 1;
   static constexpr std::size_t TIMESTAMP_SCENE_END = 2;
   static constexpr std::size_t TIMESTAMP_FRAME_END = 3;
+  // A go-to order on a ship stops this many of its bounding radii short of it.
+  static constexpr float ORDER_STAND_OFF_RADII = 3.0f;
+  static constexpr float ORDER_STAND_OFF_POINT_METRES = 10.0f;
 
   TacticalClient() = default;
   /// Waits for the GPU before any of the client's resources is released (see the .cpp).
@@ -54,6 +71,10 @@ public:
   void OnPointerUp(PointerButton _button, float _x, float _y, std::uint64_t _timeMilliseconds);
   void OnPointerCancel();
   void OnWheel(float _steps);
+  /// A keyboard key, as its Win32 virtual-key code; _repeat for the keyboard's auto-repeat.
+  void OnKey(Neuron::InputKey _key, bool _down, bool _repeat);
+  /// The window lost the focus: every held key is released.
+  void OnFocusLost();
   /// Plays one scripted input as if it came from the window at that time (plan task F5).
   void Apply(const InputEvent& _event, std::uint64_t _timeMilliseconds);
   void ResetView();
@@ -65,10 +86,10 @@ public:
   {
     m_showStatus = !m_showStatus;
   }
-  /// Draws the shadow map every frame instead of once, as moving ships will need (plan task F6).
-  void SetShadowsEveryFrame(bool _everyFrame) noexcept
+  void SetView(ClientView _view);
+  [[nodiscard]] ClientView View() const noexcept
   {
-    m_shadowsEveryFrame = _everyFrame;
+    return m_view;
   }
 
   /// Selects the ship drawn by a scene instance, or clears the selection for an empty name.
@@ -77,6 +98,10 @@ public:
   {
     return m_selected;
   }
+
+  /// Before the server runs its next tick: samples the input, flies the tick ahead of the server
+  /// and sends the command for it. False, with ProtocolError() saying why, if it could not be sent.
+  [[nodiscard]] bool SendTick(Neuron::LoopbackTransport& _transport, std::uint32_t _ticksPerSecond);
 
   /// Decodes every message waiting for the client and applies it to the client's world. False,
   /// with ProtocolError() saying why, if a message did not decode: a defect, never a normal event.
@@ -90,9 +115,28 @@ public:
   {
     return m_world;
   }
+  [[nodiscard]] const Prediction& OwnShip() const noexcept
+  {
+    return m_prediction;
+  }
+  [[nodiscard]] const FlightInput& Input() const noexcept
+  {
+    return m_flightInput;
+  }
 
-  /// Records and submits one frame. Returns false when the device was lost.
-  [[nodiscard]] bool Render(float _timeSeconds, bool _capture, bool _vsync, float _framesPerSecond);
+  /// Records and submits one frame, drawn _interpolation of the way from the previous tick to the
+  /// last one. Returns false when the device was lost.
+  [[nodiscard]] bool Render(float _timeSeconds, float _interpolation, bool _capture, bool _vsync, float _framesPerSecond);
+
+  /// Requests the window acts on, each true once after its command.
+  [[nodiscard]] bool TakeQuitRequest() noexcept;
+  [[nodiscard]] bool TakeFullscreenRequest() noexcept;
+  [[nodiscard]] bool TakeCaptureRequest() noexcept;
+  /// The chase view keeps the cursor inside the window, where it steers.
+  [[nodiscard]] bool WantsCursorConfined() const noexcept
+  {
+    return m_view == ClientView::Flight && m_prediction.Active();
+  }
 
   [[nodiscard]] const SceneDefinition& Scene() const noexcept
   {
@@ -108,28 +152,51 @@ public:
   }
 
 private:
-  [[nodiscard]] ViewSetup MainView() const;
+  [[nodiscard]] ViewSetup TacticalView() const;
+  [[nodiscard]] ViewSetup FlightView(const Pose& _ship) const;
   [[nodiscard]] bool RebuildFonts(float _scale);
   void BuildSilhouette();
   void RenderThumbnails(const HudLayout& _layout, float _timeSeconds);
   void RenderSilhouette(const HudLayout& _layout, float _timeSeconds);
   [[nodiscard]] HudInput MakeHudInput(const ViewSetup& _view, float _timeSeconds, float _framesPerSecond) const;
+  [[nodiscard]] FlightHudInput MakeFlightHudInput(float _timeSeconds, float _framesPerSecond) const;
+  [[nodiscard]] std::string StatusLine(float _framesPerSecond) const;
   void RebuildSceneIfChanged();
+  void TakeOwnShipNews(std::uint32_t _ticksPerSecond);
+  void ProcessCommands();
+  void OrderAt(float _x, float _y);
+  void ResetChaseCamera();
 
   Neuron::GraphicsDevice* m_device = nullptr;
   Neuron::Renderer m_renderer;
   SceneAssets m_assets;
+  ShipContent m_ships;
   TacticalScene m_scene;
   TacticalHud m_hud;
+  FlightHud m_flightHud;
   Neuron::FontAtlas m_fonts;
   Neuron::HudBatch m_batch;
   Neuron::OrbitCamera m_camera;
+  Neuron::ChaseCamera m_chase;
   Neuron::PointerGesture m_gesture;
+  Neuron::PointerGesture m_orderGesture;
+  Neuron::CommandMap m_commands;
+  FlightInput m_flightInput;
+  Prediction m_prediction;
+  PoseInterpolation m_interpolation;
+  ShipCommand m_lastCommand;
+  ViewSetup m_lastView;
+  ClientView m_view = ClientView::Flight;
   bool m_panning = false;
   float m_lastX = 0.0f;
   float m_lastY = 0.0f;
   WorldSnapshot m_world;
   std::uint64_t m_builtRevision = 0;
+  std::uint64_t m_bodiesRevision = ~0ull;
+  std::uint64_t m_seenOwnShipRevision = 0;
+  float m_maxBankDegrees = 0.0f;
+  std::uint32_t m_ticksPerSecond = 60;
+  float m_lastFrameTime = -1.0f;
   std::string m_protocolError;
   std::string m_initialSelection; // applied once the selected ship's object has arrived
   std::string m_selected;
@@ -137,11 +204,13 @@ private:
   std::vector<Neuron::GpuLineSegment> m_silhouette; // model space of the selected ship
   DirectX::XMFLOAT3 m_silhouetteMin{0.0f, 0.0f, 0.0f};
   DirectX::XMFLOAT3 m_silhouetteMax{0.0f, 0.0f, 0.0f};
+  std::vector<Pose> m_poses; // this frame's pose for each snapshot object
   float m_hudScale = 0.0f;
-  bool m_shadowDirty = true;
-  bool m_shadowsEveryFrame = false;
   bool m_showHelp = true;
   bool m_showStatus = true;
+  bool m_quitRequested = false;
+  bool m_fullscreenRequested = false;
+  bool m_captureRequested = false;
 };
 
 } // namespace Outpost

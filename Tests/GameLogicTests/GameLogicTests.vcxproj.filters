@@ -15,5 +15,8 @@
     <ClCompile Include="WorldTests.cpp">
       <Filter>World</Filter>
     </ClCompile>
+    <ClCompile Include="FlightTests.cpp">
+      <Filter>World</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

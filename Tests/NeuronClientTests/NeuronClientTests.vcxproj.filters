@@ -7,6 +7,12 @@
     <Filter Include="Selection">
       <UniqueIdentifier>{A258C01D-6664-51D9-85CD-1429872EFC10}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Camera">
+      <UniqueIdentifier>{D1E21ABE-579E-471A-B8ED-EBBAB7978012}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Input">
+      <UniqueIdentifier>{3DFA53E1-9775-4CB1-82C5-121B0CDB9AD7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FrameCaptureTests.cpp">
@@ -14,6 +20,12 @@
     </ClCompile>
     <ClCompile Include="SelectionTests.cpp">
       <Filter>Selection</Filter>
+    </ClCompile>
+    <ClCompile Include="ChaseCameraTests.cpp">
+      <Filter>Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="CommandMapTests.cpp">
+      <Filter>Input</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

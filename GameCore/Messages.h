@@ -1,6 +1,7 @@
 #pragma once
 
 #include "LoopbackTransport.h"
+#include "ShipFlight.h"
 #include "WorldSnapshot.h"
 
 #include <cstddef>
@@ -18,7 +19,7 @@ namespace Outpost
 // kind has a fixed route: reliable on a named stream, or a datagram whose newest copy wins.
 
 /// Raised whenever a message is added, removed or changes its encoding.
-inline constexpr std::uint16_t CATALOGUE_VERSION = 2;
+inline constexpr std::uint16_t CATALOGUE_VERSION = 3;
 
 /// Every encoded message begins with: catalogue version (16 bits), kind (16 bits), payload length
 /// in bytes (32 bits).
@@ -26,6 +27,8 @@ inline constexpr std::size_t MESSAGE_HEADER_BYTES = 8;
 
 /// Reliable facts about the world, in the order they happened.
 inline constexpr std::uint16_t STREAM_WORLD = 0;
+/// What a client asks of the server.
+inline constexpr std::uint16_t STREAM_COMMANDS = 1;
 
 enum class MessageKind : std::uint16_t
 {
@@ -34,7 +37,10 @@ enum class MessageKind : std::uint16_t
   Objective = 3,
   Resource = 4,
   ObjectSpawn = 5,
-  ObjectState = 6
+  ObjectState = 6,
+  FlightInput = 7,
+  OwnShip = 8,
+  ShipMotion = 9
 };
 
 /// The server's tick, so the client knows how current its picture is. Newest wins.
@@ -93,7 +99,40 @@ struct ObjectStateMessage
   friend bool operator==(const ObjectStateMessage&, const ObjectStateMessage&) = default;
 };
 
-using Message = std::variant<TickMessage, ShipMessage, ObjectiveMessage, ResourceMessage, ObjectSpawnMessage, ObjectStateMessage>;
+/// Client to server: the command for one tick of the ship the client flies, the manoeuvre and the
+/// wishes the manoeuvre layer runs on (plan task 1.4). One per tick, stamped with the tick it is
+/// for, so a datagram: the server runs each tick on the command stamped for it, or on the newest
+/// before it when that one was lost.
+struct FlightInputMessage
+{
+  std::uint64_t tick = 0;
+  ObjectId ship = NO_OBJECT;
+  ShipCommand command;
+  friend bool operator==(const FlightInputMessage&, const FlightInputMessage&) = default;
+};
+
+/// Server to client: the ship this client flies, and its whole flight state as of a tick. Sent when
+/// the session is given the ship, and again when the server's state has left what the client could
+/// predict: a contact with a moving body, or a command that did not arrive (plan task 1.7). The
+/// client predicts on from it. Reliable, on the world stream.
+struct OwnShipMessage
+{
+  std::uint64_t tick = 0;
+  ObjectId ship = NO_OBJECT;
+  FlightState state;
+  friend bool operator==(const OwnShipMessage&, const OwnShipMessage&) = default;
+};
+
+/// Server to client: what a ship's engine is doing, for its plumes. Changes often, so a datagram;
+/// the receiver keeps the copy with the latest tick for each ship.
+struct ShipMotionMessage
+{
+  ShipMotionState motion;
+  friend bool operator==(const ShipMotionMessage&, const ShipMotionMessage&) = default;
+};
+
+using Message = std::variant<TickMessage, ShipMessage, ObjectiveMessage, ResourceMessage, ObjectSpawnMessage, ObjectStateMessage,
+                             FlightInputMessage, OwnShipMessage, ShipMotionMessage>;
 
 /// How a kind of message travels.
 struct Route

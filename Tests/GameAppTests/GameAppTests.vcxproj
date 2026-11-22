@@ -97,6 +97,9 @@
     <ClCompile Include="InputScriptTests.cpp" />
     <ClCompile Include="TacticalHudTests.cpp" />
     <ClCompile Include="TacticalSceneTests.cpp" />
+    <ClCompile Include="FlightInputTests.cpp" />
+    <ClCompile Include="PredictionTests.cpp" />
+    <ClCompile Include="FlightHudTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\NeuronCore\NeuronCore.vcxproj">

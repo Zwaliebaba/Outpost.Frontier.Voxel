@@ -99,6 +99,17 @@ ShipFlightSpec FlightSpecFor(const ShipContent& _content, const ShipArchetype& _
   return spec;
 }
 
+bool operator==(const FlightState& _a, const FlightState& _b) noexcept
+{
+  const auto same3 = [](const XMFLOAT3& _x, const XMFLOAT3& _y) { return _x.x == _y.x && _x.y == _y.y && _x.z == _y.z; };
+  return _a.position == _b.position && _a.orientation.x == _b.orientation.x && _a.orientation.y == _b.orientation.y &&
+         _a.orientation.z == _b.orientation.z && _a.orientation.w == _b.orientation.w &&
+         same3(_a.velocityMetresPerSecond, _b.velocityMetresPerSecond) &&
+         same3(_a.angularVelocityRadiansPerSecond, _b.angularVelocityRadiansPerSecond) && _a.powerPool == _b.powerPool &&
+         _a.thrustPool == _b.thrustPool && _a.thrusterActive == _b.thrusterActive && _a.cruise == _b.cruise &&
+         _a.cruiseTimerTicks == _b.cruiseTimerTicks && _a.cruiseRamp == _b.cruiseRamp;
+}
+
 float FlightState::SpeedMetresPerSecond() const noexcept
 {
   return XMVectorGetX(XMVector3Length(XMLoadFloat3(&velocityMetresPerSecond)));
@@ -116,7 +127,7 @@ FlightState RestingFlightState(const ShipFlightSpec& _spec, const Pose& _pose) n
 
 XMVECTOR NoseDirection(const FlightState& _state) noexcept
 {
-  return XMVector3Rotate(XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f), XMLoadFloat4(&_state.orientation));
+  return XMVector3Rotate(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), XMLoadFloat4(&_state.orientation));
 }
 
 void DisruptCruise(std::uint32_t _ticksPerSecond, FlightState& _state) noexcept
@@ -207,7 +218,7 @@ void StepFlight(const ShipFlightSpec& _spec, const FlightControls& _controls, st
   {
     forwardForce += _spec.thrusterForceNewtons;
   }
-  XMVECTOR localForce = XMVectorSet(0.0f, 0.0f, -forwardForce, 0.0f);
+  XMVECTOR localForce = XMVectorSet(0.0f, 0.0f, forwardForce, 0.0f);
   if (_controls.strafe != StrafeDirection::None && Pay(_state.thrustPool, _spec.strafeDrainPerSecond * dt))
   {
     const float side = _spec.strafeForceNewtons;

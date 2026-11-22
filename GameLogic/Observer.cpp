@@ -1,5 +1,7 @@
 #include "Observer.h"
 
+#include <algorithm>
+
 namespace Outpost
 {
 
@@ -39,6 +41,38 @@ bool Observer::Publish(const World& _world, Neuron::LoopbackTransport& _transpor
     }
   }
 
+  if (m_ownShip != NO_OBJECT)
+  {
+    const FlightState* flight = _world.Flight(m_ownShip);
+    const bool behind = !m_ownShipSentTick.has_value() || _world.DivergedAt(m_ownShip) > *m_ownShipSentTick;
+    if (flight != nullptr && behind)
+    {
+      ok = Send(OwnShipMessage{state.tick, m_ownShip, *flight}, _transport) && ok;
+      m_ownShipSentTick = state.tick;
+    }
+  }
+  for (const ShipMotionState& motion : state.motions)
+  {
+    const auto sent = std::ranges::find(m_sentMotions, motion.object, &ShipMotionState::object);
+    // The tick is not part of what changed: an engine doing the same thing is not sent again.
+    ShipMotionState compared = motion;
+    if (sent != m_sentMotions.end())
+    {
+      compared.tick = sent->tick;
+    }
+    if (sent == m_sentMotions.end() || !(compared == *sent))
+    {
+      ok = Send(ShipMotionMessage{motion}, _transport) && ok;
+      if (sent == m_sentMotions.end())
+      {
+        m_sentMotions.push_back(motion);
+      }
+      else
+      {
+        *sent = motion;
+      }
+    }
+  }
   for (std::size_t i = 0; i < state.ships.size(); ++i)
   {
     if (i >= m_sentShips.size() || !(m_sentShips[i] == state.ships[i]))

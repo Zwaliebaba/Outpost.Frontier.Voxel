@@ -10,6 +10,9 @@
     <Filter Include="Scene">
       <UniqueIdentifier>{BD4E4763-BEC2-5215-A0F8-F91D538439F5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Flight">
+      <UniqueIdentifier>{6B8001F5-A138-4C35-A0AD-FB7354F6626A}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="InputScript.h">
@@ -27,6 +30,18 @@
     <ClInclude Include="TacticalScene.h">
       <Filter>Scene</Filter>
     </ClInclude>
+    <ClInclude Include="FlightHud.h">
+      <Filter>Hud</Filter>
+    </ClInclude>
+    <ClInclude Include="HudPalette.h">
+      <Filter>Hud</Filter>
+    </ClInclude>
+    <ClInclude Include="FlightInput.h">
+      <Filter>Flight</Filter>
+    </ClInclude>
+    <ClInclude Include="Prediction.h">
+      <Filter>Flight</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="InputScript.cpp">
@@ -43,6 +58,15 @@
     </ClCompile>
     <ClCompile Include="TacticalScene.cpp">
       <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="FlightHud.cpp">
+      <Filter>Hud</Filter>
+    </ClCompile>
+    <ClCompile Include="FlightInput.cpp">
+      <Filter>Flight</Filter>
+    </ClCompile>
+    <ClCompile Include="Prediction.cpp">
+      <Filter>Flight</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

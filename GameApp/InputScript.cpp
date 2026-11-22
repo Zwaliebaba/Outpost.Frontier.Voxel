@@ -42,6 +42,18 @@ constexpr int MAX_TICK = 1'000'000;
   return true;
 }
 
+[[nodiscard]] bool ReadKey(const Neuron::Record& _record, Neuron::InputKey& _out, std::string& _outError)
+{
+  std::string name;
+  _out = _record.GetString("name", name) ? Neuron::KeyFromName(name) : Neuron::NO_KEY;
+  if (_out == Neuron::NO_KEY)
+  {
+    _outError = LineError(_record, "name must be a key as Bindings.txt names it");
+    return false;
+  }
+  return true;
+}
+
 [[nodiscard]] bool ReadButton(const Neuron::Record& _record, PointerButton& _out, std::string& _outError)
 {
   const std::string* value = _record.Find("button");
@@ -131,6 +143,28 @@ bool InputScript::Parse(std::string_view _text, InputScript& _outScript, std::st
         return false;
       }
       event.kind = InputEvent::Kind::Wheel;
+      events.push_back(event);
+    }
+    else if (record.keyword == "move")
+    {
+      if (!ReadPoint(record, "at", event.xPixels, event.yPixels, _outError))
+      {
+        return false;
+      }
+      event.kind = InputEvent::Kind::PointerMove;
+      events.push_back(event);
+    }
+    else if (record.keyword == "key" || record.keyword == "press")
+    {
+      int ticks = 0;
+      if (!ReadKey(record, event.key, _outError) || (record.keyword == "key" && !ReadTick(record, "ticks", 1, ticks, _outError)))
+      {
+        return false;
+      }
+      event.kind = InputEvent::Kind::KeyDown;
+      events.push_back(event);
+      event.kind = InputEvent::Kind::KeyUp;
+      event.tick += static_cast<std::uint64_t>(ticks);
       events.push_back(event);
     }
     else if (record.keyword == "reset" || record.keyword == "help" || record.keyword == "status")

@@ -114,6 +114,8 @@
     <ClInclude Include="PointerGesture.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="ScreenProjection.h" />
+    <ClInclude Include="ChaseCamera.h" />
+    <ClInclude Include="CommandMap.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FontAtlas.cpp" />
@@ -124,6 +126,8 @@
     <ClCompile Include="PointerGesture.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="ScreenProjection.cpp" />
+    <ClCompile Include="ChaseCamera.cpp" />
+    <ClCompile Include="CommandMap.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Common.hlsli" />

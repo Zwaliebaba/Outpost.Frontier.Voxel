@@ -27,7 +27,7 @@ constexpr float APPROACH_GAIN = 0.5f;
                                     float& _outCosine) noexcept
 {
   const XMVECTOR local = XMVector3Rotate(_direction, XMQuaternionConjugate(XMLoadFloat4(&_state.orientation)));
-  const XMVECTOR nose = XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f);
+  const XMVECTOR nose = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
   XMVECTOR axis = XMVector3Cross(nose, local);
   const float sine = XMVectorGetX(XMVector3Length(axis));
   _outCosine = XMVectorGetX(XMVector3Dot(nose, local));
@@ -82,9 +82,13 @@ constexpr float APPROACH_GAIN = 0.5f;
 
 } // namespace
 
-FlightControls Arbitrate(const FlightControls& _wishes) noexcept
+FlightControls Arbitrate(const FlightControls& _wishes, bool _wayAheadObstructed) noexcept
 {
   FlightControls controls = _wishes;
+  if (_wayAheadObstructed)
+  {
+    controls.cruise = false;
+  }
   if (controls.reverse)
   {
     controls.throttle = -1.0f;
@@ -98,7 +102,7 @@ FlightControls Arbitrate(const FlightControls& _wishes) noexcept
 }
 
 ManoeuvreOutput RunManoeuvre(const Manoeuvre& _manoeuvre, const FlightControls& _input, const ShipFlightSpec& _spec,
-                             const FlightState& _state) noexcept
+                             const FlightState& _state, bool _wayAheadObstructed) noexcept
 {
   ManoeuvreOutput output;
   switch (_manoeuvre.kind)
@@ -126,7 +130,7 @@ ManoeuvreOutput RunManoeuvre(const Manoeuvre& _manoeuvre, const FlightControls& 
     output = FlyTo(_manoeuvre.target, _manoeuvre.standOffMetres, _spec, _state);
     break;
   }
-  output.controls = Arbitrate(output.controls);
+  output.controls = Arbitrate(output.controls, _wayAheadObstructed);
   return output;
 }
 

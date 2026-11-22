@@ -37,6 +37,8 @@ struct Manoeuvre
   {
     return Manoeuvre{ManoeuvreKind::GoTo, _target, _standOffMetres};
   }
+
+  friend bool operator==(const Manoeuvre&, const Manoeuvre&) = default;
 };
 
 // A go-to has arrived once it is within this of its stand-off and nearly still.
@@ -51,13 +53,13 @@ struct ManoeuvreOutput
   bool arrived = false; // go-to: at the stand-off and still; hold: inside its tolerance
 };
 
-/// The precedence rules of ch. 02 §3.8 and §3.9: reverse beats throttle, and a killed engine
-/// beats cruise. Refusing cruise when the way ahead is obstructed waits for collisions (task 1.11).
-[[nodiscard]] FlightControls Arbitrate(const FlightControls& _wishes) noexcept;
+/// The precedence rules of ch. 02 §3.8 and §3.9: reverse beats throttle, a killed engine beats
+/// cruise, and cruise is refused while the way ahead is obstructed (task 1.11, ShipFlight.h).
+[[nodiscard]] FlightControls Arbitrate(const FlightControls& _wishes, bool _wayAheadObstructed = false) noexcept;
 
 /// One tick of a manoeuvre: what it asks of the ship, through the arbiter. _input is the player's
 /// wishes and matters only to free flight. Pure: the same arguments give the same controls.
 [[nodiscard]] ManoeuvreOutput RunManoeuvre(const Manoeuvre& _manoeuvre, const FlightControls& _input, const ShipFlightSpec& _spec,
-                                           const FlightState& _state) noexcept;
+                                           const FlightState& _state, bool _wayAheadObstructed = false) noexcept;
 
 } // namespace Outpost

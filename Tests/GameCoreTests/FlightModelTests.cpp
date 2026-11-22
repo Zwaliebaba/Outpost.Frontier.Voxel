@@ -85,7 +85,7 @@ public:
   {
     const Outpost::FlightState state = AtTopSpeed(LightFighter());
     Assert::AreEqual(80.0f, state.SpeedMetresPerSecond(), 0.01f);
-    Assert::AreEqual(-80.0f, state.velocityMetresPerSecond.z, 0.01f, L"along the nose, -Z");
+    Assert::AreEqual(80.0f, state.velocityMetresPerSecond.z, 0.01f, L"along the nose, +Z");
   }
 
   TEST_METHOD(NinetyFivePercentOfTopSpeedInHalfASecond)
@@ -114,7 +114,7 @@ public:
     const Outpost::ShipFlightSpec spec = LightFighter();
     Outpost::FlightState state = AtRest(spec);
     Fly(spec, Throttle(-1.0f), 3.0f, state);
-    Assert::AreEqual(16.0f, state.velocityMetresPerSecond.z, 0.01f, L"backwards, +Z");
+    Assert::AreEqual(-16.0f, state.velocityMetresPerSecond.z, 0.01f, L"backwards, -Z");
   }
 
   TEST_METHOD(TheThrusterReachesTwoHundred)
@@ -191,8 +191,8 @@ public:
     Fly(spec, controls, std::numbers::pi_v<float> / 2.0f / 1.6f + 2800.0f / 15000.0f, state);
     DirectX::XMFLOAT3 nose{};
     DirectX::XMStoreFloat3(&nose, Outpost::NoseDirection(state));
-    Assert::AreEqual(0.0f, nose.z, 0.02f, L"a quarter turn from -Z");
-    Assert::AreEqual(1.0f, std::abs(nose.x), 0.02f);
+    Assert::AreEqual(0.0f, nose.z, 0.02f, L"a quarter turn from +Z");
+    Assert::AreEqual(1.0f, nose.x, 0.02f, L"a positive yaw turns the nose right, to +X");
   }
 
   TEST_METHOD(CruiseChargesForFiveSecondsThenRampsToThreeHundred)

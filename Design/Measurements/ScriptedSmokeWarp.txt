@@ -1,11 +1,14 @@
 adapter: Microsoft Basic Render Driver (WARP)
 scene: 53 instances, 27 models, 623094 surface voxels
 server: 53 objects
-script: ScriptedSmoke.txt, 25 input(s) to tick 30
-first publish: 66 message(s)
+first publish: 69 message(s)
+script: ScriptedSmoke.txt, 27 input(s) to tick 30
 rendered 31 frame(s), server tick 31
+view: tactical
 selected: Tug
+prediction: 31 tick(s) matched the server, 0 corrected after a divergence, 0 mismatched
+own ship: at -170.00, -70.00, 25.00, 0.00 m/s, 0 contact(s)
 client told of 53 object(s), 4 ship(s), 3 objective(s), 5 resource(s), as of tick 31
-image 1920x1080: mean luminance 0.137, lit 22.2%, cyan 2.16%, warm 0.67%, 650 distinct colours
+image 1920x1080: mean luminance 0.137, lit 22.2%, cyan 2.16%, warm 0.67%, 647 distinct colours
 debug layer: on, 0 error(s), 0 warning(s)
 PASS

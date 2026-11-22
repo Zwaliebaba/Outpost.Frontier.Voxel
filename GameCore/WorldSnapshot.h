@@ -1,5 +1,6 @@
 #pragma once
 
+#include "FlightModel.h"
 #include "WorldObject.h"
 
 #include <cstdint>
@@ -53,6 +54,21 @@ struct ResourceState
   friend bool operator==(const ResourceState&, const ResourceState&) = default;
 };
 
+/// What a flying ship's engine is doing as of a tick, for presentation: plumes and their glow. The
+/// controls are those the manoeuvre layer settled on, after its arbiter.
+struct ShipMotionState
+{
+  ObjectId object = NO_OBJECT;
+  std::uint64_t tick = 0;
+  float throttle = 0.0f;
+  float speedMetresPerSecond = 0.0f;
+  bool thruster = false;
+  bool engineOn = true;
+  CruiseState cruise = CruiseState::Off;
+
+  friend bool operator==(const ShipMotionState&, const ShipMotionState&) = default;
+};
+
 struct WorldSnapshot
 {
   std::uint64_t tick = 0;
@@ -61,12 +77,23 @@ struct WorldSnapshot
   std::vector<ObjectiveState> objectives;
   std::vector<ResourceState> resources;
   std::vector<std::uint64_t> resourceTicks; // per resource, the tick of the copy held (newest wins)
-  // Raised whenever an object appears or moves, so that presentation rebuilds only then.
+  std::vector<ShipMotionState> motions;     // one per flying ship, newest wins
+  // Raised whenever an object appears, so that presentation rebuilds its instances only then.
   std::uint64_t objectsRevision = 0;
+  // Raised whenever an object moves.
+  std::uint64_t posesRevision = 0;
+
+  // The ship this client flies, as the server last stated it (OwnShipMessage). The server's own
+  // snapshot leaves these empty: which ship a session flies is the session's, not the world's.
+  ObjectId ownShip = NO_OBJECT;
+  std::uint64_t ownShipTick = 0;
+  FlightState ownShipState;
+  std::uint64_t ownShipRevision = 0;
 
   [[nodiscard]] const ShipState* FindShip(std::string_view _instance) const noexcept;
   [[nodiscard]] const WorldObject* FindObject(ObjectId _id) const noexcept;
   [[nodiscard]] WorldObject* FindObject(ObjectId _id) noexcept;
+  [[nodiscard]] const ShipMotionState* FindMotion(ObjectId _id) const noexcept;
 };
 
 } // namespace Outpost

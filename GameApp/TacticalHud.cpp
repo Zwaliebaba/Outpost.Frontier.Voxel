@@ -1,5 +1,7 @@
 #include "TacticalHud.h"
 
+#include "HudPalette.h"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -15,23 +17,6 @@ using Neuron::Rgba;
 
 namespace
 {
-
-// The C2 palette: dark translucent panels, cyan accents, amber and red for damage.
-// HUD blending happens in linear space into an sRGB target, so a fill that should hide the scene
-// has to be nearly opaque: a lit rock behind a 96% fill still shows through clearly once the
-// result is sRGB-encoded.
-constexpr std::uint32_t PANEL_FILL = Rgba(7, 17, 25, 252);
-constexpr std::uint32_t PANEL_FILL_DEEP = Rgba(4, 10, 16, 255);
-constexpr std::uint32_t PANEL_EDGE = Rgba(38, 196, 214, 210);
-constexpr std::uint32_t PANEL_EDGE_DIM = Rgba(30, 110, 128, 170);
-constexpr std::uint32_t ACCENT = Rgba(64, 226, 236);
-constexpr std::uint32_t ACCENT_SOFT = Rgba(64, 226, 236, 70);
-constexpr std::uint32_t TEXT = Rgba(226, 236, 240);
-constexpr std::uint32_t TEXT_DIM = Rgba(136, 162, 172);
-constexpr std::uint32_t AMBER = Rgba(255, 172, 44);
-constexpr std::uint32_t RED = Rgba(240, 72, 58);
-constexpr std::uint32_t GREEN = Rgba(76, 232, 112);
-constexpr std::uint32_t BAR_TRACK = Rgba(30, 52, 62, 220);
 
 [[nodiscard]] std::uint32_t HealthColor(int _percent) noexcept
 {

@@ -89,10 +89,12 @@
   <ItemGroup>
     <ClInclude Include="Observer.h" />
     <ClInclude Include="World.h" />
+    <ClInclude Include="Commands.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Observer.cpp" />
     <ClCompile Include="World.cpp" />
+    <ClCompile Include="Commands.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NeuronCore\NeuronCore.vcxproj">

@@ -101,6 +101,9 @@ struct FlightState
   float cruiseRamp = 0.0f; // r: the share of cruise speed that cruise thrust aims for
 
   [[nodiscard]] float SpeedMetresPerSecond() const noexcept;
+
+  /// Exact equality, bit for bit in effect: what prediction and the server are tested against.
+  friend bool operator==(const FlightState& _a, const FlightState& _b) noexcept;
 };
 
 /// A ship at rest at a pose, with full pools.
@@ -123,7 +126,7 @@ void StepFlight(const ShipFlightSpec& _spec, const FlightControls& _controls, st
 /// cooldown has run.
 void DisruptCruise(std::uint32_t _ticksPerSecond, FlightState& _state) noexcept;
 
-/// The ship's nose (-Z) in the world frame.
+/// The ship's nose (+Z, as every ship model faces: ADR-002) in the world frame.
 [[nodiscard]] DirectX::XMVECTOR NoseDirection(const FlightState& _state) noexcept;
 
 } // namespace Outpost

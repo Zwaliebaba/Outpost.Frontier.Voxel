@@ -76,6 +76,33 @@ public:
     Assert::IsTrue(script.EventsAt(6).empty());
   }
 
+  TEST_METHOD(AKeyIsHeldForItsTicksAndAPressForNone)
+  {
+    const Outpost::InputScript script = Parsed("key tick=5 name=W ticks=30\npress tick=7 name=F9\nmove tick=8 at=1400,600\n");
+    const auto& events = script.Events();
+    Assert::AreEqual(std::size_t{5}, events.size());
+    Assert::IsTrue(events[0].kind == Outpost::InputEvent::Kind::KeyDown);
+    Assert::AreEqual(std::uint64_t{5}, events[0].tick);
+    Assert::AreEqual(Neuron::InputKey{'W'}, events[0].key);
+    Assert::IsTrue(events[1].kind == Outpost::InputEvent::Kind::KeyDown, L"F9 goes down at tick 7");
+    Assert::AreEqual(Neuron::InputKey{0x78}, events[1].key);
+    Assert::IsTrue(events[2].kind == Outpost::InputEvent::Kind::KeyUp, L"and up in the same tick");
+    Assert::AreEqual(std::uint64_t{7}, events[2].tick);
+    Assert::IsTrue(events[3].kind == Outpost::InputEvent::Kind::PointerMove);
+    Assert::AreEqual(1400.0f, events[3].xPixels);
+    Assert::AreEqual(600.0f, events[3].yPixels);
+    Assert::IsTrue(events[4].kind == Outpost::InputEvent::Kind::KeyUp);
+    Assert::AreEqual(std::uint64_t{35}, events[4].tick, L"W is released 30 ticks after it went down");
+    Assert::AreEqual(std::uint64_t{35}, script.LastTick());
+  }
+
+  TEST_METHOD(AKeyMustBeOneTheBindingsCanName)
+  {
+    const std::string error = ParseError("press tick=1 name=Warp\n");
+    Assert::IsTrue(error.find("line 1") != std::string::npos, std::wstring(error.begin(), error.end()).c_str());
+    Assert::IsFalse(ParseError("key tick=1 name=W ticks=0\n").empty(), L"a key is held for one tick at least");
+  }
+
   TEST_METHOD(AnEmptyScriptHasNoTicks)
   {
     const Outpost::InputScript script = Parsed("# nothing but a comment\n");

@@ -94,6 +94,7 @@
   <ItemGroup>
     <ClCompile Include="ObserverTests.cpp" />
     <ClCompile Include="WorldTests.cpp" />
+    <ClCompile Include="FlightTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\NeuronCore\NeuronCore.vcxproj">
