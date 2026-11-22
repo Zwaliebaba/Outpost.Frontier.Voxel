@@ -95,6 +95,8 @@
     <ClInclude Include="ShipArchetype.h" />
     <ClInclude Include="WorldObject.h" />
     <ClInclude Include="WorldSnapshot.h" />
+    <ClInclude Include="Collision.h" />
+    <ClInclude Include="ShipFlight.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FlightModel.cpp" />
@@ -105,6 +107,8 @@
     <ClCompile Include="ShipArchetype.cpp" />
     <ClCompile Include="WorldObject.cpp" />
     <ClCompile Include="WorldSnapshot.cpp" />
+    <ClCompile Include="Collision.cpp" />
+    <ClCompile Include="ShipFlight.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NeuronCore\NeuronCore.vcxproj">

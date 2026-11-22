@@ -1,10 +1,13 @@
 adapter: NVIDIA GeForce RTX 3070 Ti Laptop GPU
 scene: 53 instances, 27 models, 623094 surface voxels
 server: 53 objects
-first publish: 66 message(s)
+first publish: 69 message(s)
 rendered 3 frame(s), server tick 3
+view: flight
 selected: Frigate
+prediction: 3 tick(s) matched the server, 0 corrected after a divergence, 0 mismatched
+own ship: at -170.00, -70.00, 25.00, 0.00 m/s, 0 contact(s)
 client told of 53 object(s), 4 ship(s), 3 objective(s), 5 resource(s), as of tick 3
-image 1920x1080: mean luminance 0.135, lit 21.9%, cyan 2.15%, warm 0.99%, 725 distinct colours
+image 1920x1080: mean luminance 0.093, lit 10.4%, cyan 0.63%, warm 0.25%, 411 distinct colours
 debug layer: on, 0 error(s), 0 warning(s)
 PASS

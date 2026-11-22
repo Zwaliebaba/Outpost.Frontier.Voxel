@@ -56,4 +56,16 @@ WorldObject* WorldSnapshot::FindObject(ObjectId _id) noexcept
   return nullptr;
 }
 
+const ShipMotionState* WorldSnapshot::FindMotion(ObjectId _id) const noexcept
+{
+  for (const ShipMotionState& motion : motions)
+  {
+    if (motion.object == _id)
+    {
+      return &motion;
+    }
+  }
+  return nullptr;
+}
+
 } // namespace Outpost

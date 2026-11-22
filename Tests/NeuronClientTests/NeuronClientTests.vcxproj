@@ -96,6 +96,8 @@
   <ItemGroup>
     <ClCompile Include="FrameCaptureTests.cpp" />
     <ClCompile Include="SelectionTests.cpp" />
+    <ClCompile Include="ChaseCameraTests.cpp" />
+    <ClCompile Include="CommandMapTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\NeuronCore\NeuronCore.vcxproj">

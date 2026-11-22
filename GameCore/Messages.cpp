@@ -104,6 +104,101 @@ void WritePayload(Neuron::WireWriter& _writer, const ObjectStateMessage& _messag
   return value <= 1;
 }
 
+void WriteFloat3(Neuron::WireWriter& _writer, const DirectX::XMFLOAT3& _value)
+{
+  _writer.Float32(_value.x);
+  _writer.Float32(_value.y);
+  _writer.Float32(_value.z);
+}
+
+[[nodiscard]] DirectX::XMFLOAT3 ReadFloat3(Neuron::WireReader& _reader) noexcept
+{
+  DirectX::XMFLOAT3 value{};
+  value.x = _reader.Float32();
+  value.y = _reader.Float32();
+  value.z = _reader.Float32();
+  return value;
+}
+
+void WritePosition(Neuron::WireWriter& _writer, const WorldPosition& _position)
+{
+  _writer.Float64(_position.x);
+  _writer.Float64(_position.y);
+  _writer.Float64(_position.z);
+}
+
+[[nodiscard]] WorldPosition ReadPosition(Neuron::WireReader& _reader) noexcept
+{
+  WorldPosition position;
+  position.x = _reader.Float64();
+  position.y = _reader.Float64();
+  position.z = _reader.Float64();
+  return position;
+}
+
+/// An enumeration's byte, refused above its last value.
+template <typename E> [[nodiscard]] bool ReadEnum(Neuron::WireReader& _reader, E _last, E& _out) noexcept
+{
+  const std::uint8_t value = _reader.Uint8();
+  _out = static_cast<E>(value);
+  return value <= static_cast<std::uint8_t>(_last);
+}
+
+// The switches of FlightControls, one bit each.
+constexpr std::uint8_t CONTROL_REVERSE = 1;
+constexpr std::uint8_t CONTROL_THRUSTER = 2;
+constexpr std::uint8_t CONTROL_ENGINE_ON = 4;
+constexpr std::uint8_t CONTROL_CRUISE = 8;
+constexpr std::uint8_t CONTROL_ALL = 15;
+
+void WritePayload(Neuron::WireWriter& _writer, const FlightInputMessage& _message)
+{
+  const ShipCommand& command = _message.command;
+  _writer.Uint64(_message.tick);
+  _writer.Uint32(_message.ship);
+  _writer.Uint8(static_cast<std::uint8_t>(command.manoeuvre.kind));
+  WritePosition(_writer, command.manoeuvre.target);
+  _writer.Float32(command.manoeuvre.standOffMetres);
+  const FlightControls& wishes = command.wishes;
+  _writer.Float32(wishes.throttle);
+  WriteFloat3(_writer, wishes.steering);
+  _writer.Uint8(static_cast<std::uint8_t>(wishes.strafe));
+  _writer.Uint8(static_cast<std::uint8_t>((wishes.reverse ? CONTROL_REVERSE : 0) | (wishes.thruster ? CONTROL_THRUSTER : 0) |
+                                          (wishes.engineOn ? CONTROL_ENGINE_ON : 0) | (wishes.cruise ? CONTROL_CRUISE : 0)));
+}
+
+void WritePayload(Neuron::WireWriter& _writer, const OwnShipMessage& _message)
+{
+  const FlightState& state = _message.state;
+  _writer.Uint64(_message.tick);
+  _writer.Uint32(_message.ship);
+  WritePosition(_writer, state.position);
+  _writer.Float32(state.orientation.x);
+  _writer.Float32(state.orientation.y);
+  _writer.Float32(state.orientation.z);
+  _writer.Float32(state.orientation.w);
+  WriteFloat3(_writer, state.velocityMetresPerSecond);
+  WriteFloat3(_writer, state.angularVelocityRadiansPerSecond);
+  _writer.Float32(state.powerPool);
+  _writer.Float32(state.thrustPool);
+  _writer.Uint8(state.thrusterActive ? 1 : 0);
+  _writer.Uint8(static_cast<std::uint8_t>(state.cruise));
+  _writer.Int32(state.cruiseTimerTicks);
+  _writer.Float32(state.cruiseRamp);
+}
+
+void WritePayload(Neuron::WireWriter& _writer, const ShipMotionMessage& _message)
+{
+  const ShipMotionState& motion = _message.motion;
+  _writer.Uint32(motion.object);
+  _writer.Uint64(motion.tick);
+  _writer.Float32(motion.throttle);
+  _writer.Float32(motion.speedMetresPerSecond);
+  _writer.Uint8(motion.thruster ? 1 : 0);
+  _writer.Uint8(motion.engineOn ? 1 : 0);
+  _writer.Uint8(static_cast<std::uint8_t>(motion.cruise));
+}
+
 [[nodiscard]] std::expected<Message, DecodeError> ReadPayload(MessageKind _kind, Neuron::WireReader& _reader)
 {
   bool wellFormed = true;
@@ -176,6 +271,63 @@ void WritePayload(Neuron::WireWriter& _writer, const ObjectStateMessage& _messag
     message = state;
     break;
   }
+  case MessageKind::FlightInput:
+  {
+    FlightInputMessage input;
+    input.tick = _reader.Uint64();
+    input.ship = _reader.Uint32();
+    Manoeuvre& manoeuvre = input.command.manoeuvre;
+    wellFormed = ReadEnum(_reader, ManoeuvreKind::GoTo, manoeuvre.kind);
+    manoeuvre.target = ReadPosition(_reader);
+    manoeuvre.standOffMetres = _reader.Float32();
+    FlightControls& wishes = input.command.wishes;
+    wishes.throttle = _reader.Float32();
+    wishes.steering = ReadFloat3(_reader);
+    wellFormed = ReadEnum(_reader, StrafeDirection::Down, wishes.strafe) && wellFormed;
+    const std::uint8_t switches = _reader.Uint8();
+    wellFormed = wellFormed && switches <= CONTROL_ALL;
+    wishes.reverse = (switches & CONTROL_REVERSE) != 0;
+    wishes.thruster = (switches & CONTROL_THRUSTER) != 0;
+    wishes.engineOn = (switches & CONTROL_ENGINE_ON) != 0;
+    wishes.cruise = (switches & CONTROL_CRUISE) != 0;
+    message = input;
+    break;
+  }
+  case MessageKind::OwnShip:
+  {
+    OwnShipMessage own;
+    own.tick = _reader.Uint64();
+    own.ship = _reader.Uint32();
+    FlightState& state = own.state;
+    state.position = ReadPosition(_reader);
+    state.orientation.x = _reader.Float32();
+    state.orientation.y = _reader.Float32();
+    state.orientation.z = _reader.Float32();
+    state.orientation.w = _reader.Float32();
+    state.velocityMetresPerSecond = ReadFloat3(_reader);
+    state.angularVelocityRadiansPerSecond = ReadFloat3(_reader);
+    state.powerPool = _reader.Float32();
+    state.thrustPool = _reader.Float32();
+    wellFormed = ReadBool(_reader, state.thrusterActive);
+    wellFormed = ReadEnum(_reader, CruiseState::Cooldown, state.cruise) && wellFormed;
+    state.cruiseTimerTicks = _reader.Int32();
+    state.cruiseRamp = _reader.Float32();
+    message = own;
+    break;
+  }
+  case MessageKind::ShipMotion:
+  {
+    ShipMotionMessage motion;
+    motion.motion.object = _reader.Uint32();
+    motion.motion.tick = _reader.Uint64();
+    motion.motion.throttle = _reader.Float32();
+    motion.motion.speedMetresPerSecond = _reader.Float32();
+    wellFormed = ReadBool(_reader, motion.motion.thruster);
+    wellFormed = ReadBool(_reader, motion.motion.engineOn) && wellFormed;
+    wellFormed = ReadEnum(_reader, CruiseState::Cooldown, motion.motion.cruise) && wellFormed;
+    message = motion;
+    break;
+  }
   default:
     return std::unexpected(DecodeError::UnknownKind);
   }
@@ -188,7 +340,7 @@ void WritePayload(Neuron::WireWriter& _writer, const ObjectStateMessage& _messag
 
 [[nodiscard]] bool IsKnownKind(std::uint16_t _kind) noexcept
 {
-  return _kind >= static_cast<std::uint16_t>(MessageKind::Tick) && _kind <= static_cast<std::uint16_t>(MessageKind::ObjectState);
+  return _kind >= static_cast<std::uint16_t>(MessageKind::Tick) && _kind <= static_cast<std::uint16_t>(MessageKind::ShipMotion);
 }
 
 } // namespace
@@ -219,10 +371,22 @@ MessageKind KindOf(const Message& _message)
       {
         return MessageKind::ObjectSpawn;
       }
+      else if constexpr (std::is_same_v<T, ObjectStateMessage>)
+      {
+        return MessageKind::ObjectState;
+      }
+      else if constexpr (std::is_same_v<T, FlightInputMessage>)
+      {
+        return MessageKind::FlightInput;
+      }
+      else if constexpr (std::is_same_v<T, OwnShipMessage>)
+      {
+        return MessageKind::OwnShip;
+      }
       else
       {
-        static_assert(std::is_same_v<T, ObjectStateMessage>);
-        return MessageKind::ObjectState;
+        static_assert(std::is_same_v<T, ShipMotionMessage>);
+        return MessageKind::ShipMotion;
       }
     },
     _message);
@@ -235,7 +399,10 @@ Route RouteOf(MessageKind _kind) noexcept
   case MessageKind::Tick:
   case MessageKind::Resource:
   case MessageKind::ObjectState:
+  case MessageKind::ShipMotion:
     return Route{Neuron::Delivery::Datagram, STREAM_WORLD};
+  case MessageKind::FlightInput:
+    return Route{Neuron::Delivery::Datagram, STREAM_COMMANDS};
   case MessageKind::Ship:
   case MessageKind::Objective:
   case MessageKind::ObjectSpawn:
@@ -347,19 +514,45 @@ void ApplyMessage(const Message& _message, WorldSnapshot& _world)
         }
         ++_world.objectsRevision;
       }
-      else
+      else if constexpr (std::is_same_v<T, ObjectStateMessage>)
       {
-        static_assert(std::is_same_v<T, ObjectStateMessage>);
         WorldObject* object = _world.FindObject(_value.id);
         if (object != nullptr && _value.tick >= object->poseTick)
         {
           if (!(object->pose == _value.pose))
           {
             object->pose = _value.pose;
-            ++_world.objectsRevision;
+            ++_world.posesRevision;
           }
           object->poseTick = _value.tick;
         }
+      }
+      else if constexpr (std::is_same_v<T, OwnShipMessage>)
+      {
+        _world.ownShip = _value.ship;
+        _world.ownShipTick = _value.tick;
+        _world.ownShipState = _value.state;
+        ++_world.ownShipRevision;
+      }
+      else if constexpr (std::is_same_v<T, ShipMotionMessage>)
+      {
+        for (ShipMotionState& motion : _world.motions)
+        {
+          if (motion.object == _value.motion.object)
+          {
+            if (_value.motion.tick >= motion.tick)
+            {
+              motion = _value.motion;
+            }
+            return;
+          }
+        }
+        _world.motions.push_back(_value.motion);
+      }
+      else
+      {
+        // A command is the server's to act on; a client's picture of the world has no place for one.
+        static_assert(std::is_same_v<T, FlightInputMessage>);
       }
     },
     _message);

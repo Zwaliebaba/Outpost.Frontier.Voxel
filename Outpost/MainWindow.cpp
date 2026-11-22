@@ -155,11 +155,24 @@ void MainWindow::Attach(Neuron::GraphicsDevice* _device, TacticalClient* _client
   m_client = _client;
 }
 
-bool MainWindow::TakeCaptureRequest() noexcept
+void MainWindow::ConfineCursor(bool _confine) noexcept
 {
-  const bool requested = m_captureRequested;
-  m_captureRequested = false;
-  return requested;
+  const bool confine = _confine && m_window != nullptr && GetForegroundWindow() == m_window && !m_minimized;
+  if (confine)
+  {
+    // Every frame, so that a moved or resized window keeps the clip on its client area.
+    RECT client{};
+    GetClientRect(m_window, &client);
+    POINT corners[2] = {{client.left, client.top}, {client.right, client.bottom}};
+    MapWindowPoints(m_window, nullptr, corners, 2);
+    const RECT clip{corners[0].x, corners[0].y, corners[1].x, corners[1].y};
+    ClipCursor(&clip);
+  }
+  else if (m_cursorConfined)
+  {
+    ClipCursor(nullptr);
+  }
+  m_cursorConfined = confine;
 }
 
 LRESULT CALLBACK MainWindow::WindowProc(HWND _window, UINT _message, WPARAM _wParam, LPARAM _lParam)
@@ -266,46 +279,43 @@ LRESULT MainWindow::HandleMessage(UINT _message, WPARAM _wParam, LPARAM _lParam)
     }
     return 0;
   case WM_KEYDOWN:
+  case WM_KEYUP:
+    // Bit 30 is the key's previous state: set on a down, it is the keyboard's auto-repeat.
     if (m_client != nullptr)
     {
-      switch (_wParam)
-      {
-      case 'R':
-      case VK_HOME:
-        m_client->ResetView();
-        break;
-      case 'H':
-        m_client->ToggleHelp();
-        break;
-      case VK_F3:
-        m_client->ToggleStatus();
-        break;
-      case VK_F11:
-        SetMode(m_mode == WindowMode::BorderlessFullscreen ? WindowMode::Windowed : WindowMode::BorderlessFullscreen);
-        break;
-      case VK_F12:
-        m_captureRequested = true;
-        break;
-      case VK_ESCAPE:
-        PostMessageW(m_window, WM_CLOSE, 0, 0);
-        break;
-      default:
-        break;
-      }
+      m_client->OnKey(static_cast<Neuron::InputKey>(_wParam), _message == WM_KEYDOWN, (_lParam & (1 << 30)) != 0);
     }
     return 0;
   case WM_SYSKEYDOWN:
+  case WM_SYSKEYUP:
     // Alt+Enter, bit 29 being the Alt state. DXGI's own Alt+Enter handling is off
     // (DXGI_MWA_NO_ALT_ENTER), so this is the only fullscreen switch there is.
     if (_wParam == VK_RETURN && (_lParam & (1 << 29)) != 0)
     {
-      if ((_lParam & (1 << 30)) == 0)
+      if (_message == WM_SYSKEYDOWN && (_lParam & (1 << 30)) == 0)
       {
-        SetMode(m_mode == WindowMode::BorderlessFullscreen ? WindowMode::Windowed : WindowMode::BorderlessFullscreen);
+        ToggleMode();
       }
       return 0;
     }
+    // F10 and Alt-held keys arrive as system keys. The client sees them; F10 goes no further, or
+    // Windows would enter the menu loop of a window that has no menu. Alt+F4 still closes.
+    if (m_client != nullptr)
+    {
+      m_client->OnKey(static_cast<Neuron::InputKey>(_wParam), _message == WM_SYSKEYDOWN, (_lParam & (1 << 30)) != 0);
+    }
+    if (_wParam == VK_F10)
+    {
+      return 0;
+    }
     return DefWindowProcW(m_window, _message, _wParam, _lParam);
+  case WM_KILLFOCUS:
+    if (m_client != nullptr)
+    {
+      m_client->OnFocusLost();
+    }
+    ConfineCursor(false);
+    return 0;
   case WM_SYSCHAR:
     // Swallow the Alt+Enter character, which would otherwise sound the menu-mnemonic beep.
     if (_wParam == VK_RETURN)

@@ -39,6 +39,12 @@
     <ClInclude Include="Messages.h">
       <Filter>Messages</Filter>
     </ClInclude>
+    <ClInclude Include="Collision.h">
+      <Filter>Flight</Filter>
+    </ClInclude>
+    <ClInclude Include="ShipFlight.h">
+      <Filter>Flight</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FlightModel.cpp">
@@ -64,6 +70,12 @@
     </ClCompile>
     <ClCompile Include="Messages.cpp">
       <Filter>Messages</Filter>
+    </ClCompile>
+    <ClCompile Include="Collision.cpp">
+      <Filter>Flight</Filter>
+    </ClCompile>
+    <ClCompile Include="ShipFlight.cpp">
+      <Filter>Flight</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

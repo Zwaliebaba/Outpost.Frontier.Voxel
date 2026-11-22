@@ -16,6 +16,9 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{BE6BAF17-68B9-53A6-B562-B94F3BA70044}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Input">
+      <UniqueIdentifier>{F5DF37B0-49F1-456F-8D19-04F662EB307F}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FontAtlas.h">
@@ -45,6 +48,12 @@
     <ClInclude Include="ScreenProjection.h">
       <Filter>Camera</Filter>
     </ClInclude>
+    <ClInclude Include="ChaseCamera.h">
+      <Filter>Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="CommandMap.h">
+      <Filter>Input</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FontAtlas.cpp">
@@ -70,6 +79,12 @@
     </ClCompile>
     <ClCompile Include="ScreenProjection.cpp">
       <Filter>Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="ChaseCamera.cpp">
+      <Filter>Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="CommandMap.cpp">
+      <Filter>Input</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

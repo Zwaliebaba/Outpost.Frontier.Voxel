@@ -92,6 +92,10 @@
     <ClInclude Include="TacticalClient.h" />
     <ClInclude Include="TacticalHud.h" />
     <ClInclude Include="TacticalScene.h" />
+    <ClInclude Include="FlightHud.h" />
+    <ClInclude Include="HudPalette.h" />
+    <ClInclude Include="FlightInput.h" />
+    <ClInclude Include="Prediction.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="InputScript.cpp" />
@@ -99,6 +103,9 @@
     <ClCompile Include="TacticalClient.cpp" />
     <ClCompile Include="TacticalHud.cpp" />
     <ClCompile Include="TacticalScene.cpp" />
+    <ClCompile Include="FlightHud.cpp" />
+    <ClCompile Include="FlightInput.cpp" />
+    <ClCompile Include="Prediction.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NeuronCore\NeuronCore.vcxproj">

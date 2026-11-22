@@ -15,6 +15,9 @@
     <ClInclude Include="World.h">
       <Filter>World</Filter>
     </ClInclude>
+    <ClInclude Include="Commands.h">
+      <Filter>Replication</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Observer.cpp">
@@ -22,6 +25,9 @@
     </ClCompile>
     <ClCompile Include="World.cpp">
       <Filter>World</Filter>
+    </ClCompile>
+    <ClCompile Include="Commands.cpp">
+      <Filter>Replication</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

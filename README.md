@@ -75,20 +75,49 @@ Each build copies `Assets\` next to the executable, and the executable finds its
 
 ## Controls
 
+The game starts in the cockpit of the escort E-114, behind it in the chase view. Every key is a binding in `Assets\Content\Bindings.txt` and can be changed there.
+
+**Flying**
+
+| Input | Action |
+|---|---|
+| Hold left button | Steer by the cursor: its offset from the centre is the turn rate. Held under a quarter-second it does nothing, so a click does not jerk the ship |
+| Space | Lock cursor steering on or off, without holding the button |
+| W / S, mouse wheel | Throttle up and down; the wheel moves it in steps of a fifth |
+| X (hold) | Reverse thrust |
+| Tab (hold) | Thruster: the boost, drawing its own pool |
+| C | Cruise: charges, then carries the ship at 300 m/s. Refused near stations and rocks |
+| Z | Kill or restart the engine |
+| A / D / R / F (hold) | Strafe left, right, up, down |
+| Q / E (hold) | Roll left and right; otherwise the ship banks into its turns by itself |
+| Arrow keys (hold) | Pitch and yaw from the keyboard |
+
+The cursor is confined to the window while flying.
+
+**The tactical view** (F9). It stands in for the docked view that slice 2 builds; the key goes then.
+
 | Input | Action |
 |---|---|
 | Left drag | Orbit the camera |
 | Left click (no drag) | Select the ship under the cursor; click empty space to clear the selection |
+| Right click | Order your ship there: onto a ship, it stops a few lengths short; into space, it flies to that point at its own height |
 | Right or middle drag | Pan |
 | Mouse wheel | Zoom |
 | R or Home | Reset the camera to the scene's starting view |
+
+Ships behind the camera or off screen get an edge arrow that points toward them; a ship behind the camera is labelled *(behind)*. Flying again, with the throttle or the cursor, takes the ship back from an order.
+
+**Always**
+
+| Input | Action |
+|---|---|
+| F9 | Switch between flying and the tactical view |
+| Esc | Cancel: drop an order or the cursor lock |
 | H | Show or hide the controls line |
 | F3 | Show or hide the status line (adapter, model and voxel counts, fps) |
 | F11 or Alt+Enter | Switch between borderless fullscreen and a framed window |
 | F12 | Save a screenshot to `Captures\` next to the executable |
-| Esc | Quit |
-
-Ships behind the camera or off screen get an edge arrow that points toward them; a ship behind the camera is labelled *(behind)*.
+| F10 or Alt+F4 | Quit |
 
 ## Where things live
 
@@ -145,16 +174,16 @@ Every library has its own test project under `Tests\`. In Visual Studio, *Test â
 | Project | Tests | Covers |
 |---|---|---|
 | `Tests\NeuronCoreTests` | 28 | VOX read/write and a hand-authored fixture that pins the palette offset; rejection of bad magic, truncated chunks, invalid dimensions and out-of-bounds voxels; meshing of single and adjacent voxels; wireframes and the side profile; VOX-to-world axes, handedness and socket mating; the wire format's byte order and round trips; the in-process transport's order and datagram budget |
-| `Tests\NeuronClientTests` | 14 | Selection maths: ships ahead, beside the view, straddling the near plane and behind the camera; pick rays; click versus drag; orbit-camera limits; pixel differences between captures, the report's image line, and the `--expect` tolerance |
+| `Tests\NeuronClientTests` | 30 | Selection maths: ships ahead, beside the view, straddling the near plane and behind the camera; pick rays; click versus drag; orbit-camera limits; pixel differences between captures, the report's image line, and the `--expect` tolerance. Bindings: key names, contexts and their precedence, holds and repeats, a key held across a context switch. The chase camera: its offset at rest, lag, look-ahead, levelling and shake |
 | `Tests\NeuronServerTests` | 5 | The tick clock at 60 Hz (ADR-007): whole ticks, carried remainders, ten minutes exactly 36,000 ticks, stall catch-up, interpolation |
-| `Tests\GameCoreTests` | 66 | The canonical palette, including byte equality across every model; scene parsing and validation; the shipped blueprint landing on its dock; the message catalogue: round trips, header, refusals, routes, the datagram budget, and applying messages to the client's world; world objects and poses; ship records; the flight model against chapter 02's worked example; the manoeuvre layer |
-| `Tests\GameLogicTests` | 11 | The world: its objects, the first state, exact income per minute, fractional income, capacity, reloading; the observer: one message per object, nothing sent twice, only what changed |
-| `Tests\GameAppTests` | 11 | The HUD: every vertex on screen at 720p, 1080p and 4K with ships off screen and behind the camera; build slots; scaling; fonts. The draw constants the voxel shader unprojects through. Input scripts: parsing, drags and clicks expanded per tick, mistakes reported with the line |
+| `Tests\GameCoreTests` | 76 | The canonical palette, including byte equality across every model; scene parsing and validation; the shipped blueprint landing on its dock; the message catalogue: round trips, header, refusals, routes, the datagram budget, and applying messages to the client's world; world objects and poses; ship records; the flight model against chapter 02's worked example; the manoeuvre layer; swept collisions at every speed, bounce and collision damage |
+| `Tests\GameLogicTests` | 21 | The world: its objects, the first state, exact income per minute, fractional income, capacity, reloading; the observer: one message per object, nothing sent twice, only what changed. Flight: an input timeline flown the same at 30, 60 and 144 fps, a go-to directive, a missing command, walls met at every speed regime, cruise refused near a wall, contacts recorded once, commands across the loopback |
+| `Tests\GameAppTests` | 31 | The HUD: every vertex on screen at 720p, 1080p and 4K with ships off screen and behind the camera; build slots; scaling; fonts. The flight HUD on screen at the same sizes. The draw constants the voxel shader unprojects through, and the render origin. Input scripts: parsing, drags, clicks and keys expanded per tick, mistakes reported with the line. Mouse flight: demand from the cursor, the hold, the lock, throttle, cruise, banking. The prediction against the server's step, corrections, and interpolation |
 
 Smoke-test options:
 
 - `--frames N`, `--size WxH`, `--no-vsync`, `--debug-layer` / `--no-debug-layer` and `--assets <dir>`.
-- `--script <file>` plays input commands at fixed server ticks: `drag`, `click`, `wheel`, `reset`, `help` and `status`. An example is `Design\Measurements\ScriptedSmoke.txt`.
+- `--script <file>` plays input commands at fixed server ticks: `drag`, `click`, `move`, `wheel`, `key` (held for a number of ticks), `press`, `reset`, `help` and `status`. Keys are named as in `Bindings.txt`. The examples are `Design\Measurements\ScriptedSmoke.txt` (the tactical view) and `FlightSmoke.txt` (flying, then an order).
 - `--expect <report>` fails the run when the image statistics leave a stored report's tolerance.
 
 `--benchmark` times every frame on the GPU. The F6 crowd scenes it was measured on came from a generator that left the tree with `AssetGenerator` ([F6-RendererBaseline.md](Design/Measurements/F6-RendererBaseline.md)).
@@ -175,10 +204,31 @@ Exit codes:
 | 7 | Capture failed |
 | 8 | The client could not decode or apply the server's messages |
 | 9 | `--expect`: the statistics differ from the stored report |
+| 10 | The client's prediction of its own ship left the server's on a tick the server did not correct |
 
 ### What was run for this version
 
-On 2026-11-22, on branch `mvp-foundations` (F0 to F7, slice 1 tasks 1.1 to 1.3), Windows 11 with an RTX 3070 Ti Laptop GPU:
+On 2026-11-22, on branch `slice-1-flight` (slice 1, tasks 1.4 to 1.11), Windows 11 with an RTX 3070 Ti Laptop GPU:
+
+- **Builds:** Debug and Release x64, each a clean `Rebuild` through the solution, with no warnings.
+- **Unit tests:** `vstest.console.exe` over all six suites, Debug: 191 of 191 passed.
+- **Smoke tests on WARP, Debug:**
+  - The default run, the scripted run and the flight run each match their stored references (SmokeBaseline.md).
+  - The client's prediction matched the server on every tick of every run.
+  - Release matches the default reference to the pixel and the scripted one under `--expect`.
+- **Smoke tests on hardware:** the same three runs match their references under `--expect`, with 0 debug-layer errors.
+- **Benchmark:** Release, three runs in each of three views (ADR-010). The worst p50 is 4.1 ms per frame, with the shadow map redrawn every frame.
+- **Checkers:**
+  - `CheckProjectFiles.py` clean.
+  - `CheckFormat.py` clean with clang-format 18.1.3.
+  - `RunClangTidy.py` clean over 81 translation units, with the local clang-tidy 22.1.3 and `--any-version`.
+  - `TestCheckers.py`: 37 passed and 4 skipped.
+
+- **By hand:** the owner flew the interactive build.
+
+Not run here: the GitHub Actions workflow.
+
+The record before, for F0 to F7 and slice 1 tasks 1.1 to 1.3, on branch `mvp-foundations`:
 
 - **Builds:** a Debug x64 rebuild through the solution after a NuGet restore, with no warnings. Release x64 built too.
 - **Unit tests:** `vstest.console.exe` over all six suites, Debug: 135 of 135 passed.

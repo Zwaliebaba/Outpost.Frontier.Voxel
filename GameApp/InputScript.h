@@ -1,5 +1,7 @@
 #pragma once
 
+#include "CommandMap.h"
+
 #include <cstdint>
 #include <filesystem>
 #include <span>
@@ -26,6 +28,8 @@ struct InputEvent
     PointerMove,
     PointerUp,
     Wheel,
+    KeyDown,
+    KeyUp,
     ResetView,
     ToggleHelp,
     ToggleStatus
@@ -37,6 +41,7 @@ struct InputEvent
   float xPixels = 0.0f;
   float yPixels = 0.0f;
   float wheelSteps = 0.0f;
+  Neuron::InputKey key = Neuron::NO_KEY;
 
   friend bool operator==(const InputEvent&, const InputEvent&) = default;
 };
@@ -47,12 +52,16 @@ struct InputEvent
 ///   drag   tick=10 button=left from=960,540 to=1160,540 ticks=30   # press, move each tick, release
 ///   click  tick=60 at=1500,700 button=left                         # press and release in one tick
 ///   wheel  tick=70 steps=-2
+///   move   tick=72 at=1200,400                                     # the cursor, no button
+///   key    tick=75 name=W ticks=60                                 # held for 60 ticks, then released
+///   press  tick=76 name=F9                                         # down and up in one tick
 ///   reset  tick=80                                                 # the view the scene authored
 ///   help   tick=90                                                 # toggles the help line
 ///   status tick=95                                                 # toggles the status line
 ///
-/// Positions are pixels of the window the script was written for. The commands expand into
-/// events, kept in tick order with the file's order inside a tick.
+/// Positions are pixels of the window the script was written for, and keys are named as in
+/// Assets/Content/Bindings.txt. The commands expand into events, kept in tick order with the file's
+/// order inside a tick.
 class InputScript
 {
 public:

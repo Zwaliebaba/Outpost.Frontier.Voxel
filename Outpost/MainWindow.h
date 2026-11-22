@@ -24,7 +24,9 @@ enum class WindowMode : std::uint8_t
 };
 
 /// The Win32 window: creation in either mode, switching between them, DPI and display changes,
-/// resizing the swap chain, and mouse and keyboard input forwarded to the client.
+/// resizing the swap chain, and mouse and keyboard input forwarded to the client. What a key means
+/// is the client's command layer's to decide (Assets/Content/Bindings.txt); the window keeps only
+/// Alt+Enter, which belongs to the window, and Alt+F4.
 class MainWindow
 {
 public:
@@ -40,6 +42,12 @@ public:
 
   /// Switches between a framed window and borderless fullscreen on the window's current monitor.
   void SetMode(WindowMode _mode) noexcept;
+  void ToggleMode() noexcept
+  {
+    SetMode(m_mode == WindowMode::BorderlessFullscreen ? WindowMode::Windowed : WindowMode::BorderlessFullscreen);
+  }
+  /// Keeps the cursor inside the client area while asked and the window has the focus.
+  void ConfineCursor(bool _confine) noexcept;
   [[nodiscard]] WindowMode Mode() const noexcept
   {
     return m_mode;
@@ -59,9 +67,6 @@ public:
     return m_deviceLost;
   }
 
-  /// True once after F12 was pressed.
-  [[nodiscard]] bool TakeCaptureRequest() noexcept;
-
 private:
   static LRESULT CALLBACK WindowProc(HWND _window, UINT _message, WPARAM _wParam, LPARAM _lParam);
   LRESULT HandleMessage(UINT _message, WPARAM _wParam, LPARAM _lParam);
@@ -75,8 +80,8 @@ private:
   Neuron::GraphicsDevice* m_device = nullptr;
   TacticalClient* m_client = nullptr;
   bool m_minimized = false;
-  bool m_captureRequested = false;
   bool m_deviceLost = false;
+  bool m_cursorConfined = false;
 };
 
 } // namespace Outpost

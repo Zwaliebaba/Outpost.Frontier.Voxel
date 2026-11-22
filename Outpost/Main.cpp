@@ -1,13 +1,15 @@
 // Outpost.exe: the client with the server's logic in-process (ADR-001). The server half — World and
 // TickClock — owns the game state and publishes it through an Observer; the client half —
-// TacticalClient — builds its own picture from those messages and draws it. The two meet only in
-// the loopback transport (ADR-008, plan task F4).
+// TacticalClient — builds its own picture from those messages and draws it, and sends its flight
+// commands back. The two meet only in the loopback transport (ADR-008, plan tasks F4 and 1.4).
 //
 // With --smoke-test it initializes, loads the scene, renders a few frames, checks the last one and
 // exits with an ExitCode, which is what CI and the README's verification steps run.
 
 #include "CommandLine.h"
 #include "MainWindow.h"
+
+#include "Commands.h"
 
 #include "FileSys.h"
 #include "FrameCapture.h"
@@ -130,8 +132,17 @@ struct Session
   Neuron::LoopbackTransport transport;
 };
 
-/// The server publishes what changed and the client takes it in: the one hand-over between the
-/// halves, once per frame after the ticks. False, with the reason, if a message failed.
+/// How often the client's prediction of its own ship matched the server, tick for tick.
+struct PredictionTally
+{
+  std::uint64_t matched = 0;
+  std::uint64_t corrected = 0; // ticks the server diverged on and corrected
+  std::uint64_t mismatched = 0;
+  std::uint64_t firstMismatchTick = 0;
+};
+
+/// The server publishes what changed and the client takes it in: the hand-over between the halves,
+/// after every tick. False, with the reason, if a message failed.
 [[nodiscard]] bool Exchange(Session& _session, std::string& _outError)
 {
   if (!_session.observer.Publish(_session.world, _session.transport))
@@ -145,6 +156,44 @@ struct Session
     return false;
   }
   return true;
+}
+
+/// One tick of the whole game, in the order the halves meet (plan task 1.4): the client samples its
+/// input, predicts the tick and sends its command; the server takes the command in, runs the tick
+/// and publishes; the client takes that in. A tally, when given, compares the prediction with the
+/// server's state for the tick before the server's correction can reach the client.
+[[nodiscard]] bool RunTick(Session& _session, std::string& _outError, PredictionTally* _tally = nullptr)
+{
+  if (!_session.client.SendTick(_session.transport, Neuron::TickClock::TICKS_PER_SECOND))
+  {
+    _outError = _session.client.ProtocolError();
+    return false;
+  }
+  if (!Outpost::ReceiveCommands(_session.transport, _session.world, _outError))
+  {
+    return false;
+  }
+  _session.world.Tick();
+  const Outpost::ObjectId ship = _session.world.PlayerShip();
+  const Outpost::FlightState* server = _session.world.Flight(ship);
+  const Outpost::FlightState* predicted = _session.client.OwnShip().StateAt(_session.world.TickCount());
+  if (_tally != nullptr && server != nullptr && predicted != nullptr && _session.client.OwnShip().Active())
+  {
+    if (*predicted == *server)
+    {
+      ++_tally->matched;
+    }
+    else if (_session.world.DivergedAt(ship) == _session.world.TickCount())
+    {
+      ++_tally->corrected;
+    }
+    else
+    {
+      _tally->firstMismatchTick = _tally->mismatched == 0 ? _session.world.TickCount() : _tally->firstMismatchTick;
+      ++_tally->mismatched;
+    }
+  }
+  return Exchange(_session, _outError);
 }
 
 /// Writes the debug layer's tally and every message it kept to the report; returns the error count.
@@ -306,10 +355,6 @@ void ReportSurfaceExtraction(const Outpost::SceneDefinition& _scene, const std::
 [[nodiscard]] ExitCode RunSmokeTest(Session& _session, const Outpost::LaunchOptions& _options, const std::filesystem::path& _assetRoot,
                                     Report& _report)
 {
-  // A benchmark draws the shadow map every frame, as moving ships will need, and reads each
-  // frame's GPU timestamps once the GPU has finished it.
-  _session.client.SetShadowsEveryFrame(_options.benchmark);
-
   // A script runs the timeline one frame past its last input unless --frames says how long.
   Outpost::InputScript script;
   int frames = _options.frames;
@@ -341,29 +386,26 @@ void ReportSurfaceExtraction(const Outpost::SceneDefinition& _scene, const std::
   auto previous = std::chrono::steady_clock::now();
 
   // A fixed timeline: frame i is at i/60 s and advances the server by one tick, so the capture is
-  // the same on every run and every machine.
+  // the same on every run and every machine. Each frame is drawn at its tick, not between ticks.
+  PredictionTally tally;
   for (int frame = 0; frame < frames; ++frame)
   {
-    _session.world.Tick();
-    std::string protocolError;
-    if (!Exchange(_session, protocolError))
-    {
-      _report.Line("FAIL protocol: " + protocolError + " during frame " + std::to_string(frame));
-      return ExitCode::Protocol;
-    }
-    if (frame == 0)
-    {
-      _report.Line("first publish: " + std::to_string(_session.observer.LastMessageCount()) + " message(s)");
-    }
-    // A tick's input happens at that tick's time, so gestures time out as they would live.
-    const std::uint64_t tick = _session.world.TickCount();
+    // A tick's input happens at that tick's time, before the client samples it, so gestures time
+    // out as they would live.
+    const std::uint64_t tick = _session.world.TickCount() + 1;
     for (const Outpost::InputEvent& event : script.EventsAt(tick))
     {
       _session.client.Apply(event, tick * 1000 / Neuron::TickClock::TICKS_PER_SECOND);
     }
+    std::string protocolError;
+    if (!RunTick(_session, protocolError, &tally))
+    {
+      _report.Line("FAIL protocol: " + protocolError + " during frame " + std::to_string(frame));
+      return ExitCode::Protocol;
+    }
     const bool last = frame + 1 == frames;
     const float time = static_cast<float>(frame) / 60.0f;
-    if (!_session.client.Render(time, last, false, 60.0f))
+    if (!_session.client.Render(time, 1.0f, last, false, 60.0f))
     {
       _report.Line("FAIL render: the device was removed during frame " + std::to_string(frame));
       return ExitCode::Render;
@@ -386,9 +428,47 @@ void ReportSurfaceExtraction(const Outpost::SceneDefinition& _scene, const std::
   }
   _session.device.WaitIdle();
   _report.Line("rendered " + std::to_string(frames) + " frame(s), server tick " + std::to_string(_session.world.TickCount()));
+  _report.Line(std::string("view: ") + (_session.client.View() == Outpost::ClientView::Flight ? "flight" : "tactical"));
   if (!_session.client.Selected().empty())
   {
     _report.Line("selected: " + _session.client.Selected());
+  }
+  // The client flies its own ship ahead of the server with the same StepShip (plan task 1.7): every
+  // tick it predicted must be the server's, bit for bit, unless the server diverged and said so.
+  _report.Line("prediction: " + std::to_string(tally.matched) + " tick(s) matched the server, " + std::to_string(tally.corrected) +
+               " corrected after a divergence, " + std::to_string(tally.mismatched) + " mismatched");
+  if (const Outpost::FlightState* own = _session.world.Flight(_session.world.PlayerShip()))
+  {
+    char flight[160]{};
+    std::snprintf(flight, sizeof(flight), "own ship: at %.2f, %.2f, %.2f, %.2f m/s, %zu contact(s)", own->position.x, own->position.y,
+                  own->position.z, static_cast<double>(own->SpeedMetresPerSecond()), _session.world.Contacts().size());
+    _report.Line(flight);
+    const Outpost::Manoeuvre& order = _session.client.Input().Order();
+    if (order.kind == Outpost::ManoeuvreKind::GoTo)
+    {
+      const double dx = order.target.x - own->position.x;
+      const double dy = order.target.y - own->position.y;
+      const double dz = order.target.z - own->position.z;
+      std::snprintf(flight, sizeof(flight), "  order: go to %.1f, %.1f, %.1f, %.1f m away, %s", order.target.x, order.target.y,
+                    order.target.z, std::sqrt(dx * dx + dy * dy + dz * dz),
+                    _session.world.Arrived(_session.world.PlayerShip()) ? "arrived" : "flying");
+      _report.Line(flight);
+    }
+    constexpr std::size_t CONTACTS_REPORTED = 4;
+    for (std::size_t i = 0; i < std::min(CONTACTS_REPORTED, _session.world.Contacts().size()); ++i)
+    {
+      const Outpost::ContactRecord& contact = _session.world.Contacts()[i];
+      const Outpost::WorldObject* body = _session.world.State().FindObject(contact.body);
+      std::snprintf(flight, sizeof(flight), "  contact at tick %llu with %s at %.1f m/s, damage %.1f",
+                    static_cast<unsigned long long>(contact.tick), body != nullptr ? body->name.c_str() : "?",
+                    static_cast<double>(contact.relativeSpeedMetresPerSecond), static_cast<double>(contact.damageToShip));
+      _report.Line(flight);
+    }
+  }
+  if (tally.mismatched > 0)
+  {
+    _report.Line("FAIL prediction: the client's own ship left the server's at tick " + std::to_string(tally.firstMismatchTick));
+    return ExitCode::Prediction;
   }
   const Outpost::WorldSnapshot& told = _session.client.World();
   _report.Line("client told of " + std::to_string(told.objects.size()) + " object(s), " + std::to_string(told.ships.size()) + " ship(s), " +
@@ -397,7 +477,7 @@ void ReportSurfaceExtraction(const Outpost::SceneDefinition& _scene, const std::
   if (_options.benchmark)
   {
     _report.Line("benchmark: " + std::to_string(_options.width) + "x" + std::to_string(_options.height) +
-                 ", v-sync off, shadow map every frame, " + std::to_string(Outpost::BENCHMARK_WARMUP_FRAMES) +
+                 ", v-sync off, shadow map every frame (ADR-010), " + std::to_string(Outpost::BENCHMARK_WARMUP_FRAMES) +
                  " warm-up frame(s) not measured");
     _report.Line(Percentiles("gpu frame", gpuFrame));
     _report.Line(Percentiles("gpu shadow pass", gpuShadows));
@@ -448,8 +528,11 @@ void ReportSurfaceExtraction(const Outpost::SceneDefinition& _scene, const std::
   }
 
   // A blank, black or flat frame fails: the scene must be lit, varied, and carry the cyan HUD and
-  // the amber hangar and breach light.
-  const bool imageOk = statistics.meanLuminance > 0.02f && statistics.litFraction > 0.05f && statistics.distinctColors > 400 &&
+  // the amber hangar and breach light. A chase view shows part of the yard against open space, so
+  // it is less varied than the whole yard: the default flight frame has about 410 colours where the
+  // tactical one has about 725, and a view out past the yard fewer still.
+  const std::uint32_t minimumColors = _session.client.View() == Outpost::ClientView::Flight ? 200 : 400;
+  const bool imageOk = statistics.meanLuminance > 0.02f && statistics.litFraction > 0.05f && statistics.distinctColors > minimumColors &&
                        statistics.cyanFraction > 0.001f && statistics.warmFraction > 0.0005f;
   // A benchmark may run a generated scene with no shipyard in view (--assets), so its image is
   // reported and not judged.
@@ -520,27 +603,38 @@ void ReportSurfaceExtraction(const Outpost::SceneDefinition& _scene, const std::
     const auto now = std::chrono::steady_clock::now();
     const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(now - previous).count();
     previous = now;
+    // Wall time becomes ticks here and nowhere else (AGENTS.md R20).
     const std::uint32_t ticks = clock.Advance(static_cast<std::uint64_t>(elapsed));
     for (std::uint32_t i = 0; i < ticks; ++i)
     {
-      _session.world.Tick();
-    }
-    std::string protocolError;
-    if (!Exchange(_session, protocolError))
-    {
-      MessageBoxW(_session.window.Handle(), L"A message between the server and the client failed.", L"Outpost: Frontier", MB_ICONERROR);
-      return ExitCode::Protocol;
+      std::string protocolError;
+      if (!RunTick(_session, protocolError))
+      {
+        MessageBoxW(_session.window.Handle(), L"A message between the server and the client failed.", L"Outpost: Frontier", MB_ICONERROR);
+        return ExitCode::Protocol;
+      }
     }
     if (elapsed > 0)
     {
       framesPerSecond = framesPerSecond * 0.95f + 0.05f * (1'000'000.0f / static_cast<float>(elapsed));
     }
-    const bool capture = _session.window.TakeCaptureRequest();
     const float time = std::chrono::duration<float>(now - start).count();
-    if (!_session.client.Render(time, capture, true, framesPerSecond))
+    // The capture command is read after the frame that saw it: this frame captures.
+    const bool capture = _session.client.TakeCaptureRequest();
+    if (!_session.client.Render(time, clock.Interpolation(), capture, true, framesPerSecond))
     {
       MessageBoxW(_session.window.Handle(), L"The graphics device was lost.", L"Outpost: Frontier", MB_ICONERROR);
       return ExitCode::Render;
+    }
+    if (_session.client.TakeFullscreenRequest())
+    {
+      _session.window.ToggleMode();
+    }
+    _session.window.ConfineCursor(_session.client.WantsCursorConfined());
+    if (_session.client.TakeQuitRequest())
+    {
+      _session.window.ConfineCursor(false);
+      PostMessageW(_session.window.Handle(), WM_CLOSE, 0, 0);
     }
     if (capture)
     {
@@ -639,6 +733,18 @@ int WINAPI wWinMain(_In_ HINSTANCE _instance, _In_opt_ HINSTANCE /*_previous*/, 
           else
           {
             report.Line("server: " + std::to_string(session->world.State().objects.size()) + " objects");
+            // The client is the observer that flies the player's ship, and is told what exists
+            // before the first tick so that it can predict that tick.
+            session->observer.AssignShip(session->world.PlayerShip());
+            if (!Exchange(*session, error))
+            {
+              report.Line("FAIL protocol: " + error + " before the first tick");
+              result = ExitCode::Protocol;
+            }
+            else
+            {
+              report.Line("first publish: " + std::to_string(session->observer.LastMessageCount()) + " message(s)");
+            }
           }
           session->window.Attach(&session->device, &session->client);
           if (result == ExitCode::Success && options.smokeTest)

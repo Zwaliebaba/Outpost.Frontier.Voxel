@@ -24,6 +24,14 @@ public:
   /// defect: nothing the world holds should be unsendable.
   [[nodiscard]] bool Publish(const World& _world, Neuron::LoopbackTransport& _transport);
 
+  /// The ship this session flies. The next Publish tells the client, with the ship's whole flight
+  /// state, and Publish tells it again after any tick whose state it could not have predicted.
+  void AssignShip(ObjectId _ship) noexcept
+  {
+    m_ownShip = _ship;
+    m_ownShipSentTick.reset();
+  }
+
   /// Messages sent by the last Publish, for tests and the smoke report.
   [[nodiscard]] std::size_t LastMessageCount() const noexcept
   {
@@ -38,6 +46,9 @@ private:
   std::vector<ShipState> m_sentShips;
   std::vector<ObjectiveState> m_sentObjectives;
   std::vector<ResourceState> m_sentResources;
+  std::vector<ShipMotionState> m_sentMotions;
+  ObjectId m_ownShip = NO_OBJECT;
+  std::optional<std::uint64_t> m_ownShipSentTick;
   std::size_t m_lastMessageCount = 0;
 };
 

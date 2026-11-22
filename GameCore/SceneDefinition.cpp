@@ -383,6 +383,13 @@ bool ParseScene(std::string_view _text, SceneDefinition& _outScene, std::string&
         return false;
       }
     }
+    else if (record.keyword == "player")
+    {
+      if (!Required(record, "instance", _outScene.playerShip, error))
+      {
+        return false;
+      }
+    }
     else
     {
       _outError = LineError(record, "unknown keyword");
@@ -473,6 +480,10 @@ std::vector<std::string> ValidateScene(const SceneDefinition& _scene, const std:
   if (!_scene.selectedShip.empty() && _scene.FindShip(_scene.selectedShip) == nullptr)
   {
     problems.push_back("selected ship '" + _scene.selectedShip + "' is not a ship");
+  }
+  if (!_scene.playerShip.empty() && _scene.FindShip(_scene.playerShip) == nullptr)
+  {
+    problems.push_back("player ship '" + _scene.playerShip + "' is not a ship");
   }
   return problems;
 }

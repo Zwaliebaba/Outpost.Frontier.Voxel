@@ -1,6 +1,6 @@
 # Smoke-test baseline
 
-**Taken:** 2026-11-22, first at commit `381bbc5` (F1 to F3 done), and stored again after F4 for the reason given below. **Purpose:** the reference that every change that must not alter the picture is checked against.
+**Taken:** 2026-11-22, first at commit `381bbc5` (F1 to F3 done), and stored again after F4, after the new station and after slice 1, for the reasons given below. **Purpose:** the reference that every change that must not alter the picture is checked against.
 
 ## How it was taken
 
@@ -48,6 +48,19 @@ What the new references hold:
 - **WARP:** three runs wrote byte-identical PNGs. The report reads 53 objects, a first publish of 66 messages, `selected: Frigate`, and 0 debug-layer errors.
 - **Hardware:** the RTX 3070 Ti Laptop GPU report matches the WARP one under `--expect`. It reads lit 21.9 % against 21.8 %, cyan 2.15 % against 2.16 %, and the same 725 colours.
 
+## Why it was stored again after slice 1
+
+Slice 1 changed what the default timeline shows, not only how it is drawn:
+
+- **The client starts in the flight view**, behind the player's escort E-114 (the Lancer). The unscripted references are now that chase view, with the flight HUD. They cannot be compared with the tactical frame they replace.
+- **Engine plumes scale with each ship's motion state** (ADR-010), so an idle ship's plume is a fifth of its old length.
+
+What the new references hold:
+
+- **WARP:** three runs wrote byte-identical PNGs. The report reads `view: flight`, a first publish of 69 messages where there were 66 (new: a motion state for each of the two escorts, and the own ship's exact state), and a prediction that matched the server on all 3 ticks. The statistics are mean luminance 0.093, lit 10.4 %, cyan 0.63 % and warm 0.25 %, with 414 distinct colours.
+- **Hardware:** the RTX 3070 Ti Laptop GPU agrees with WARP on every statistic but the colour count, 411 against 414.
+- **The image check's colour floor** is 200 in the flight view and stays 400 in the tactical one. A chase view shows part of the yard against open space.
+
 ## How to check against it
 
 ```powershell
@@ -68,7 +81,7 @@ So check a Release build with `--expect`, and use `--compare` against a capture 
 
 ## The scripted reference (plan task F5)
 
-`ScriptedSmoke.txt` drives the executable through input at fixed ticks. It clicks at the point where the first station had its fighter on the right; in the current station, that point selects the Tug. Then it orbits the view by dragging for 20 ticks and zooms one wheel step. The run lasts until one frame after the last input, 31 frames here.
+`ScriptedSmoke.txt` drives the executable through input at fixed ticks. Since slice 1 it first presses F9 for the tactical view. It then clicks at the point where the first station had its fighter on the right; in the current station, that point selects the Tug. Then it orbits the view by dragging for 20 ticks and zooms one wheel step. The run lasts until one frame after the last input, 31 frames here.
 
 ```powershell
 .\x64\Debug\Outpost.exe --smoke-test --warp --script Design\Measurements\ScriptedSmoke.txt --expect Design\Measurements\ScriptedSmokeWarp.txt
@@ -80,6 +93,8 @@ So check a Release build with `--expect`, and use `--compare` against a capture 
 | `ScriptedSmokeWarp.png` | The WARP capture of its last frame |
 | `ScriptedSmokeWarp.txt` | Its WARP report, with the machine-specific lines removed |
 
+**Stored again after slice 1.** The new capture differs from the one before in 517 pixels, all inside two engine plumes: the Frigate's and an escort's, now drawn at an idle ship's length. The statistics are unchanged except the colour count, 647 against 650. Two WARP runs were byte-identical, and the hardware run matched every statistic, colour count included.
+
 What was checked when it was stored again, on the current station:
 
 - The report names the selection: `selected: Tug`.
@@ -89,3 +104,33 @@ What was checked when it was stored again, on the current station:
 - Against the unscripted report it fails with exit code 9, naming the lit and warm shares and the colour count.
 - A `--frames` shorter than the script was refused with exit code 1, when it was first stored.
 - The RTX 3070 Ti Laptop GPU run matches the WARP report within the tolerance: 649 distinct colours against WARP's 650, the rest identical. So the WARP report also serves as the hardware reference.
+
+## The flight reference (slice 1)
+
+`FlightSmoke.txt` flies the player's escort by its commands, then orders it from the tactical view. Over 480 ticks it:
+
+1. raises the throttle to full;
+2. turns hard by the cursor, held at the right edge, away from the Frigate parked ahead;
+3. fires the thruster for a second;
+4. throttles back to nothing;
+5. presses F9 and gives a go-to order by right-clicking a point.
+
+The run lasts 481 frames, so on WARP it takes about ten minutes in Debug.
+
+```powershell
+.\x64\Debug\Outpost.exe --smoke-test --warp --script Design\Measurements\FlightSmoke.txt --expect Design\Measurements\FlightSmokeWarp.txt
+```
+
+| File | What it is |
+|---|---|
+| `FlightSmoke.txt` | The script |
+| `FlightSmokeWarp.png` | The WARP capture of its last frame, in the tactical view |
+| `FlightSmokeWarp.txt` | Its WARP report, with the machine-specific lines removed |
+
+What was checked when it was stored:
+
+- **The prediction matched the server on all 481 ticks**, with no corrections.
+- **The ship flies its order.** The report gives the order and the distance left. Shorter runs of the same script showed the distance falling as the ship turned to its point: 707 m at tick 311, 703 m at 400, and 611 m at 480, by then at 80 m/s.
+- **No contacts.** Before the script turned away from the Frigate, the same run met the Frigate's collision box three times and was recorded doing so.
+- **The flight is the same on every adapter.** The WARP and RTX 3070 Ti Laptop GPU runs ended with the ship at the same position, −87.98, −212.91, −234.63. The hardware frame matches the WARP report under `--expect`: 715 distinct colours against 714, the rest identical.
+- **Only one WARP run was made.** It lasts ten minutes, so this capture has not been shown byte-deterministic the way the short ones have; use `--expect` against it rather than `--compare`.

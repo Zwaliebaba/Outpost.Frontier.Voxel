@@ -167,6 +167,12 @@ const ShipArchetype* ShipContent::FindShip(std::string_view _name) const noexcep
   return FindByName(ships, _name);
 }
 
+const ChaseCameraRecord* ShipContent::FindChaseCamera(std::string_view _ship) const noexcept
+{
+  const auto found = std::ranges::find(chaseCameras, _ship, &ChaseCameraRecord::ship);
+  return found != chaseCameras.end() ? &*found : nullptr;
+}
+
 bool ParseShipContent(std::string_view _text, std::string_view _fileName, ShipContent& _outContent, std::string& _outError)
 {
   std::vector<Neuron::Record> records;
@@ -177,6 +183,7 @@ bool ParseShipContent(std::string_view _text, std::string_view _fileName, ShipCo
   }
   ShipContent content;
   std::vector<int> shipLines;
+  std::vector<int> chaseLines;
   for (const Neuron::Record& record : records)
   {
     RecordReader reader(record, _fileName, _outError);
@@ -254,6 +261,29 @@ bool ParseShipContent(std::string_view _text, std::string_view _fileName, ShipCo
       }
       shipLines.push_back(record.line);
     }
+    else if (record.keyword == "chase")
+    {
+      ChaseCameraRecord chase;
+      if (reader.AllowOnly({"ship", "up", "back", "lookside", "lookup", "lookdown"}))
+      {
+        reader.Reference("ship", chase.ship);
+        reader.Number("up", 0.0f, 1000.0f, chase.upMetres);
+        reader.Number("back", 1.0f, 1000.0f, chase.backMetres);
+        reader.Number("lookside", 0.0f, 60.0f, chase.lookSideDegrees);
+        reader.Number("lookup", 0.0f, 60.0f, chase.lookUpDegrees);
+        reader.Number("lookdown", 0.0f, 60.0f, chase.lookDownDegrees);
+      }
+      if (!reader.Ok())
+      {
+        return false;
+      }
+      if (content.FindChaseCamera(chase.ship) != nullptr)
+      {
+        return reader.Fail("ship '" + chase.ship + "' has two chase cameras");
+      }
+      content.chaseCameras.push_back(std::move(chase));
+      chaseLines.push_back(record.line);
+    }
     else
     {
       return reader.Fail("unknown keyword '" + record.keyword + "'");
@@ -272,6 +302,15 @@ bool ParseShipContent(std::string_view _text, std::string_view _fileName, ShipCo
     {
       _outError =
         std::string(_fileName) + " line " + std::to_string(shipLines[i]) + ": ship '" + ship.name + "' names no known " + dangling;
+      return false;
+    }
+  }
+  for (std::size_t i = 0; i < content.chaseCameras.size(); ++i)
+  {
+    if (content.FindShip(content.chaseCameras[i].ship) == nullptr)
+    {
+      _outError = std::string(_fileName) + " line " + std::to_string(chaseLines[i]) + ": chase camera names no known ship '" +
+                  content.chaseCameras[i].ship + "'";
       return false;
     }
   }

@@ -17,3 +17,9 @@ thruster name=BasicThruster force=72000 drain=165
 
 ship name=EscortLancer model=EscortLancer mass=100 inertia=2800,2800,1000 drag=1 torque=24000,24000,58000 angulardrag=15000,15000,35000 strafe=20000 strafedrain=2 maxbank=30 engine=LightEngine powerplant=LightPowerPlant thruster=BasicThruster
 ship name=EscortTalon  model=EscortTalon  mass=100 inertia=2800,2800,1000 drag=1 torque=24000,24000,58000 angulardrag=15000,15000,35000 strafe=20000 strafedrain=2 maxbank=35 engine=LightEngine powerplant=LightPowerPlant thruster=BasicThruster
+
+# Chase camera per hull (plan task 1.8; blueprint ch. 09 §3.9): metres up and back from the pivot, and the
+# look-ahead into a turn at full yaw, pitch-up and pitch-down throttle, in degrees. Both escorts are about
+# 45 m long, so the camera sits about a hull length behind the tail.
+chase ship=EscortLancer up=13 back=65 lookside=20 lookup=7 lookdown=25
+chase ship=EscortTalon  up=12 back=60 lookside=20 lookup=7 lookdown=25

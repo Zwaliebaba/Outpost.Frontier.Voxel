@@ -10,6 +10,9 @@
     <Filter Include="Scene">
       <UniqueIdentifier>{109C527D-4169-53C2-9377-A743369BB526}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Flight">
+      <UniqueIdentifier>{D49E4FD4-2325-4759-BBE3-D11943AB6A9E}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="InputScriptTests.cpp">
@@ -20,6 +23,15 @@
     </ClCompile>
     <ClCompile Include="TacticalSceneTests.cpp">
       <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="FlightInputTests.cpp">
+      <Filter>Flight</Filter>
+    </ClCompile>
+    <ClCompile Include="PredictionTests.cpp">
+      <Filter>Flight</Filter>
+    </ClCompile>
+    <ClCompile Include="FlightHudTests.cpp">
+      <Filter>Hud</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -45,6 +45,39 @@ namespace
   return object;
 }
 
+[[nodiscard]] Outpost::FlightInputMessage SampleInput()
+{
+  Outpost::FlightInputMessage input;
+  input.tick = 1'234;
+  input.ship = 7;
+  input.command.manoeuvre = Outpost::Manoeuvre::GoTo(Outpost::WorldPosition{1.0e8 + 0.5, -20.0, 3.25}, 45.0f);
+  input.command.wishes.throttle = 0.75f;
+  input.command.wishes.steering = DirectX::XMFLOAT3{-0.25f, 0.5f, 1.0f};
+  input.command.wishes.strafe = Outpost::StrafeDirection::Down;
+  input.command.wishes.thruster = true;
+  input.command.wishes.cruise = true;
+  input.command.wishes.engineOn = false;
+  return input;
+}
+
+[[nodiscard]] Outpost::OwnShipMessage SampleOwnShip()
+{
+  Outpost::OwnShipMessage own;
+  own.tick = 99;
+  own.ship = 7;
+  own.state.position = Outpost::WorldPosition{-1.0e7 + 0.125, 4.0, 8.0};
+  own.state.orientation = DirectX::XMFLOAT4{0.0f, 0.70710677f, 0.0f, 0.70710677f};
+  own.state.velocityMetresPerSecond = DirectX::XMFLOAT3{1.5f, -2.5f, 80.0f};
+  own.state.angularVelocityRadiansPerSecond = DirectX::XMFLOAT3{0.1f, 0.2f, -0.3f};
+  own.state.powerPool = 612.5f;
+  own.state.thrustPool = 17.0f;
+  own.state.thrusterActive = true;
+  own.state.cruise = Outpost::CruiseState::Cooldown;
+  own.state.cruiseTimerTicks = -140;
+  own.state.cruiseRamp = 0.27f;
+  return own;
+}
+
 [[nodiscard]] std::vector<Outpost::Message> OneOfEach()
 {
   return {Outpost::TickMessage{123'456'789'012ull},
@@ -52,7 +85,10 @@ namespace
           Outpost::ObjectiveMessage{2, {"Escort tug T-041 to dock", true}},
           Outpost::ResourceMessage{77, 1, {"Ore", -5, 60}},
           Outpost::ObjectSpawnMessage{SampleObject()},
-          Outpost::ObjectStateMessage{10, 12, SampleObject().pose}};
+          Outpost::ObjectStateMessage{10, 12, SampleObject().pose},
+          SampleInput(),
+          SampleOwnShip(),
+          Outpost::ShipMotionMessage{{7, 50, 0.4f, 33.0f, true, false, Outpost::CruiseState::Charging}}};
 }
 
 /// The decoded message; fails the test if the bytes do not decode.
@@ -177,13 +213,50 @@ public:
   {
     // The largest a datagram message can be: names at a generous 255 bytes.
     const std::string longName(255, 'n');
-    const std::vector<Outpost::Message> largest{Outpost::TickMessage{~0ull}, Outpost::ResourceMessage{~0ull, 0xFFFF, {longName, -1, -1}},
-                                                Outpost::ObjectStateMessage{~0ull, ~0u, SampleObject().pose}};
+    const std::vector<Outpost::Message> largest{
+      Outpost::TickMessage{~0ull}, Outpost::ResourceMessage{~0ull, 0xFFFF, {longName, -1, -1}},
+      Outpost::ObjectStateMessage{~0ull, ~0u, SampleObject().pose}, SampleInput(),
+      Outpost::ShipMotionMessage{{~0u, ~0ull, 1.0f, 1000.0f, true, true, Outpost::CruiseState::Cooldown}}};
     for (const Outpost::Message& message : largest)
     {
       Assert::IsTrue(Outpost::RouteOf(Outpost::KindOf(message)).delivery == Neuron::Delivery::Datagram);
       Assert::IsTrue(Outpost::Encode(message).size() <= Neuron::LoopbackTransport::MAX_DATAGRAM_BYTES);
     }
+  }
+
+  TEST_METHOD(AnOutOfRangeSwitchOrStateIsRefused)
+  {
+    // The last byte of a flight input holds its switches: four bits.
+    std::vector<std::uint8_t> input = Outpost::Encode(SampleInput());
+    input.back() = 16;
+    AssertError(input, Outpost::DecodeError::Malformed, L"a fifth switch bit");
+    // The last byte of a ship motion is its cruise state.
+    std::vector<std::uint8_t> motion =
+      Outpost::Encode(Outpost::ShipMotionMessage{{1, 1, 0.0f, 0.0f, false, true, Outpost::CruiseState::Off}});
+    motion.back() = 4;
+    AssertError(motion, Outpost::DecodeError::Malformed, L"cruise state 4 is not in the catalogue");
+  }
+
+  TEST_METHOD(FlightInputTravelsAsACommandDatagram)
+  {
+    Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::FlightInput) ==
+                   Outpost::Route{Neuron::Delivery::Datagram, Outpost::STREAM_COMMANDS});
+    Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::OwnShip) == Outpost::Route{Neuron::Delivery::Reliable, Outpost::STREAM_WORLD});
+    Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::ShipMotion).delivery == Neuron::Delivery::Datagram);
+  }
+
+  TEST_METHOD(TheOwnShipAndTheNewestMotionAreKept)
+  {
+    Outpost::WorldSnapshot world;
+    Outpost::ApplyMessage(SampleOwnShip(), world);
+    Assert::AreEqual(std::uint32_t{7}, world.ownShip);
+    Assert::IsTrue(world.ownShipState == SampleOwnShip().state);
+    Assert::AreEqual(std::uint64_t{1}, world.ownShipRevision);
+
+    Outpost::ApplyMessage(Outpost::ShipMotionMessage{{7, 50, 0.4f, 33.0f, false, true, Outpost::CruiseState::Off}}, world);
+    Outpost::ApplyMessage(Outpost::ShipMotionMessage{{7, 49, 1.0f, 80.0f, false, true, Outpost::CruiseState::Off}}, world);
+    Assert::AreEqual(std::size_t{1}, world.motions.size());
+    Assert::AreEqual(0.4f, world.FindMotion(7)->throttle, L"an older engine state is dropped");
   }
 
   TEST_METHOD(ASpawnAddsAnObjectAndRaisesTheRevision)
@@ -208,11 +281,12 @@ public:
     Outpost::ApplyMessage(Outpost::ObjectStateMessage{11, 12, moved}, world);
     Assert::IsTrue(world.objects[0].pose == moved);
     Assert::AreEqual(std::uint64_t{11}, world.objects[0].poseTick);
-    Assert::AreEqual(std::uint64_t{2}, world.objectsRevision);
+    Assert::AreEqual(std::uint64_t{1}, world.objectsRevision, L"a move is not a spawn: nothing is rebuilt");
+    Assert::AreEqual(std::uint64_t{1}, world.posesRevision);
 
     Outpost::ApplyMessage(Outpost::ObjectStateMessage{12, 12, moved}, world);
     Assert::AreEqual(std::uint64_t{12}, world.objects[0].poseTick, L"the same pose, newer, still advances the tick");
-    Assert::AreEqual(std::uint64_t{2}, world.objectsRevision, L"... without a rebuild");
+    Assert::AreEqual(std::uint64_t{1}, world.posesRevision, L"... without a move");
   }
 
   TEST_METHOD(StateForAnUnknownObjectChangesNothing)

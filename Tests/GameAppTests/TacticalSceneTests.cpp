@@ -53,6 +53,35 @@ public:
     Assert::AreEqual(2.0f, constants.voxelWorldSize);
   }
 
+  TEST_METHOD(TheRenderOriginSnapsToItsGridAroundTheCamera)
+  {
+    // ADR-010: the scene is drawn relative to a grid point near the camera, so that what is near the
+    // camera is near the render origin, wherever in the system the camera is.
+    const Outpost::WorldPosition atHome = Outpost::TacticalScene::RenderOriginFor(Outpost::WorldPosition{300.0, -200.0, 500.0});
+    Assert::AreEqual(0.0, atHome.x);
+    Assert::AreEqual(0.0, atHome.y);
+    Assert::AreEqual(0.0, atHome.z, L"500 m is less than half a cell");
+    const Outpost::WorldPosition farOut = Outpost::TacticalScene::RenderOriginFor(Outpost::WorldPosition{100'000.0, -100'000.0, 600.0});
+    Assert::AreEqual(100'352.0, farOut.x, L"98 cells");
+    Assert::AreEqual(-100'352.0, farOut.y, L"and the same below");
+    Assert::AreEqual(1024.0, farOut.z);
+  }
+
+  TEST_METHOD(NothingNearTheCameraIsFarFromTheRenderOrigin)
+  {
+    // So a float keeps sub-millimetre steps there: at 100 km out, a ship 2 m from the camera moving
+    // by a millimetre moves by a millimetre in render space.
+    for (const double camera : {0.0, 511.9, 512.1, 99'999.5, 1.0e6, -3.7e5})
+    {
+      const Outpost::WorldPosition position{camera, camera, camera};
+      const Outpost::WorldPosition origin = Outpost::TacticalScene::RenderOriginFor(position);
+      Assert::IsTrue(std::abs(camera - origin.x) <= Outpost::TacticalScene::ORIGIN_CELL_METRES / 2.0, std::to_wstring(camera).c_str());
+      const float before = static_cast<float>(camera + 2.0 - origin.x);
+      const float after = static_cast<float>(camera + 2.001 - origin.x);
+      Assert::AreEqual(0.001f, after - before, 1.0e-4f);
+    }
+  }
+
   TEST_METHOD(ClipToVoxBringsProjectedPointsBack)
   {
     // The pixel shader unprojects a pixel through clipToVox to build its ray, so a voxel-space

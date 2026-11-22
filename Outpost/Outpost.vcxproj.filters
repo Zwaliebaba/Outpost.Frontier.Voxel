@@ -139,6 +139,9 @@
     <CopyFileToFolders Include="..\Assets\Models\Tug.vox">
       <Filter>Assets\Models</Filter>
     </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Content\Bindings.txt">
+      <Filter>Assets\Content</Filter>
+    </CopyFileToFolders>
     <CopyFileToFolders Include="..\Assets\Content\Ships.txt">
       <Filter>Assets\Content</Filter>
     </CopyFileToFolders>

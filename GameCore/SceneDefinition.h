@@ -130,6 +130,7 @@ struct SceneDefinition
   std::vector<ObjectiveState> objectives;
   std::vector<ResourceDefinition> resources;
   std::string selectedShip; // instance name
+  std::string playerShip;   // instance name of the ship the player flies (plan slice 1)
 
   [[nodiscard]] const ModelAsset* FindModel(std::string_view _name) const noexcept;
   [[nodiscard]] ModelAsset* FindModel(std::string_view _name) noexcept;
