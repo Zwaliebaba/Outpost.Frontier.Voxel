@@ -856,6 +856,7 @@ FlightHudInput TacticalClient::MakeFlightHudInput(float _timeSeconds, float _fra
     std::snprintf(text, sizeof(text), "GO TO  %.0f M", std::sqrt(dx * dx + dy * dy + dz * dz));
     input.order = text;
   }
+  input.hazard = m_hazard;
   input.showHelp = m_showHelp;
   input.statusLine = StatusLine(_framesPerSecond);
   return input;
@@ -958,6 +959,9 @@ bool TacticalClient::Render(float _timeSeconds, float _interpolation, bool _capt
       shipKnown = true;
     }
   }
+  // The hazard where the ship is drawn (plan task 2.8). The warning is the client's own, from the
+  // zones both halves load (blueprint ch. 01 §3.11); what a hazard does to the ship is the server's.
+  m_hazard = shipKnown ? HazardWarningAt(m_system.zones, ship.position, Protects(m_universe.ownDock.phase)) : HazardWarning{};
 
   // The chase camera follows whether or not it is the view, so that switching back is seamless.
   if (predicted)

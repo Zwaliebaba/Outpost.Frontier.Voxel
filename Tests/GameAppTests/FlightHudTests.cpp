@@ -31,7 +31,7 @@ constexpr float EDGE_TOLERANCE_PIXELS = 2.0f;
 }
 
 /// Every part of the HUD at once: steering by the locked cursor at a corner, the thruster, cruise
-/// charging, the engine killed and an order.
+/// charging, the engine killed, an order, and a hazard that damages and blinds.
 [[nodiscard]] Outpost::FlightHudInput Busy(float _width, float _height, float _scale)
 {
   Outpost::FlightHudInput input;
@@ -52,6 +52,10 @@ constexpr float EDGE_TOLERANCE_PIXELS = 2.0f;
   input.cursor = DirectX::XMFLOAT2{_width, _height};
   input.order = "GO TO  1250 M";
   input.statusLine = "status";
+  input.hazard.zone = "FrigateBreach";
+  input.hazard.immersion = 1.0f;
+  input.hazard.damaging = true;
+  input.hazard.scannerLossPercent = 100;
   return input;
 }
 
@@ -70,12 +74,18 @@ public:
       Neuron::HudBatch batch;
       batch.Begin(&atlas);
       const Outpost::FlightHudLayout layout = Outpost::FlightHud{}.Build(batch, Busy(width, height, scale));
-      for (const Neuron::ScreenRect& rect : {layout.panel, layout.throttleBar, layout.powerBar, layout.thrustBar, layout.help})
+      for (const Neuron::ScreenRect& rect :
+           {layout.panel, layout.throttleBar, layout.powerBar, layout.thrustBar, layout.help, layout.warning})
       {
         Assert::IsTrue(Inside(rect, width, height), (L"a part leaves the screen at " + std::to_wstring(width)).c_str());
       }
       Assert::IsFalse(Overlap(layout.panel, layout.help), L"the help line is clear of the panel");
       Assert::IsFalse(Overlap(layout.powerBar, layout.thrustBar));
+      Assert::IsFalse(Overlap(layout.warning, layout.panel), L"the hazard warning is clear of the panel");
+      // The reticle's arms reach 1.8 of its 14-pixel radius from the centre of the screen.
+      const float reticle = 14.0f * scale * 1.8f;
+      const Neuron::ScreenRect aim{width * 0.5f - reticle, height * 0.5f - reticle, width * 0.5f + reticle, height * 0.5f + reticle};
+      Assert::IsFalse(Overlap(layout.warning, aim), L"and of the reticle");
       std::size_t vertices = 0;
       for (std::size_t layer = 0; layer < Neuron::HudBatch::LAYER_COUNT; ++layer)
       {
@@ -89,6 +99,43 @@ public:
       }
       Assert::IsTrue(vertices > 500, L"the HUD drew something");
     }
+  }
+
+  TEST_METHOD(TheHazardWarningIsDrawnOnlyInsideAHazard)
+  {
+    Neuron::FontAtlas atlas;
+    Assert::IsTrue(atlas.Build(Outpost::TacticalHud::Fonts(1.0f)));
+    const auto vertexCount = [&](const Outpost::FlightHudInput& _input, Outpost::FlightHudLayout& _outLayout)
+    {
+      Neuron::HudBatch batch;
+      batch.Begin(&atlas);
+      _outLayout = Outpost::FlightHud{}.Build(batch, _input);
+      std::size_t vertices = 0;
+      for (std::size_t layer = 0; layer < Neuron::HudBatch::LAYER_COUNT; ++layer)
+      {
+        vertices += batch.Vertices(layer).size();
+      }
+      return vertices;
+    };
+
+    Outpost::FlightHudInput clear = Busy(1920.0f, 1080.0f, 1.0f);
+    clear.hazard = Outpost::HazardWarning{};
+    Outpost::FlightHudLayout clearLayout;
+    const std::size_t clearVertices = vertexCount(clear, clearLayout);
+    Assert::AreEqual(0.0f, clearLayout.warning.right - clearLayout.warning.left, L"no warning outside a hazard");
+
+    // Scanner interference alone warns too: a zone need not damage to be worth knowing about.
+    Outpost::FlightHudInput blinded = clear;
+    blinded.hazard.zone = "Fog";
+    blinded.hazard.immersion = 0.5f;
+    blinded.hazard.scannerLossPercent = 30;
+    Outpost::FlightHudLayout blindedLayout;
+    const std::size_t blindedVertices = vertexCount(blinded, blindedLayout);
+    Assert::IsTrue(blindedLayout.warning.right > blindedLayout.warning.left, L"the warning has a place");
+    Assert::IsTrue(blindedVertices > clearVertices, L"and it was drawn");
+
+    Outpost::FlightHudLayout busyLayout;
+    Assert::IsTrue(vertexCount(Busy(1920.0f, 1080.0f, 1.0f), busyLayout) > blindedVertices, L"a damaging zone says so as well");
   }
 
   TEST_METHOD(ThePanelScalesWithTheWindow)

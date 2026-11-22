@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <numbers>
+#include <string>
 
 namespace Outpost
 {
@@ -19,6 +21,10 @@ namespace
 constexpr float PANEL_WIDTH = 520.0f;
 constexpr float PANEL_HEIGHT = 118.0f;
 constexpr float BAR_HEIGHT = 10.0f;
+constexpr float WARNING_WIDTH = 340.0f;
+constexpr float WARNING_HEIGHT = 62.0f;
+constexpr float WARNING_TOP = 84.0f;
+constexpr float WARNING_PULSES_PER_SECOND = 1.0f;
 
 [[nodiscard]] Neuron::ScreenRect Rect(float _x, float _y, float _width, float _height) noexcept
 {
@@ -48,6 +54,35 @@ void Bar(HudBatch& _batch, const Neuron::ScreenRect& _rect, float _share, std::u
   default:
     return _input.cruiseWish ? "CRUISE BLOCKED" : "";
   }
+}
+
+/// The hazard warning, top centre: red for a zone that damages, amber for one that only blinds. Its
+/// frame pulses; the words do not, so they stay readable.
+[[nodiscard]] Neuron::ScreenRect Warning(HudBatch& _batch, const FlightHudInput& _input)
+{
+  const float s = _input.scale;
+  const HazardWarning& hazard = _input.hazard;
+  const std::uint32_t color = hazard.damaging ? RED : AMBER;
+  const float width = std::min(WARNING_WIDTH * s, _input.width - 24.0f * s);
+  const float height = WARNING_HEIGHT * s;
+  const float x = _input.width * 0.5f - width * 0.5f;
+  const float y = WARNING_TOP * s;
+  const float pulse = 0.5f + 0.5f * std::sin(_input.timeSeconds * WARNING_PULSES_PER_SECOND * 2.0f * std::numbers::pi_v<float>);
+  _batch.Rect(x, y, width, height, PANEL_FILL);
+  _batch.Outline(x, y, width, height, std::max(1.0f, 1.5f * s), Neuron::FadeColor(color, 0.35f + 0.65f * pulse));
+  _batch.Rect(x, y, width, 3.0f * s, color);
+  _batch.Text(FontBodyStrong, _input.width * 0.5f, y + 10.0f * s, "HAZARD ZONE", color, Neuron::TextAlign::Center);
+
+  std::string effects = hazard.damaging ? "DANGER TO HULL" : "";
+  if (hazard.scannerLossPercent > 0)
+  {
+    char scanner[32]{};
+    std::snprintf(scanner, sizeof(scanner), "SCANNER -%d %%", hazard.scannerLossPercent);
+    effects += effects.empty() ? "" : "   ";
+    effects += scanner;
+  }
+  _batch.Text(FontSmall, _input.width * 0.5f, y + 36.0f * s, effects, TEXT, Neuron::TextAlign::Center);
+  return Rect(x, y, width, height);
 }
 
 } // namespace
@@ -143,6 +178,10 @@ FlightHudLayout FlightHud::Build(HudBatch& _batch, const FlightHudInput& _input)
   if (!_input.statusLine.empty())
   {
     _batch.Text(FontTiny, centerX, 10.0f * s, _input.statusLine, TEXT_DIM, Neuron::TextAlign::Center);
+  }
+  if (_input.hazard.Active())
+  {
+    layout.warning = Warning(_batch, _input);
   }
   return layout;
 }

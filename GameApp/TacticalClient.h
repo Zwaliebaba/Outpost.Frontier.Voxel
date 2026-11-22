@@ -8,6 +8,7 @@
 #include "FlightInput.h"
 #include "FontAtlas.h"
 #include "GraphicsDevice.h"
+#include "HazardWarning.h"
 #include "HudBatch.h"
 #include "InputScript.h"
 #include "LoopbackTransport.h"
@@ -148,6 +149,11 @@ public:
   {
     return m_flightInput;
   }
+  /// The hazard where the own ship was last drawn, for the flight HUD and the smoke report.
+  [[nodiscard]] const HazardWarning& Hazard() const noexcept
+  {
+    return m_hazard;
+  }
 
   /// Records and submits one frame, drawn _interpolation of the way from the previous tick to the
   /// last one. Returns false when the device was lost.
@@ -227,7 +233,8 @@ private:
   std::uint64_t m_seenOwnShipRevision = 0;
   std::optional<DockCommand> m_pendingDock; // asked by a key or the services panel, sent with the next tick
   std::uint64_t m_seenDockRevision = 0;
-  SystemContent m_system; // the stations' names, for the docked view
+  SystemContent m_system; // the stations' names for the docked view, and the zones for the hazard warning
+  HazardWarning m_hazard; // where the own ship was last drawn (plan task 2.8)
   DockedView m_dockedView;
   Neuron::ControlFocus m_controls;
   DockedSection m_section = DockedSection::Services;
