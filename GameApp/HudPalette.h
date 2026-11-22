@@ -24,4 +24,8 @@ inline constexpr std::uint32_t RED = Neuron::Rgba(240, 72, 58);
 inline constexpr std::uint32_t GREEN = Neuron::Rgba(76, 232, 112);
 inline constexpr std::uint32_t BAR_TRACK = Neuron::Rgba(30, 52, 62, 220);
 
+// The UI sprites are authored at twice the 1080-line reference (Assets/Ui/Sprites.txt, ADR-023),
+// so at HUD scale 1 one texel covers half a pixel.
+inline constexpr float SPRITE_PIXELS_PER_TEXEL = 0.5f;
+
 } // namespace Outpost

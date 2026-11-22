@@ -1,5 +1,6 @@
 #include "TacticalHud.h"
 
+#include "ButtonSkin.h"
 #include "HudPalette.h"
 
 #include <algorithm>
@@ -49,10 +50,37 @@ namespace
   return text;
 }
 
-/// A panel with its corners cut at 45 degrees; _cuts is top-left, top-right, bottom-right, bottom-left.
-void Panel(HudBatch& _batch, float _x, float _y, float _w, float _h, std::array<float, 4> _cuts, std::uint32_t _fill, std::uint32_t _edge,
-           float _edgeWidth)
+[[nodiscard]] bool HasPanelSprites(const HudBatch& _batch) noexcept
 {
+  return _batch.FindSprite("Panel.Fill") != nullptr && _batch.FindSprite("Panel.Edge") != nullptr;
+}
+
+/// A panel over the rectangle. With the sprite manifest loaded it is a nine-slice (ADR-023): the
+/// standard panel, PANEL_FILL edged with PANEL_EDGE, is Panel.Frame as authored, and any other
+/// pairing is Panel.Fill and Panel.Edge tinted with its colours. Without the manifest it is the
+/// polygon with its corners cut at 45 degrees; _cuts is top-left, top-right, bottom-right,
+/// bottom-left. Returns whether the panel was drawn from sprites.
+bool Panel(HudBatch& _batch, float _scale, float _x, float _y, float _w, float _h, std::array<float, 4> _cuts, std::uint32_t _fill,
+           std::uint32_t _edge, float _edgeWidth)
+{
+  const float texelScale = _scale * SPRITE_PIXELS_PER_TEXEL;
+  const Neuron::Sprite* frame = _batch.FindSprite("Panel.Frame");
+  if (frame != nullptr && _fill == PANEL_FILL && _edge == PANEL_EDGE && _edgeWidth > 0.0f)
+  {
+    _batch.NineSlice(*frame, _x, _y, _w, _h, Neuron::WHITE, texelScale);
+    return true;
+  }
+  const Neuron::Sprite* fill = _batch.FindSprite("Panel.Fill");
+  const Neuron::Sprite* edge = _batch.FindSprite("Panel.Edge");
+  if (fill != nullptr && edge != nullptr)
+  {
+    _batch.NineSlice(*fill, _x, _y, _w, _h, _fill, texelScale);
+    if (_edgeWidth > 0.0f)
+    {
+      _batch.NineSlice(*edge, _x, _y, _w, _h, _edge, texelScale);
+    }
+    return true;
+  }
   const std::array<XMFLOAT2, 8> points = {XMFLOAT2{_x + _cuts[0], _y},           XMFLOAT2{_x + _w - _cuts[1], _y},
                                           XMFLOAT2{_x + _w, _y + _cuts[1]},      XMFLOAT2{_x + _w, _y + _h - _cuts[2]},
                                           XMFLOAT2{_x + _w - _cuts[2], _y + _h}, XMFLOAT2{_x + _cuts[3], _y + _h},
@@ -62,6 +90,7 @@ void Panel(HudBatch& _batch, float _x, float _y, float _w, float _h, std::array<
   {
     _batch.PolyLine(points, true, _edgeWidth, _edge);
   }
+  return false;
 }
 
 void Bar(HudBatch& _batch, float _x, float _y, float _w, float _h, float _fraction, std::uint32_t _color)
@@ -313,11 +342,18 @@ void TacticalHud::DrawMarkers(HudBatch& _batch, const HudInput& _input) const
 void TacticalHud::DrawTitle(HudBatch& _batch, const HudInput& _input) const
 {
   const float s = _input.scale;
-  const std::array<XMFLOAT2, 5> shape = {XMFLOAT2{0.0f, 0.0f}, XMFLOAT2{372.0f * s, 0.0f}, XMFLOAT2{372.0f * s, 46.0f * s},
-                                         XMFLOAT2{348.0f * s, 70.0f * s}, XMFLOAT2{0.0f, 70.0f * s}};
-  _batch.Polygon(shape, PANEL_FILL_DEEP);
-  _batch.Line(0.0f, 70.0f * s, 348.0f * s, 70.0f * s, 1.5f, PANEL_EDGE_DIM);
-  _batch.Line(348.0f * s, 70.0f * s, 372.0f * s, 46.0f * s, 1.5f, PANEL_EDGE_DIM);
+  if (HasPanelSprites(_batch))
+  {
+    Panel(_batch, s, 0.0f, 0.0f, 372.0f * s, 70.0f * s, {}, PANEL_FILL_DEEP, PANEL_EDGE_DIM, 1.5f);
+  }
+  else
+  {
+    const std::array<XMFLOAT2, 5> shape = {XMFLOAT2{0.0f, 0.0f}, XMFLOAT2{372.0f * s, 0.0f}, XMFLOAT2{372.0f * s, 46.0f * s},
+                                           XMFLOAT2{348.0f * s, 70.0f * s}, XMFLOAT2{0.0f, 70.0f * s}};
+    _batch.Polygon(shape, PANEL_FILL_DEEP);
+    _batch.Line(0.0f, 70.0f * s, 348.0f * s, 70.0f * s, 1.5f, PANEL_EDGE_DIM);
+    _batch.Line(348.0f * s, 70.0f * s, 372.0f * s, 46.0f * s, 1.5f, PANEL_EDGE_DIM);
+  }
   Hexagon(_batch, 38.0f * s, 35.0f * s, 23.0f * s, 2.2f * s, ACCENT, true, Rgba(12, 40, 52, 230));
   CubeGlyph(_batch, 38.0f * s, 35.0f * s, 11.0f * s, 2.0f * s, ACCENT);
   _batch.Text(FontTitle, 74.0f * s, 9.0f * s, "OUTPOST: FRONTIER", TEXT);
@@ -336,8 +372,15 @@ void TacticalHud::DrawObjectives(HudBatch& _batch, const HudInput& _input) const
   const float y = 94.0f * s;
   const float rowHeight = 30.0f * s;
   const float h = 48.0f * s + rowHeight * static_cast<float>(objectives.size()) + 6.0f * s;
-  Panel(_batch, x, y, 262.0f * s, h, {0.0f, 14.0f * s, 0.0f, 14.0f * s}, PANEL_FILL, PANEL_EDGE_DIM, 1.2f);
-  _batch.Rect(x, y, 3.0f * s, h, ACCENT);
+  if (Panel(_batch, s, x, y, 262.0f * s, h, {0.0f, 14.0f * s, 0.0f, 14.0f * s}, PANEL_FILL, PANEL_EDGE_DIM, 1.2f))
+  {
+    // Inside the rounded corners, so the accent does not stand proud of the frame.
+    _batch.Rect(x + 2.0f * s, y + 8.0f * s, 3.0f * s, h - 16.0f * s, ACCENT);
+  }
+  else
+  {
+    _batch.Rect(x, y, 3.0f * s, h, ACCENT);
+  }
   _batch.Text(FontHeading, x + 14.0f * s, y + 9.0f * s, "OBJECTIVES", ACCENT);
   for (std::size_t i = 0; i < objectives.size(); ++i)
   {
@@ -382,9 +425,16 @@ void TacticalHud::DrawResources(HudBatch& _batch, const HudInput& _input) const
   }
   const float h = 50.0f * s;
   const float x0 = _input.width - total - 28.0f * s;
-  Panel(_batch, x0, 0.0f, total + 28.0f * s, h, {0.0f, 0.0f, 0.0f, 20.0f * s}, PANEL_FILL_DEEP, PANEL_EDGE_DIM, 0.0f);
-  _batch.Line(x0 + 20.0f * s, h, _input.width, h, 1.5f, PANEL_EDGE_DIM);
-  _batch.Line(x0, h - 20.0f * s, x0 + 20.0f * s, h, 1.5f, PANEL_EDGE_DIM);
+  if (HasPanelSprites(_batch))
+  {
+    Panel(_batch, s, x0, 0.0f, total + 28.0f * s, h, {}, PANEL_FILL_DEEP, PANEL_EDGE_DIM, 1.5f);
+  }
+  else
+  {
+    Panel(_batch, s, x0, 0.0f, total + 28.0f * s, h, {0.0f, 0.0f, 0.0f, 20.0f * s}, PANEL_FILL_DEEP, PANEL_EDGE_DIM, 0.0f);
+    _batch.Line(x0 + 20.0f * s, h, _input.width, h, 1.5f, PANEL_EDGE_DIM);
+    _batch.Line(x0, h - 20.0f * s, x0 + 20.0f * s, h, 1.5f, PANEL_EDGE_DIM);
+  }
   float x = x0 + 26.0f * s;
   for (std::size_t i = 0; i < labels.size(); ++i)
   {
@@ -405,7 +455,7 @@ void TacticalHud::DrawRadar(HudBatch& _batch, const HudInput& _input) const
   const float size = 224.0f * s;
   const float x = 10.0f * s;
   const float y = _input.height - size - 10.0f * s;
-  Panel(_batch, x, y, size, size, {18.0f * s, 18.0f * s, 18.0f * s, 18.0f * s}, PANEL_FILL, PANEL_EDGE, 1.5f);
+  Panel(_batch, s, x, y, size, size, {18.0f * s, 18.0f * s, 18.0f * s, 18.0f * s}, PANEL_FILL, PANEL_EDGE, 1.5f);
   const float cx = x + size * 0.5f;
   const float cy = y + size * 0.5f;
   const float radius = size * 0.4f;
@@ -488,7 +538,7 @@ void TacticalHud::DrawShipPanel(HudBatch& _batch, const HudInput& _input, HudLay
   {
     return;
   }
-  Panel(_batch, x0, y0, w, h, {14.0f * s, 14.0f * s, 14.0f * s, 14.0f * s}, PANEL_FILL, PANEL_EDGE, 1.5f);
+  Panel(_batch, s, x0, y0, w, h, {14.0f * s, 14.0f * s, 14.0f * s, 14.0f * s}, PANEL_FILL, PANEL_EDGE, 1.5f);
   const ShipState* ship = _input.selected;
   if (ship == nullptr)
   {
@@ -554,12 +604,32 @@ void TacticalHud::DrawShipPanel(HudBatch& _batch, const HudInput& _input, HudLay
     return;
   }
   _batch.Rect(dividerB, y0 + 16.0f * s, 1.0f, h - 32.0f * s, PANEL_EDGE_DIM);
+  // With the sprite manifest the actions are buttons of the shared control skin (ADR-023), and
+  // repair and build take their icons from the mask atlas. Nothing here is interactive yet.
+  Neuron::ButtonSkin skin;
+  std::string skinError;
+  const bool skinned = _batch.Sprites() != nullptr && skin.Resolve(*_batch.Sprites(), "Button", {}, skinError);
+  Neuron::ButtonStyle style;
+  style.scale = s;
+  style.texelScale = s * SPRITE_PIXELS_PER_TEXEL;
+  style.iconColor.fill(ACCENT);
   for (int i = 0; i < 5; ++i)
   {
     const float bx = dividerB + 22.0f * s + static_cast<float>(i) * spacing;
     const float by = y0 + (h - button) * 0.5f;
-    Panel(_batch, bx, by, button, button, {6.0f * s, 6.0f * s, 6.0f * s, 6.0f * s}, Rgba(10, 34, 44, 230), PANEL_EDGE_DIM, 1.2f);
-    ActionIcon(_batch, i, bx + button * 0.5f, by + button * 0.5f, button * 0.62f, ACCENT);
+    if (!skinned)
+    {
+      Panel(_batch, s, bx, by, button, button, {6.0f * s, 6.0f * s, 6.0f * s, 6.0f * s}, Rgba(10, 34, 44, 230), PANEL_EDGE_DIM, 1.2f);
+      ActionIcon(_batch, i, bx + button * 0.5f, by + button * 0.5f, button * 0.62f, ACCENT);
+      continue;
+    }
+    Neuron::ButtonContent content;
+    content.icon = i == 3 ? _batch.FindSprite("Icon.Repair") : (i == 4 ? _batch.FindSprite("Icon.Build") : nullptr);
+    static_cast<void>(skin.Draw(_batch, Neuron::ScreenRect{bx, by, bx + button, by + button}, Neuron::ControlState::Idle, content, style));
+    if (content.icon == nullptr)
+    {
+      ActionIcon(_batch, i, bx + button * 0.5f, by + button * 0.5f, button * 0.62f, ACCENT);
+    }
   }
 }
 
@@ -570,7 +640,7 @@ void TacticalHud::DrawBuildPanel(HudBatch& _batch, const HudInput& _input, HudLa
   const float h = 190.0f * s;
   const float x = _input.width - w - 10.0f * s;
   const float y = _input.height - h - 10.0f * s;
-  Panel(_batch, x, y, w, h, {14.0f * s, 0.0f, 14.0f * s, 0.0f}, PANEL_FILL, PANEL_EDGE, 1.5f);
+  Panel(_batch, s, x, y, w, h, {14.0f * s, 0.0f, 14.0f * s, 0.0f}, PANEL_FILL, PANEL_EDGE, 1.5f);
 
   const std::array<const char*, 3> tabs = {"BUILD", "DESIGN", "FLEET"};
   const float tabWidth = w / 3.0f;
@@ -592,8 +662,16 @@ void TacticalHud::DrawBuildPanel(HudBatch& _batch, const HudInput& _input, HudLa
   {
     const float sx = x + 14.0f * s + static_cast<float>(i) * (slot + slotGap);
     const float sy = y + 56.0f * s;
-    Panel(_batch, sx, sy, slot, slot, {8.0f * s, 0.0f, 8.0f * s, 0.0f}, Rgba(12, 30, 40, 235), PANEL_EDGE_DIM, 1.2f);
-    _batch.RectGradient(sx + 1.0f, sy + slot * 0.55f, slot - 2.0f, slot * 0.45f - 1.0f, Rgba(64, 226, 236, 0), ACCENT_SOFT);
+    if (const Neuron::Sprite* inset = _batch.FindSprite("Panel.Inset"); inset != nullptr)
+    {
+      _batch.NineSlice(*inset, sx, sy, slot, slot, Neuron::WHITE, s * SPRITE_PIXELS_PER_TEXEL);
+      _batch.RectGradient(sx + 3.0f * s, sy + slot * 0.55f, slot - 6.0f * s, slot * 0.45f - 5.0f * s, Rgba(64, 226, 236, 0), ACCENT_SOFT);
+    }
+    else
+    {
+      Panel(_batch, s, sx, sy, slot, slot, {8.0f * s, 0.0f, 8.0f * s, 0.0f}, Rgba(12, 30, 40, 235), PANEL_EDGE_DIM, 1.2f);
+      _batch.RectGradient(sx + 1.0f, sy + slot * 0.55f, slot - 2.0f, slot * 0.45f - 1.0f, Rgba(64, 226, 236, 0), ACCENT_SOFT);
+    }
     if (i < _input.buildLabels.size())
     {
       _layout.buildSlots.push_back(Neuron::ScreenRect{sx + 4.0f * s, sy + 4.0f * s, sx + slot - 4.0f * s, sy + slot - 4.0f * s});

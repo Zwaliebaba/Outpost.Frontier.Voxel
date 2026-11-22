@@ -1,9 +1,11 @@
 #pragma once
 
+#include "DdsFile.h"
 #include "GpuTypes.h"
 #include "GraphicsDevice.h"
 #include "VoxelMesher.h"
 
+#include <array>
 #include <cstdint>
 #include <span>
 #include <string>
@@ -27,14 +29,23 @@ class Renderer
 public:
   static constexpr std::uint32_t SHADOW_MAP_SIZE = 4096;
   static constexpr std::uint32_t MATERIAL_COUNT = 256;
+  /// HUD texture slots (ADR-023): slot 0 is the font atlas, the others hold sprite atlases. A HUD
+  /// vertex names its slot, so text, solid fills and sprites share one draw per layer.
+  static constexpr std::uint32_t HUD_TEXTURE_COUNT = 4;
+  static constexpr std::uint32_t HUD_FONT_SLOT = 0;
 
   [[nodiscard]] bool Initialize(GraphicsDevice& _device, std::string& _outError);
 
   /// The per-palette-index material table every voxel draw reads.
   [[nodiscard]] bool SetMaterials(std::span<const GpuMaterial, MATERIAL_COUNT> _materials);
 
-  /// Replaces the HUD atlas (R8 coverage, white texel block for solid fills).
+  /// Replaces the HUD font atlas in slot 0 (R8 coverage, white texel block for solid fills).
   [[nodiscard]] bool SetHudAtlas(std::uint32_t _width, std::uint32_t _height, std::span<const std::uint8_t> _coverage);
+
+  /// Uploads a static sprite atlas into HUD texture slot 1 to HUD_TEXTURE_COUNT - 1, after checking
+  /// that the device samples its format as a 2D texture. Block-compressed rows are laid out by the
+  /// device's copyable footprint. On failure the slot keeps what it held and _outError says why.
+  [[nodiscard]] bool SetHudTexture(std::uint32_t _slot, const DdsImage& _image, std::string& _outError);
 
   [[nodiscard]] GpuVoxelModel UploadModel(const VoxelSurface& _surface);
 
@@ -65,6 +76,7 @@ private:
   [[nodiscard]] bool CreatePipelines();
   [[nodiscard]] bool CreateShadowMap();
   [[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS PushArray(const void* _data, std::uint64_t _bytes);
+  void CreateHudView(std::uint32_t _slot, ID3D12Resource* _texture, DXGI_FORMAT _format);
 
   GraphicsDevice* m_device = nullptr;
   ComPtr<ID3D12RootSignature> m_rootSignature;
@@ -73,11 +85,11 @@ private:
   ComPtr<ID3D12PipelineState> m_linePipeline;
   ComPtr<ID3D12PipelineState> m_effectPipeline;
   ComPtr<ID3D12PipelineState> m_hudPipeline;
-  ComPtr<ID3D12DescriptorHeap> m_shaderHeap; // [0] shadow map, [1] HUD atlas
+  ComPtr<ID3D12DescriptorHeap> m_shaderHeap; // [0] shadow map, [1 + slot] HUD textures
   ComPtr<ID3D12DescriptorHeap> m_shadowDsvHeap;
   ComPtr<ID3D12Resource> m_shadowMap;
   ComPtr<ID3D12Resource> m_materials;
-  ComPtr<ID3D12Resource> m_hudAtlas;
+  std::array<ComPtr<ID3D12Resource>, HUD_TEXTURE_COUNT> m_hudTextures;
   std::uint32_t m_shaderDescriptorSize = 0;
   D3D12_GPU_VIRTUAL_ADDRESS m_frameConstants = 0;
   D3D12_VIEWPORT m_viewport{};

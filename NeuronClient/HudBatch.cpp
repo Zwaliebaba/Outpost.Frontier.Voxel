@@ -15,9 +15,10 @@ std::uint32_t FadeColor(std::uint32_t _color, float _alpha) noexcept
   return (_color & 0x00ffffffu) | (static_cast<std::uint32_t>(std::lround(alpha)) << 24);
 }
 
-void HudBatch::Begin(const FontAtlas* _atlas) noexcept
+void HudBatch::Begin(const FontAtlas* _atlas, const SpriteSheet* _sprites) noexcept
 {
   m_atlas = _atlas;
+  m_sprites = _sprites;
   for (auto& layer : m_vertices)
   {
     layer.clear();
@@ -27,9 +28,88 @@ void HudBatch::Begin(const FontAtlas* _atlas) noexcept
   m_whiteV = _atlas != nullptr ? _atlas->WhiteV() : 0.0f;
 }
 
-void HudBatch::Push(float _x, float _y, float _u, float _v, std::uint32_t _color)
+void HudBatch::Push(float _x, float _y, float _u, float _v, std::uint32_t _color, std::uint32_t _sampling)
 {
-  m_vertices[m_layer].push_back(GpuHudVertex{XMFLOAT2{_x, _y}, XMFLOAT2{_u, _v}, _color, 0});
+  m_vertices[m_layer].push_back(GpuHudVertex{XMFLOAT2{_x, _y}, XMFLOAT2{_u, _v}, _color, _sampling});
+}
+
+void HudBatch::PushQuad(float _x0, float _y0, float _x1, float _y1, float _u0, float _v0, float _u1, float _v1, std::uint32_t _color,
+                        std::uint32_t _sampling)
+{
+  if (_x1 <= _x0 || _y1 <= _y0)
+  {
+    return;
+  }
+  Push(_x0, _y0, _u0, _v0, _color, _sampling);
+  Push(_x1, _y0, _u1, _v0, _color, _sampling);
+  Push(_x0, _y1, _u0, _v1, _color, _sampling);
+  Push(_x1, _y0, _u1, _v0, _color, _sampling);
+  Push(_x1, _y1, _u1, _v1, _color, _sampling);
+  Push(_x0, _y1, _u0, _v1, _color, _sampling);
+}
+
+const Sprite* HudBatch::FindSprite(std::string_view _name) const noexcept
+{
+  return m_sprites != nullptr ? m_sprites->Find(_name) : nullptr;
+}
+
+namespace
+{
+
+[[nodiscard]] std::uint32_t SamplingOf(const Sprite& _sprite) noexcept
+{
+  return (_sprite.textureSlot & HUD_SLOT_MASK) | (_sprite.kind == SpriteKind::Color ? HUD_SAMPLE_COLOR : 0u);
+}
+
+} // namespace
+
+void HudBatch::Image(const Sprite& _sprite, float _x, float _y, float _width, float _height, std::uint32_t _tint)
+{
+  PushQuad(_x, _y, _x + _width, _y + _height, _sprite.u0, _sprite.v0, _sprite.u1, _sprite.v1, _tint, SamplingOf(_sprite));
+}
+
+void HudBatch::NineSlice(const Sprite& _sprite, float _x, float _y, float _width, float _height, std::uint32_t _tint, float _scale)
+{
+  if (!_sprite.nineSlice)
+  {
+    Image(_sprite, _x, _y, _width, _height, _tint);
+    return;
+  }
+  if (_width <= 0.0f || _height <= 0.0f)
+  {
+    return;
+  }
+  const NineSliceMargins& m = _sprite.slices;
+  float left = static_cast<float>(m.left) * _scale;
+  float right = static_cast<float>(m.right) * _scale;
+  float top = static_cast<float>(m.top) * _scale;
+  float bottom = static_cast<float>(m.bottom) * _scale;
+  if (left + right > _width)
+  {
+    const float shrink = _width / (left + right);
+    left *= shrink;
+    right *= shrink;
+  }
+  if (top + bottom > _height)
+  {
+    const float shrink = _height / (top + bottom);
+    top *= shrink;
+    bottom *= shrink;
+  }
+  const std::array<float, 4> xs = {std::round(_x), std::round(_x + left), std::round(_x + _width - right), std::round(_x + _width)};
+  const std::array<float, 4> ys = {std::round(_y), std::round(_y + top), std::round(_y + _height - bottom), std::round(_y + _height)};
+  const std::array<float, 4> us = {_sprite.u0, _sprite.u0 + static_cast<float>(m.left) * _sprite.texelU,
+                                   _sprite.u1 - static_cast<float>(m.right) * _sprite.texelU, _sprite.u1};
+  const std::array<float, 4> vs = {_sprite.v0, _sprite.v0 + static_cast<float>(m.top) * _sprite.texelV,
+                                   _sprite.v1 - static_cast<float>(m.bottom) * _sprite.texelV, _sprite.v1};
+  const std::uint32_t sampling = SamplingOf(_sprite);
+  for (std::size_t row = 0; row < 3; ++row)
+  {
+    for (std::size_t column = 0; column < 3; ++column)
+    {
+      PushQuad(xs[column], ys[row], xs[column + 1], ys[row + 1], us[column], vs[row], us[column + 1], vs[row + 1], _tint, sampling);
+    }
+  }
 }
 
 void HudBatch::Rect(float _x, float _y, float _width, float _height, std::uint32_t _color)

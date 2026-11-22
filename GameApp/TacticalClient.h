@@ -15,6 +15,7 @@
 #include "Renderer.h"
 #include "SceneAssets.h"
 #include "ShipArchetype.h"
+#include "SpriteSheet.h"
 #include "TacticalHud.h"
 #include "TacticalScene.h"
 #include "WorldSnapshot.h"
@@ -175,6 +176,7 @@ private:
   TacticalHud m_hud;
   FlightHud m_flightHud;
   Neuron::FontAtlas m_fonts;
+  Neuron::SpriteSheet m_sprites;
   Neuron::HudBatch m_batch;
   Neuron::OrbitCamera m_camera;
   Neuron::ChaseCamera m_chase;

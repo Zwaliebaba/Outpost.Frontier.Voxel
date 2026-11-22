@@ -101,7 +101,7 @@ bool Renderer::Initialize(GraphicsDevice& _device, std::string& _outError)
   }
   D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
   heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-  heapDesc.NumDescriptors = 2;
+  heapDesc.NumDescriptors = 1 + HUD_TEXTURE_COUNT;
   heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
   if (FAILED(_device.Device()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_shaderHeap))))
   {
@@ -114,7 +114,12 @@ bool Renderer::Initialize(GraphicsDevice& _device, std::string& _outError)
     _outError = "shadow map creation failed";
     return false;
   }
-  // A one-texel white atlas until the HUD supplies its own, so the descriptor is never empty.
+  // Sprite slots start as null views, which sample as zero, until the game supplies its atlases.
+  for (std::uint32_t slot = 0; slot < HUD_TEXTURE_COUNT; ++slot)
+  {
+    CreateHudView(slot, nullptr, DXGI_FORMAT_R8G8B8A8_UNORM);
+  }
+  // A white atlas until the HUD supplies its own, so solid fills draw from the first frame.
   const std::uint8_t white[16] = {255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255};
   if (!SetHudAtlas(4, 4, white))
   {
@@ -128,7 +133,7 @@ bool Renderer::CreateRootSignature()
 {
   D3D12_DESCRIPTOR_RANGE1 textureRange{};
   textureRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-  textureRange.NumDescriptors = 2;
+  textureRange.NumDescriptors = 1 + HUD_TEXTURE_COUNT;
   textureRange.BaseShaderRegister = 2;
   textureRange.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE | D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE;
   textureRange.OffsetInDescriptorsFromTableStart = 0;
@@ -150,7 +155,7 @@ bool Renderer::CreateRootSignature()
     parameters[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
   }
 
-  // s0: the shadow map's comparison sampler. s1: linear clamp for the HUD atlas.
+  // s0: the shadow map's comparison sampler. s1: linear clamp for the HUD textures.
   const D3D12_STATIC_SAMPLER_DESC samplers[2] = {{.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
                                                   .AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
                                                   .AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
@@ -327,22 +332,60 @@ bool Renderer::SetHudAtlas(std::uint32_t _width, std::uint32_t _height, std::spa
     return false;
   }
   m_device->WaitIdle();
-  ComPtr<ID3D12Resource> atlas = m_device->CreateStaticTexture(DXGI_FORMAT_R8_UNORM, _width, _height, 1, _coverage.data());
+  ComPtr<ID3D12Resource> atlas = m_device->CreateStaticTexture(DXGI_FORMAT_R8_UNORM, _width, _height, _coverage);
   if (!atlas)
   {
     return false;
   }
-  m_hudAtlas = atlas;
-  m_hudAtlas->SetName(L"HudAtlas");
+  atlas->SetName(L"HudFontAtlas");
+  m_hudTextures[HUD_FONT_SLOT] = atlas;
+  CreateHudView(HUD_FONT_SLOT, atlas.Get(), DXGI_FORMAT_R8_UNORM);
+  return true;
+}
+
+bool Renderer::SetHudTexture(std::uint32_t _slot, const DdsImage& _image, std::string& _outError)
+{
+  if (_slot == HUD_FONT_SLOT || _slot >= HUD_TEXTURE_COUNT)
+  {
+    _outError = "HUD texture slot " + std::to_string(_slot) + " is not a sprite slot";
+    return false;
+  }
+  if (!IsSupportedDdsFormat(_image.format) || _image.payload.size() != DdsPayloadBytes(_image.format, _image.width, _image.height))
+  {
+    _outError = "HUD texture payload does not match its format and size";
+    return false;
+  }
+  D3D12_FEATURE_DATA_FORMAT_SUPPORT support{_image.format, D3D12_FORMAT_SUPPORT1_NONE, D3D12_FORMAT_SUPPORT2_NONE};
+  constexpr D3D12_FORMAT_SUPPORT1 REQUIRED = D3D12_FORMAT_SUPPORT1_TEXTURE2D | D3D12_FORMAT_SUPPORT1_SHADER_SAMPLE;
+  if (FAILED(m_device->Device()->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &support, sizeof(support))) ||
+      (support.Support1 & REQUIRED) != REQUIRED)
+  {
+    _outError = std::string("the device cannot sample ") + DdsFormatName(_image.format) + " as a 2D texture";
+    return false;
+  }
+  m_device->WaitIdle();
+  ComPtr<ID3D12Resource> texture = m_device->CreateStaticTexture(_image.format, _image.width, _image.height, _image.payload);
+  if (!texture)
+  {
+    _outError = "HUD texture upload failed";
+    return false;
+  }
+  texture->SetName(L"HudSpriteAtlas");
+  m_hudTextures[_slot] = texture;
+  CreateHudView(_slot, texture.Get(), _image.format);
+  return true;
+}
+
+void Renderer::CreateHudView(std::uint32_t _slot, ID3D12Resource* _texture, DXGI_FORMAT _format)
+{
   D3D12_SHADER_RESOURCE_VIEW_DESC srv{};
-  srv.Format = DXGI_FORMAT_R8_UNORM;
+  srv.Format = _format;
   srv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
   srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
   srv.Texture2D.MipLevels = 1;
   D3D12_CPU_DESCRIPTOR_HANDLE handle = m_shaderHeap->GetCPUDescriptorHandleForHeapStart();
-  handle.ptr += m_shaderDescriptorSize;
-  m_device->Device()->CreateShaderResourceView(m_hudAtlas.Get(), &srv, handle);
-  return true;
+  handle.ptr += static_cast<SIZE_T>(1 + _slot) * m_shaderDescriptorSize;
+  m_device->Device()->CreateShaderResourceView(_texture, &srv, handle);
 }
 
 GpuVoxelModel Renderer::UploadModel(const VoxelSurface& _surface)

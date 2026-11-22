@@ -4,6 +4,9 @@
     <Filter Include="Axes">
       <UniqueIdentifier>{C71B787B-5FDD-57DF-BEF4-4756E59BEEF5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Dds">
+      <UniqueIdentifier>{9A4C7E21-36B8-4F5D-8E12-C0B7D45A61F9}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Meshing">
       <UniqueIdentifier>{6545ABC0-1DD3-531D-B59A-B41F0DBCB48F}</UniqueIdentifier>
     </Filter>
@@ -23,6 +26,9 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="DdsFileTests.cpp">
+      <Filter>Dds</Filter>
+    </ClCompile>
     <ClCompile Include="ModelAxesTests.cpp">
       <Filter>Axes</Filter>
     </ClCompile>

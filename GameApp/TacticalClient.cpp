@@ -81,6 +81,20 @@ bool TacticalClient::Initialize(Neuron::GraphicsDevice& _device, const std::file
   {
     return false;
   }
+  // The UI atlases and their manifest (ADR-023), read from the asset root like all content.
+  std::vector<Neuron::DdsImage> atlases;
+  if (!Neuron::LoadSpriteSheet(_assetRoot / "Ui" / "Sprites.txt", m_sprites, atlases, _outError))
+  {
+    return false;
+  }
+  for (std::size_t i = 0; i < atlases.size(); ++i)
+  {
+    if (!m_renderer.SetHudTexture(m_sprites.Atlases()[i].textureSlot, atlases[i], _outError))
+    {
+      _outError.insert(0, ": ").insert(0, m_sprites.Atlases()[i].file);
+      return false;
+    }
+  }
   // The client reads the content it needs to fly its own ship itself (ADR-009): the archetypes for
   // its flight model and chase camera, and the bindings for its commands.
   if (!LoadShipContent(_assetRoot / "Content" / "Ships.txt", m_ships, _outError))
@@ -842,7 +856,7 @@ bool TacticalClient::Render(float _timeSeconds, float _interpolation, bool _capt
   m_scene.Render(m_renderer, view, selected, _timeSeconds);
   m_device->Timestamp();
 
-  m_batch.Begin(&m_fonts);
+  m_batch.Begin(&m_fonts, &m_sprites);
   Neuron::FrameConstants hudFrame{};
   hudFrame.viewportSize = view.viewportSize;
   hudFrame.exposure = 1.0f;
