@@ -2,7 +2,7 @@
 
 Operating instructions for every agent (and human) writing code in this repository. **Read this before generating a single line.**
 
-*Outpost:Frontier* is a greenfield C++23 game and a hobby project with one developer: a Direct3D 12 game for Windows, built with MSVC and MSBuild. This file is about **how code is written here** — naming, layout, build settings and the standing rules of the codebase. It is not the design: what the game *is* belongs in a design document that does not exist yet.
+*Outpost:Frontier* is a greenfield C++23 game and a hobby project with one developer: a Direct3D 12 game for Windows, built with MSVC and MSBuild. This file is about **how code is written here** — naming, layout, build settings and the standing rules of the codebase. It is not the design: what the game *is* belongs in [`Design/GameDesign.md`](Design/GameDesign.md).
 
 **The tree is young.** It holds the first runnable sample — `Outpost.Frontier.slnx`, the projects in §2, the asset generator and the assets it wrote — and that code was written to these rules from its first line. Nothing below is a target to migrate towards; it describes the code as it must be written. There is no legacy here and nothing is grandfathered, so a whole-tree run of any checker comes back clean, and a finding is a defect in the change that introduced it.
 
@@ -14,7 +14,9 @@ Operating instructions for every agent (and human) writing code in this reposito
 2. **`Design/ADR/`** — engineering decisions taken while building, one file per decision (§6). Numbering started at `ADR-001` in this repository and does not continue another's.
 3. **The surrounding code** — for anything neither of the above covers, match the file you are editing.
 
-A design document, when there is one, sits alongside rather than above: it says what is built and this file says how. Until it exists there is no design authority, and a task that needs a design answer asks the owner and gets the answer written down before the code is.
+**The design sits alongside rather than above.** [`Design/GameDesign.md`](Design/GameDesign.md) says what is built and this file says how. It is at concept depth: the pillars, the systems and where each comes from, a build order, and a table of decisions that are still open (its §13). Where it is silent, or the answer is one of those open decisions, a task that needs a design answer asks the owner and gets the answer written into that document before the code is.
+
+**The design has one outside source, and it reaches this tree through that document only.** It adapts the concept blueprint in the sibling repository `Outpost.Frontier` (`Blueprint.md` and `blueprint/`), and for every system it marks as kept, the blueprint chapter is the specification until a chapter here supersedes it. That repository's code, its ADRs and its migration plan bind nothing here, the same as the two trees above.
 
 If a rule here conflicts with a habit from another codebase, this file wins. If you think a rule is wrong or your task cannot be done without deviating, **say so in your report — never deviate silently.**
 
@@ -242,7 +244,7 @@ python Build\RunClangTidy.py          # needs a Developer PowerShell (INCLUDE mu
 
 **R12 — Graphics is Direct3D 12.** COM lifetimes are RAII from the first line — a raw `AddRef`/`Release` pair in new code is a defect, not a style. How the renderer is shaped — passes, render targets, resolution, scaling, window style, multisampling, text — is not settled here; it is a design and engineering decision taken when the renderer is built, and recorded as an ADR (§6).
 
-**R13 is deliberately unused.** The rule numbers line up with `Nomad-Commander`, so that a rule cited by number means the same thing in both trees. R13 there is a rule about how that game ships, which is design, and it did not come across. Do not fill the gap; a new rule takes the next free number (R18 onward, below).
+**R13 is deliberately unused.** The rule numbers line up with `Nomad-Commander`, so that a rule cited by number means the same thing in both trees. R13 there is a rule about how that game ships, which is design, and it did not come across. Do not fill the gap; a new rule takes the next free number (R25 onward, below).
 
 **R14 — No third-party dependencies and no package manager.** The Windows SDK and the MSVC standard library, and nothing else. If you believe something is unavoidable, propose it in your report with what it buys and what it costs — do not add it. This is a closed list, not a high bar.
 
@@ -256,11 +258,27 @@ For Direct3D that list means what the Windows SDK installs: `d3d12.h`, `dxgi1_6.
 
 **What `/arch:AVX2` costs is named rather than waved at.** It sets an AVX2 floor — Intel Haswell (2013) and AMD Excavator (2015); an older CPU meets an illegal instruction, not a message. And it lets MSVC contract `a*b+c` into an FMA even under `/fp:precise`, which changes float results, and may contract differently at different optimisation levels. Float code that must produce bit-identical results across builds cannot rely on it.
 
-**If the game needs a deterministic core** — a simulation that replays, lockstep networking, a result that must reproduce from a seed — that is a decision recorded as an ADR, and inside that core: no `float` where a fixed-point or integer quantity will do (hold a fraction as integer hundredths and say so in the name, R6), no iteration over an unordered container whose order reaches the outcome, no wall-clock time (a tick is the clock, and wall time maps to ticks at one seam), and randomness from a pinned PRNG with a recorded seed — never `std::random_device`, never a hash of an address.
+**If the game needs a deterministic core** — a simulation that replays, lockstep networking, a result that must reproduce from a seed — that is a decision recorded as an ADR, and inside that core: no `float` where a fixed-point or integer quantity will do (hold a fraction as integer hundredths and say so in the name, R6), no iteration over an unordered container whose order reaches the outcome, no wall-clock time (a tick is the clock, and wall time maps to ticks at one seam), and randomness from a pinned PRNG with a recorded seed — never `std::random_device`, never a hash of an address. The design names one such core, the voxel mask; R22 is its rule.
 
 **R17 — A string you do not write is `const`.** `/permissive-` turns on `/Zc:strictStrings`: a literal is `const char[N]` and will not bind to `char*`. The fix is `const` on the signature, never a cast at the call site — a `const_cast` here is a lie about a literal that lives in a read-only section, and writing through it is a real crash rather than a theoretical one.
 
-**R18 and up are reserved.** A design document does not only say what to build; some of what it says constrains how the code is *shaped* — which state a decision routine may read, what an emitted event has to carry with it, where tuning values live. Those are conformance rules with a design source, and they are written here as R18 onward when there is a design to cite, without renumbering anything above. Until then, do not invent one and do not import one from another tree: a rule with no source behind it is a rule nobody can settle an argument with.
+**R18 to R24 come from the design.** A design document does not only say what to build; some of what it says constrains how the code is *shaped*. [`Design/GameDesign.md`](Design/GameDesign.md) §8 lists what keeps multiplayer possible in a game that ships single-player first, and the constraints in that list that shape code are the seven rules below. They bind from the first line of game code, because the split they protect costs little now and a great deal to retrofit. The design says *authority* and *presentation*; in this tree those are the server half (`GameLogic` on `NeuronServer`) and the client half (`GameApp` on `NeuronClient`). The constraints that are game behaviour — what an absent player's outpost does, what a saved character holds — stay in the design. All seven are review's to enforce.
+
+**R18 — Client and server exchange data and never call each other.** `GameApp` does not reference `GameLogic` and `GameLogic` does not reference `GameApp` (§2); what crosses between them is a type defined in `GameCore`, handed over by the executable. Today that is `WorldSnapshot`, passed by reference. When commands flow up and object state flows down, they are messages from one catalogue in `GameCore`, and the in-process hand-over and a network transport carry the same ones. A fact one half needs from the other is a message, never a pointer.
+
+**R19 — The server decides; the client asks.** Damage, purchases, construction, mining yields, docking, standing and discovery are computed in `GameLogic` from commands. `GameApp` shows results and may predict them for display, but nothing it computes becomes true by being reported. The one exception the design grants is the motion of the player's own ship, which the client integrates from input and the server checks against the shared flight model.
+
+**R20 — The tick is the clock.** Game rules advance in whole ticks of `Neuron::TickClock` and read no wall time: no `QueryPerformanceCounter`, no `std::chrono` clock and no frame time in `GameLogic`, or in the simulation code `GameCore` shares with the client. Wall time maps to ticks at one seam, in the executable. A duration in a rule is a count of ticks or a quantity per tick, and says so in its name (R6).
+
+**R21 — Game code does not ask which mode it is in.** There is no "is this single player" test. Single player is the same server hosted in the player's process, so a rule that would differ between the modes is really a rule about something else — who owns an object, whether its owner is present — and is written against that. For the same reason no rule depends on pausing, on reloading a save, or on the client seeing a whole system.
+
+**R22 — A voxel mask changes only by applying an event the server issued, and the arithmetic is integer.** Construction, damage, repair and mining all change which of a model's voxels are present (the design's §3.3), and client and server must arrive at the same voxels from the same event. That makes the mask the deterministic core R16 describes, and R16's conditions hold inside it: no `float` in deciding which voxels go, no unordered iteration that reaches the result, randomness only from a seed the event carries. The code that applies an event is one function in one library, used by both halves. The ADR that fixes the event and the arithmetic is due before the first code that carves a voxel.
+
+**R23 — Game state belongs to a character or to the world, never to the process.** No game state lives in a global, a static or a singleton: not a lock, not a switch a mission set, not what a player has discovered or owns. Each is a field of a character's record or of the world's, so that a second player is a second record and not a rewrite. `g_` and `sm_` remain for what is truly per-process, such as the device.
+
+**R24 — Content is named by a stable text identifier.** A record refers to another record, a model, a socket or a text by name, and every reference is resolved and checked when content loads; an unknown key or a dangling name is an error with the file and line, as it already is for `Scene.txt`. Nothing persistent and nothing on the wire identifies content by load order or by an index into a table.
+
+**R25 and up are reserved.** A new rule takes the next free number, without renumbering anything above. A rule with a design source cites the section it comes from. Do not invent one without a source and do not import one from another tree: a rule with no source behind it is a rule nobody can settle an argument with.
 
 ---
 
@@ -268,7 +286,7 @@ For Direct3D that list means what the Windows SDK installs: `d3d12.h`, `dxgi1_6.
 
 **Stay in scope.** Do what the task asks. Adjacent code that offends you is not part of the task — note it in your report and move on. Unrequested "while I was in there" changes are the main way a young tree acquires regressions it cannot bisect.
 
-**Record decisions as ADRs.** An engineering decision — a file format, a wire protocol, a subsystem's shape, an exception to a rule here — goes in `Design/ADR/` as one file per decision, numbered in order from `ADR-001-<slug>.md`, stating the context, the decision and what it forecloses, in the same commit as the change that implements it. Figures in an ADR are measured, not estimated — if you quote one, say how you measured it. A decision nobody wrote down gets re-litigated every few months by whoever forgot it.
+**Record decisions as ADRs.** An engineering decision — a file format, a wire protocol, a subsystem's shape, an exception to a rule here — goes in `Design/ADR/` as one file per decision, numbered in order from `ADR-001-<slug>.md`, stating the context, the decision and what it forecloses, in the same commit as the change that implements it. Figures in an ADR are measured, not estimated — if you quote one, say how you measured it. A decision nobody wrote down gets re-litigated every few months by whoever forgot it. The design lists the decisions it forces and the slice each is due before ([`Design/GameDesign.md`](Design/GameDesign.md) §9); those are ADRs like any other.
 
 **Write the checkers early.** `Build/CheckFormat.py`, `Build/CheckProjectFiles.py` and `Build/RunClangTidy.py` are what §1, §2 and §3 lean on, and **none of them exists yet.** Until each one lands, the rules it would enforce are review's problem — which is exactly why they are early work rather than housekeeping.
 
@@ -292,4 +310,6 @@ For Direct3D that list means what the Windows SDK installs: `d3d12.h`, `dxgi1_6.
 - [ ] It builds Debug|x64, and every test suite runs and passes.
 - [ ] If it touches rendering, input, audio or presentation: it was **run**, not just built.
 - [ ] `Design/ADR/` has a new file if the change *was* a decision.
+- [ ] If it touches game rules: R18–R24 hold — only `GameCore` data crosses between client and server, the server decides, no wall time, no mode test, no game state in a global.
+- [ ] If the task needed a design answer: it is written in `Design/GameDesign.md`, not only in the code.
 - [ ] Your report states plainly what you verified, what you assumed, and any rule here you had to bend.

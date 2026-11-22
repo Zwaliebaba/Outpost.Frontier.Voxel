@@ -1,8 +1,8 @@
 # Outpost:Frontier — game design concept
 
-**Status:** draft for the owner's review · **Date:** 2026-11-22
+**Status:** concept, adopted as this repository's design; the decisions in §13 are open · **Date:** 2026-11-22
 
-This is the design document AGENTS.md says does not exist yet, at concept depth. It says what the game is, which systems it is made of, where each comes from, and in what order to build them. It does not fix numbers, write the per-system rules or invent a setting; those follow once this direction is accepted.
+This is the design document AGENTS.md refers to, at concept depth. It says what the game is, which systems it is made of, where each comes from, and in what order to build them. It does not fix numbers, write the per-system rules or invent a setting; those follow once this direction is accepted.
 
 **Source.** The concept blueprint in the sibling repository `Outpost.Frontier`: `Blueprint.md` and `blueprint/00` to `12`. It is cited here as "the Frontier blueprint", by chapter and section, and it stays the reference for every rule this document marks as kept. In this document a *build plan* is the cyan wireframe of something not yet built (what `Scene.txt` calls `style=blueprint`), so that "blueprint" always means the source.
 
@@ -195,7 +195,7 @@ Every owned ship is a blueprint NPC ship definition (ch. 06 §3.6): an archetype
 
 ## 8. Rules that keep multiplayer possible
 
-Single player ships first. These constraints apply from the first slice, because the Frontier blueprint is explicit that the split costs little early and a great deal late. Each is a candidate for AGENTS.md R18 onward once this document is accepted.
+Single player ships first. These constraints apply from the first slice, because the Frontier blueprint is explicit that the split costs little early and a great deal late. Constraints 1 to 7 and 9 shape code and are written in AGENTS.md as R18 to R24; 8 and 10 are game behaviour and stay here.
 
 1. **One message catalogue.** Presentation and authority exchange messages and never call each other. The in-process transport and a network transport carry the same messages. `GameApp` does not reference `GameLogic`; that edge is already forbidden.
 2. **The authority decides.** Damage, purchases, builds, mining yields, docking, standing and discovery are computed by the authority from commands. The original's trust in the player's machine (ch. 11 §3.8) is not copied.
