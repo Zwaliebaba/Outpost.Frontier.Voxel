@@ -18,7 +18,7 @@ struct Effect
   float4 colorA;
   float4 colorB;
   uint flags;
-  float3 padding;
+  float3 animation;
 };
 
 StructuredBuffer<Effect> g_effects : register(t0);

@@ -3,6 +3,7 @@
 #include "VoxFile.h"
 
 #include <algorithm>
+#include <array>
 
 #include "CppUnitTest.h"
 
@@ -87,6 +88,41 @@ namespace
 TEST_CLASS(VoxFileTests)
 {
 public:
+  TEST_METHOD(AuthoringMaterialsAndAlphaRoundTrip)
+  {
+    Neuron::VoxModel model(1, 1, 1);
+    model.Set(0, 0, 0, 225);
+    Neuron::VoxPalette palette{};
+    palette[225] = Neuron::Rgba8{75, 162, 235, 80};
+    const std::vector<Neuron::VoxMaterial> materials{{224, {{"_type", "_emit"}, {"_flux", "3"}}},
+                                                     {225, {{"_type", "_glass"}, {"_weight", "0.68627451"}}}};
+    const auto bytes = Neuron::WriteVox(model, palette, materials);
+    Neuron::VoxDocument document;
+    Assert::IsTrue(Neuron::ReadVox(bytes, document) == Neuron::VoxError::None);
+    Assert::IsTrue(document.materials == materials);
+    Assert::IsTrue(document.palette == palette);
+    Assert::IsTrue(Neuron::WriteVox(document.model, document.palette, document.materials) == bytes);
+  }
+
+  TEST_METHOD(RejectsMalformedMaterialDictionaries)
+  {
+    Neuron::VoxModel model(1, 1, 1);
+    Neuron::VoxPalette palette{};
+    const Neuron::VoxMaterial material{225, {{"_type", "_glass"}}};
+    const std::vector<Neuron::VoxMaterial> duplicates{material, material};
+    Neuron::VoxDocument document;
+    Assert::IsTrue(Neuron::ReadVox(Neuron::WriteVox(model, palette, duplicates), document) == Neuron::VoxError::InvalidMaterial);
+    const std::vector<Neuron::VoxMaterial> badKey{{225, {{"_type", "_glass"}, {"_type", "_emit"}}}};
+    Assert::IsTrue(Neuron::ReadVox(Neuron::WriteVox(model, palette, badKey), document) == Neuron::VoxError::InvalidMaterial);
+    auto bytes = Neuron::WriteVox(model, palette, std::span{&material, 1});
+    const std::array<std::uint8_t, 4> tag{'M', 'A', 'T', 'L'};
+    const auto found = std::search(bytes.begin(), bytes.end(), tag.begin(), tag.end());
+    Assert::IsTrue(found != bytes.end());
+    const auto offset = static_cast<std::size_t>(found - bytes.begin());
+    bytes[offset + 20] = 255; // the first key claims more bytes than the bounded MATL content
+    Assert::IsTrue(Neuron::ReadVox(bytes, document) == Neuron::VoxError::InvalidMaterial);
+  }
+
   TEST_METHOD(WriteThenReadRoundTripsModelAndPalette)
   {
     Neuron::VoxModel model(5, 4, 3);

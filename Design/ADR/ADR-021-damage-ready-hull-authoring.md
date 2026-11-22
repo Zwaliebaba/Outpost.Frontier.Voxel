@@ -2,6 +2,9 @@
 
 **Status:** accepted for asset authoring · **Date:** 2026-11-22
 
+**Asset refresh:** ADR-022 adds signal/glazing materials and inspection recesses; measured counts
+and hashes below refer to the refreshed sources.
+
 ## Context
 
 The owner requested damage-ready hull assets. The frigate's existing VOX contains a permanently
@@ -55,7 +58,7 @@ through ADR-020 are already written or reserved by the implementation plan.
 
 Measured by `Tools/ValidateHullAssets.py` over the committed sources: five connected intact masters,
 43 nonempty in-bounds regions, 5,063 absent frigate cells and exact damaged/repair reconstruction.
-A three-cell-wide full-grid cut at VOX Y=70..72 detaches 38,145 cells from the frigate's core.
+A three-cell-wide full-grid cut at VOX Y=70..72 detaches 38,109 cells from the frigate's core.
 Counts and hashes are recorded in `Design/HullReview/HullValidation.json`; previews are offline
 Blender renders of these assets, not evidence of a live gameplay damage implementation.
 

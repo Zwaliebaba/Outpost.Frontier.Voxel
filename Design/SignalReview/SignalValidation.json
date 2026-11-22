@@ -1,0 +1,174 @@
+{
+  "paletteSha256": "afec7a9fbc00aabad89d1c8e20987cc11216208262c3797e2ad3517a916aee86",
+  "strobeIndex": 224,
+  "glassIndex": 225,
+  "glassRgba": [
+    75,
+    162,
+    235,
+    80
+  ],
+  "strobePeriodSeconds": 1.5,
+  "models": {
+    "AsteroidMajor": {
+      "sha256": "6bbe2263d6221ce9ca8c591c5be1f3b37045fc806f5c6920c096b7de1965fb08",
+      "strobeCells": 0,
+      "glazingCells": 0
+    },
+    "AsteroidSmallA": {
+      "sha256": "1d15d5b4d2c3220c6cf6e8710c8d6a53767a6ac418c8165b0a92f3dda2a5c915",
+      "strobeCells": 0,
+      "glazingCells": 0
+    },
+    "AsteroidSmallB": {
+      "sha256": "1d18b839755723a8ef4d5a686c26880d1d218fa84a621501fa16f9c8141981b6",
+      "strobeCells": 0,
+      "glazingCells": 0
+    },
+    "AsteroidSmallC": {
+      "sha256": "2173eab6d1a2f1465f0a8e9df0c8f36355b5ee14d44de7d14073ae848238f0c6",
+      "strobeCells": 0,
+      "glazingCells": 0
+    },
+    "CargoModule": {
+      "sha256": "8596c76391e3b1a8e61f275a7014cc688147fd71cdce8ce08151b82523b17687",
+      "strobeCells": 2,
+      "glazingCells": 0
+    },
+    "CommandBlock": {
+      "sha256": "cd2ab43ba4a33e01e676bb5fd86722aa41d8effe22b7f3f008232cae30e330e6",
+      "strobeCells": 4,
+      "glazingCells": 40
+    },
+    "DebrisA": {
+      "sha256": "d1ef6df8893ec803ce527e3a1a4c1bf615df9dca5b9c97a6417079d68e212b21",
+      "strobeCells": 0,
+      "glazingCells": 0
+    },
+    "DebrisB": {
+      "sha256": "364754f8a59285787a6fe90ad689cee923b61e63e32cbc54f66aff4258b04de1",
+      "strobeCells": 0,
+      "glazingCells": 0
+    },
+    "DebrisC": {
+      "sha256": "1174f67f1750595cc8afdf6f3632b7d1297d816c86f5498de1e35879521876e9",
+      "strobeCells": 0,
+      "glazingCells": 0
+    },
+    "DockingCollar": {
+      "sha256": "a94c9e6346c5318a81867b71629d9f74f51c8fcdfac0cd82e008474769675c26",
+      "strobeCells": 2,
+      "glazingCells": 0
+    },
+    "EscortLancer": {
+      "sha256": "6b859722b9e7eb5420e3d53016cced422573933b08e1ac8d879fbff5451821d2",
+      "strobeCells": 2,
+      "glazingCells": 36
+    },
+    "EscortLancerIntact": {
+      "sha256": "9b4d56d7b07045677d7eb5fda6d2189ca5225bdd7a81e08fa6c575456f99ca6b",
+      "strobeCells": 2,
+      "glazingCells": 36
+    },
+    "EscortTalon": {
+      "sha256": "4260153011667f79bab69d222b4f7181351e66575be7087af7953fc5d3653168",
+      "strobeCells": 2,
+      "glazingCells": 24
+    },
+    "EscortTalonIntact": {
+      "sha256": "9a0b127c5d829c81236b572b8e5fa6afe90f5da813b54c12497f8d8f5ad9c02d",
+      "strobeCells": 2,
+      "glazingCells": 24
+    },
+    "Frigate": {
+      "sha256": "bd5545bf2723d3fa710adabb0662bfce284cdaaa3bb4060f02a0ce34a036f662",
+      "strobeCells": 4,
+      "glazingCells": 16
+    },
+    "FrigateIntact": {
+      "sha256": "b6e1d085300b1ef3b43e3a731ac5e943fff06d790d33494c247282a78c054aff",
+      "strobeCells": 4,
+      "glazingCells": 16
+    },
+    "Habitat": {
+      "sha256": "4d42d1204975fcd62b1a46ca9f74c3074d69f695ca316f21a271f281d06a980c",
+      "strobeCells": 4,
+      "glazingCells": 47
+    },
+    "HangarBay": {
+      "sha256": "63a9a2c4e1e68abf846f1e3beb82dbf13bbb694a376989a6eb0432482a616430",
+      "strobeCells": 4,
+      "glazingCells": 7
+    },
+    "HangarSection": {
+      "sha256": "4cff21209f0c6fb3487cd3e15020c5e594ce48d29937d9c75faba08d362c1e8b",
+      "strobeCells": 4,
+      "glazingCells": 10
+    },
+    "RadiatorArray": {
+      "sha256": "78193a141d052beef32e76ab1aea4621e3d1bbc0a0b5afff29da218c1966cda5",
+      "strobeCells": 4,
+      "glazingCells": 0
+    },
+    "Raider": {
+      "sha256": "5944dde4cb025a10aa1daa4bc0766cf01ebe4c7a189e9f71d65339d04f3ef191",
+      "strobeCells": 2,
+      "glazingCells": 138
+    },
+    "RaiderIntact": {
+      "sha256": "23d153ad79b5013fb07a4966c853384ce9f5d469f82414cca16795e7f936819f",
+      "strobeCells": 2,
+      "glazingCells": 138
+    },
+    "Reactor": {
+      "sha256": "43a556028c04a7ca87bd4e3a0b9746f8071cb74d0788ab882c08f47c736bb612",
+      "strobeCells": 4,
+      "glazingCells": 0
+    },
+    "Refinery": {
+      "sha256": "4d6f9ec03b6b83d57aa502912022d8ba17684d5144030272161aaf49c4be816c",
+      "strobeCells": 4,
+      "glazingCells": 12
+    },
+    "ShieldGenerator": {
+      "sha256": "b6933e5180751aff5c158b9717ab35d8ecbd3f47c18516f1fcebcd52aa6f4c8b",
+      "strobeCells": 4,
+      "glazingCells": 5
+    },
+    "TankCluster": {
+      "sha256": "4f721b269a8cb564bb481155f8bcbfa5f7203c987bb7a8b8be02635a2c638121",
+      "strobeCells": 2,
+      "glazingCells": 0
+    },
+    "TrussBeam": {
+      "sha256": "b5b31620832a2e11e7a8a1f2cafc5bba6a6925f0026c9418d4ce1175f128d8a6",
+      "strobeCells": 4,
+      "glazingCells": 0
+    },
+    "TrussTower": {
+      "sha256": "57d65272c2efffce0f8eae38dd78dc4297cf90a1fbea564ac05f2af520de3e27",
+      "strobeCells": 4,
+      "glazingCells": 0
+    },
+    "Tug": {
+      "sha256": "c2a548673cbf397b6bc220e11dc94e4f53c81e9be83e8a82c932c6aff257b5d7",
+      "strobeCells": 2,
+      "glazingCells": 9
+    },
+    "TugIntact": {
+      "sha256": "36bd3100d698912c1808640be7dd0bc27f98d1184ae4020c9674f37b5b2dd7d4",
+      "strobeCells": 2,
+      "glazingCells": 9
+    },
+    "TurretPlatform": {
+      "sha256": "c92e027fdec89b7558babc660334149c7acc61cbc8bd3cbce8742ed0ec7dca0a",
+      "strobeCells": 4,
+      "glazingCells": 0
+    },
+    "Yard": {
+      "sha256": "3f144945c78d663509c1cb76e884ad436676f00f65ebeec55206f9e61c867856",
+      "strobeCells": 4,
+      "glazingCells": 29
+    }
+  }
+}

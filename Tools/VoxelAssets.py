@@ -13,6 +13,42 @@ from pathlib import Path
 
 import numpy as np
 
+STROBE_YELLOW, WINDOW_BLUE = 224, 225
+AUTHOR_MATERIALS = {
+  STROBE_YELLOW: {"_type": "_emit", "_weight": "1", "_emit": "1", "_flux": "3", "_rough": "0.2"},
+  WINDOW_BLUE: {"_type": "_glass", "_weight": "0.68627451", "_trans": "0.68627451",
+                "_rough": "0.05", "_ior": "0.3", "_att": "0"},
+}
+
+
+def ReadMaterials(_path):
+  """Read MATL authoring dictionaries without changing the public grid/palette API."""
+  data = Path(_path).read_bytes()
+  materials = {}
+  offset = 20
+  while offset < len(data):
+    kind, size, children = struct.unpack_from("<4sII", data, offset)
+    start = offset + 12
+    if kind == b"MATL":
+      index, count = struct.unpack_from("<II", data, start)
+      at = start + 8
+      properties = {}
+      for _ in range(count):
+        strings = []
+        for _ in range(2):
+          length = struct.unpack_from("<I", data, at)[0]
+          at += 4
+          strings.append(data[at:at + length].decode("utf-8"))
+          at += length
+        if strings[0] in properties or at > start + size:
+          raise ValueError("Invalid MATL dictionary")
+        properties[strings[0]] = strings[1]
+      if index in materials or at != start + size:
+        raise ValueError("Duplicate or malformed MATL")
+      materials[index] = properties
+    offset = start + size + children
+  return materials
+
 
 def ReadVox(_path):
   data = Path(_path).read_bytes()
@@ -67,7 +103,7 @@ def ReadVox(_path):
   return cells, palette
 
 
-def WriteVox(_path, _cells, _palette):
+def WriteVox(_path, _cells, _palette, _materials=None):
   if len(_palette) != 1024 or not all(1 <= size <= 256 for size in _cells.shape):
     raise ValueError("Invalid palette or grid")
   # np.nonzero on Z,Y,X gives the engine writer's deterministic Z,Y,X order.
@@ -80,6 +116,17 @@ def WriteVox(_path, _cells, _palette):
   children = Chunk(b"SIZE", struct.pack("<3I", *_cells.shape))
   children += Chunk(b"XYZI", struct.pack("<I", len(x)) + records)
   children += Chunk(b"RGBA", _palette)
+  if _materials is None:
+    # These development tools author this game's assets. Older palettes remain valid inputs.
+    first = (STROBE_YELLOW - 1) * 4
+    _materials = AUTHOR_MATERIALS if _palette[first:first + 4] == bytes((255, 224, 48, 255)) else {}
+  for index, properties in _materials.items():
+    content = struct.pack("<II", index, len(properties))
+    for key, value in properties.items():
+      for text in (key, value):
+        encoded = text.encode("utf-8")
+        content += struct.pack("<I", len(encoded)) + encoded
+    children += Chunk(b"MATL", content)
   Path(_path).write_bytes(b"VOX " + struct.pack("<I", 150) + Chunk(b"MAIN", b"", children))
 
 
@@ -109,7 +156,10 @@ def MeshFaces(_cells):
       edge = [slice(None)] * 3
       edge[axis] = -1 if direction == 1 else 0
       neighbor[tuple(edge)] = False
-      visible = np.where(occupied & ~neighbor, _cells, 0)
+      neighborColors = np.roll(_cells, -direction, axis=axis)
+      neighborColors[tuple(edge)] = 0
+      throughGlass = (neighborColors == WINDOW_BLUE) & (_cells != WINDOW_BLUE)
+      visible = np.where(occupied & (~neighbor | throughGlass), _cells, 0)
       for position in range(_cells.shape[axis]):
         mask = np.take(visible, position, axis=axis)
         remainingAxes = [i for i in range(3) if i != axis]

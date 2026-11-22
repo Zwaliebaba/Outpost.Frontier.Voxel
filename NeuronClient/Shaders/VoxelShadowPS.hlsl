@@ -4,6 +4,11 @@
 
 float main(VoxelVertexOut _input) : SV_DepthGreaterEqual
 {
+  // Glazing transmits the key light; the opaque structure behind it still casts a shadow.
+  if (g_materials[_input.packed >> 24].albedo.a < 1.0)
+  {
+    discard;
+  }
   float3 origin;
   float3 direction;
   PixelRayVox(_input.position.xy, origin, direction);

@@ -19,7 +19,7 @@ from VoxelAssets import ReadVox, SurfaceCount
 ROOT = Path(__file__).resolve().parent.parent
 HULL_NAMES = ("Frigate", "EscortLancer", "EscortTalon", "Tug", "Raider")
 FUNCTIONS = {"core", "power", "engine", "sensor", "weapon", "shield", "clamp", "cargo", "structure", "atmosphere"}
-PALETTE_SHA256 = "644fe81285ae70806c873eda5aa05d08c20cab026e8c464f8f87a2da2c3c6977"
+PALETTE_SHA256 = "afec7a9fbc00aabad89d1c8e20987cc11216208262c3797e2ad3517a916aee86"
 
 
 def HashFile(_path):

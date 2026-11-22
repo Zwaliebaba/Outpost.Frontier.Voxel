@@ -160,6 +160,9 @@ Cut outright, each named as affordable in `Blueprint.md` §9 or in its chapter's
 ### 7.1 Voxel structure and damage
 
 - **Materials.** Each palette family (ADR-002) is a material with a strength, a mass and a yield. Armour is a stronger outer material, not a divisor. This sits beside the emissive table in `GameCore/Palette`.
+- **Signal and window appearance.** [SignalMaterials.md](SignalMaterials.md) defines yellow
+  double-flash strobes and blue glazing (ADR-022). Glass remains occupied structure; presentation
+  transparency and light timing do not change material strength or the authoritative voxel mask.
 - **Modules.** A module is a named region of a model's voxels with a function: reactor, engines, weapons mount, sensors, hangar, refinery. Its health is the share of its voxels present. Below one threshold it works at a reduced rate, below a second it stops. The engine rule of the blueprint (ch. 02 §3.4: no nozzle left, no thrust) becomes the general rule.
 - **The core.** Every ship and station has one core module. A ship whose core stops is destroyed and breaks up; this replaces "hull at zero". "Hull" on the HUD is the share of structural voxels present.
 - **Prepared hull sources.** [DamageReadyHulls.md](DamageReadyHulls.md) lists five intact masters,

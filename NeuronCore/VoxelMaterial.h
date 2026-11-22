@@ -13,7 +13,8 @@ struct VoxelMaterial
   float emissionR; // linear radiance added on top of lit albedo
   float emissionG;
   float emissionB;
-  float glowRadius; // world-space radius of the additive glow sprite placed on such voxels; 0 = none
+  float glowRadius;                 // world-space radius of the additive glow sprite placed on such voxels; 0 = none
+  float strobePeriodSeconds = 0.0f; // 0 = steady emission; otherwise two short flashes per period
 };
 
 using VoxelMaterialTable = std::array<VoxelMaterial, 256>;

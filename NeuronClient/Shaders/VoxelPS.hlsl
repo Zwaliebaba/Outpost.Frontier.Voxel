@@ -4,6 +4,18 @@
 
 #include "Voxel.hlsli"
 
+// Stable screen-door coverage retains the opaque depth path and needs no object sorting.
+// Every glass layer uses the same pattern, so stacked panes do not become solid blue.
+void ApplyCoverage(float2 _pixel, float _coverage)
+{
+  const uint BAYER[16] = {0u, 8u, 2u, 10u, 12u, 4u, 14u, 6u, 3u, 11u, 1u, 9u, 15u, 7u, 13u, 5u};
+  uint2 cell = uint2(_pixel) & 3u;
+  if (_coverage < (float(BAYER[cell.y * 4u + cell.x]) + 0.5) / 16.0)
+  {
+    discard;
+  }
+}
+
 struct PixelOut
 {
   float4 color : SV_Target0;
@@ -54,6 +66,7 @@ PixelOut main(VoxelVertexOut _input)
   uint colorIndex = _input.packed >> 24;
   uint face = FaceIndex(normalVox);
   Material material = g_materials[colorIndex];
+  ApplyCoverage(_input.position.xy, material.albedo.a);
 
   float3 worldPosition = mul(float4(hitVox, 1.0), g_voxToWorld).xyz;
   float3 normal = normalize(mul(float4(normalVox, 0.0), g_voxToWorld).xyz);
@@ -88,7 +101,7 @@ PixelOut main(VoxelVertexOut _input)
   float specular = pow(saturate(dot(normal, halfVector)), 24.0) * 0.18 * keyDiffuse;
 
   float3 color = albedo * light * occlusion * bevel + g_keyLightColor * specular;
-  color += material.emission.rgb * g_emissionScale * lerp(0.85, 1.0, bevel);
+  color += material.emission.rgb * (g_emissionScale * StrobeBrightness(material.emission.w)) * lerp(0.85, 1.0, bevel);
   color += g_rimColor * (pow(1.0 - saturate(dot(normal, toEye)), 3.0) * g_rimStrength);
 
   // Distance haze separates the foreground ships from the shipyard and the rock behind it.

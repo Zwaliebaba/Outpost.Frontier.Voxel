@@ -69,8 +69,10 @@ void Ramp(Neuron::VoxPalette& _palette, int _first, int _count, const Color3& _d
   Ramp(palette, BREACH_EMBER, 4, {170, 40, 14}, {236, 104, 34});
   Ramp(palette, SIGNAL_CYAN, 4, {40, 200, 230}, {150, 245, 255});
 
-  // 224..255: a deep charcoal-to-slate ramp, likewise unassigned.
+  // 226..255 remain unassigned. Keep their existing shades stable.
   Ramp(palette, 224, 32, {12, 13, 16}, {96, 104, 116});
+  palette[STROBE_YELLOW] = Neuron::Rgba8{255, 224, 48, 255};
+  palette[WINDOW_BLUE] = Neuron::Rgba8{75, 162, 235, 80};
   return palette;
 }
 
@@ -93,6 +95,8 @@ void Ramp(Neuron::VoxPalette& _palette, int _first, int _count, const Color3& _d
   set(NAV_GREEN, 2, 0.8f, 6.0f, 2.0f, 1.8f);
   set(BREACH_EMBER, 4, 1.5f, 0.28f, 0.05f, 0.0f);
   set(SIGNAL_CYAN, 4, 0.6f, 3.2f, 4.2f, 0.0f);
+  set(STROBE_YELLOW, 1, 10.0f, 8.2f, 1.1f, 3.2f);
+  table[STROBE_YELLOW].strobePeriodSeconds = 1.5f;
   return table;
 }
 

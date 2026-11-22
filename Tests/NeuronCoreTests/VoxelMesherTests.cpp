@@ -30,6 +30,33 @@ namespace
 TEST_CLASS(VoxelMesherTests)
 {
 public:
+  TEST_METHOD(GlassExposesBackingButRemainsStructurallySolid)
+  {
+    Neuron::VoxModel model(3, 3, 3);
+    Neuron::VoxPalette palette{};
+    for (auto& color : palette)
+    {
+      color.a = 255;
+    }
+    palette[225].a = 80;
+    for (int z = 0; z < 3; ++z)
+    {
+      for (int y = 0; y < 3; ++y)
+      {
+        for (int x = 0; x < 3; ++x)
+        {
+          model.Set(x, y, z, 5);
+        }
+      }
+    }
+    model.Set(0, 1, 1, 225);
+    const auto surface = Neuron::ExtractSurface(model, &palette);
+    Assert::AreEqual(std::size_t{27}, surface.solidCount);
+    Assert::AreEqual(std::size_t{27}, surface.voxels.size(), L"the backing voxel behind glazing is retained");
+    Assert::IsTrue(std::ranges::any_of(surface.faces, [](const Neuron::VoxelFace& _face)
+                                       { return _face.voxel == Neuron::Int3{1, 1, 1} && _face.direction == Neuron::FaceDirection::NegX; }));
+  }
+
   TEST_METHOD(SingleVoxelHasSixOutwardFaces)
   {
     Neuron::VoxModel model(3, 3, 3);

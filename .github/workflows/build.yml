@@ -188,6 +188,27 @@ jobs:
           & $vstest $suites /Platform:x64 /Logger:trx /ResultsDirectory:TestResults
           if ($LASTEXITCODE -ne 0) { throw "vstest reported failures." }
 
+      - name: Render material smoke views on WARP
+        if: steps.solution.outputs.path != ''
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force MaterialReview | Out-Null
+          foreach ($sample in @(@{ name='StrobeOn'; frames=3 }, @{ name='StrobeOff'; frames=13 }, @{ name='SecondFlash'; frames=17 })) {
+            $process = Start-Process -FilePath "x64\$env:CONFIGURATION\Outpost.exe" -Wait -PassThru -ArgumentList @(
+              '--smoke-test', '--warp', '--size', '1280x720', '--frames', $sample.frames,
+              '--capture', "MaterialReview\$($sample.name).png", '--report', "MaterialReview\$($sample.name).txt")
+            Get-Content "MaterialReview\$($sample.name).txt"
+            if ($process.ExitCode -ne 0) { throw "Material smoke $($sample.name) failed: $($process.ExitCode)" }
+          }
+
+      - name: Upload material review views
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: material-review
+          path: MaterialReview
+          if-no-files-found: ignore
+
       # After the build, so that a compile error is reported as a compile error rather than as
       # forty linter findings about a file that does not parse.
       - name: Run clang-tidy
@@ -244,6 +265,7 @@ jobs:
           python -m pip install --disable-pip-version-check numpy==2.2.6
           python Tools/ValidateHullAssets.py
           python Tools/TestHullAssets.py
+          python Tools/ValidateSignalMaterials.py
 
       # The checkers' own tests: each checker must pass over the tree as it is and fail on a planted
       # violation of every rule it claims. Here rather than on Windows because it is seconds, needs

@@ -61,4 +61,16 @@ float3 ToneMap(float3 _linear)
   return saturate((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14));
 }
 
+// Presentation only: two 90 ms flashes, separated by 135 ms, for a 1.5 s period.
+// The same modulation drives voxel radiance and its additive halo.
+float StrobeBrightness(float _periodSeconds)
+{
+  if (_periodSeconds <= 0.0)
+  {
+    return 1.0;
+  }
+  float phase = frac(g_time / _periodSeconds);
+  return (phase < 0.06 || (phase >= 0.15 && phase < 0.21)) ? 1.0 : 0.025;
+}
+
 #endif

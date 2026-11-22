@@ -1,6 +1,6 @@
 # F-317 authoring fixture. Presence and the cosmetic palette reference are separate.
 # Index = x + sizeX * (y + sizeY * z). Runs are sorted and never overlap.
-preset name=FrigateF317 version=1 hull=Frigate preview=Frigate mastersha256=7c505c31b824f7329253e3bfd113f1a1af08dbc1cfe8e1a37fd7907cc3337893 previewsha256=49ef869674e593ebe1e9c82fd077a08b4332ec0ed35b827677754b967a865bbb
+preset name=FrigateF317 version=1 hull=Frigate preview=Frigate mastersha256=b6e1d085300b1ef3b43e3a731ac5e943fff06d790d33494c247282a78c054aff previewsha256=bd5545bf2723d3fa710adabb0662bfce284cdaaa3bb4060f02a0ce34a036f662
 
 remove start=46351 count=1
 remove start=46399 count=1
@@ -933,4 +933,4 @@ remove start=183295 count=2
 remove start=183343 count=2
 remove start=183391 count=2
 
-appearance model=Frigate sha256=49ef869674e593ebe1e9c82fd077a08b4332ec0ed35b827677754b967a865bbb
+appearance model=Frigate sha256=bd5545bf2723d3fa710adabb0662bfce284cdaaa3bb4060f02a0ce34a036f662

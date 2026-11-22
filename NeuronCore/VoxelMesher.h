@@ -70,6 +70,8 @@ struct VoxelSurface
 
 /// The surface of a model: its exposed faces, the voxels that own them with per-face ambient
 /// occlusion, and the bounds of every solid cell. Fully enclosed voxels are dropped.
-[[nodiscard]] VoxelSurface ExtractSurface(const VoxModel& _model);
+/// With a palette, translucent neighbors expose the backing surface; equal glass cells still
+/// share a hidden face. Glass remains solid for connectivity and gameplay.
+[[nodiscard]] VoxelSurface ExtractSurface(const VoxModel& _model, const VoxPalette* _palette = nullptr);
 
 } // namespace Neuron

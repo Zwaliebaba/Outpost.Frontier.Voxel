@@ -148,7 +148,10 @@ Edit the committed files under `Assets/Models/` directly in MagicaVoxel. Keep on
 
 A **new** asset file must also be added to the `Outpost` project in Visual Studio (*Add › Existing Item*, Item Type *Copy file*, destination `$(OutDir)Assets\Models`), or the build will not copy it next to the executable.
 
-Every file carries the identical canonical RGBA palette chunk. Index 0 is empty, and voxel colour `c` is chunk entry `c−1`. Glow comes from the renderer's material table, not from the file.
+Every file carries the identical canonical RGBA palette chunk. Index 0 is empty, and voxel colour `c` is chunk entry `c−1`.
+The [signal and glazing guide](Design/SignalMaterials.md) describes bright yellow strobes (224)
+and see-through blue glass (225). VOX files include matching MagicaVoxel material attributes;
+the game supplies the canonical emission, double-flash timing and glass coverage.
 
 ## Tests and checks
 
