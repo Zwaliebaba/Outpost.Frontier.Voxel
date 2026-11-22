@@ -1,0 +1,22 @@
+# Outpost:Frontier — the system: its zones, its stations and where a new game starts (ADR-002;
+# plan tasks 2.1 and 2.2; blueprint ch. 01 §3.4 and §3.5, ch. 04 §3.2).
+#
+# zone: name, shape (sphere: radius; box: size, three full edges; cylinder: radius and length along
+#   its own Y), position in metres, optional rotation (yaw, pitch, roll in degrees, as an instance).
+#   With instance=, the position is in that instance's VOX coordinates, as a light's is.
+#   edge: the outer share of the zone across which immersion ramps from 1 to 0.
+#   damage: hit points per second at full immersion; interference: scanner interference, 0 to 1.
+#   region: the name a named region shows. "Smallest zone wins" decides between overlapping zones.
+# station: a base the player can dock at, made of the instances whose docking points it offers.
+# start: the station a new game starts docked at (GameDesign.md D18).
+
+# The frigate's breach: venting debris and a cloud that blinds sensors, around the burning hull
+# section between the two fire lights.
+zone name=FrigateBreach shape=sphere instance=Frigate position=37,74,14 radius=60 edge=0.5 damage=20 interference=0.6
+
+# The shipyard and the space around it, for the location read-out.
+zone name=ShipyardSpace shape=sphere position=-40,40,140 radius=1500 edge=0 region="Kessler Reach Shipyard"
+
+station name=Shipyard label="Kessler Reach Shipyard" region=ShipyardSpace instance=Hangar instance=CollarWest instance=CollarLower
+
+start station=Shipyard

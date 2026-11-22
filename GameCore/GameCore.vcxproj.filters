@@ -13,6 +13,9 @@
     <Filter Include="Messages">
       <UniqueIdentifier>{AAC720A9-E91B-4F3B-8CB7-3C57D23026E1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Content">
+      <UniqueIdentifier>{DFF4C181-51B9-4D34-969D-0569E82FD05D}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FlightModel.h">
@@ -45,6 +48,18 @@
     <ClInclude Include="ShipFlight.h">
       <Filter>Flight</Filter>
     </ClInclude>
+    <ClInclude Include="RecordReader.h">
+      <Filter>Content</Filter>
+    </ClInclude>
+    <ClInclude Include="SystemContent.h">
+      <Filter>Content</Filter>
+    </ClInclude>
+    <ClInclude Include="Zone.h">
+      <Filter>Content</Filter>
+    </ClInclude>
+    <ClInclude Include="DockingPoint.h">
+      <Filter>Content</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FlightModel.cpp">
@@ -76,6 +91,15 @@
     </ClCompile>
     <ClCompile Include="ShipFlight.cpp">
       <Filter>Flight</Filter>
+    </ClCompile>
+    <ClCompile Include="SystemContent.cpp">
+      <Filter>Content</Filter>
+    </ClCompile>
+    <ClCompile Include="Zone.cpp">
+      <Filter>Content</Filter>
+    </ClCompile>
+    <ClCompile Include="DockingPoint.cpp">
+      <Filter>Content</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

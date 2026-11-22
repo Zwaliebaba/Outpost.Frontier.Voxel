@@ -97,6 +97,10 @@
     <ClInclude Include="WorldSnapshot.h" />
     <ClInclude Include="Collision.h" />
     <ClInclude Include="ShipFlight.h" />
+    <ClInclude Include="RecordReader.h" />
+    <ClInclude Include="SystemContent.h" />
+    <ClInclude Include="Zone.h" />
+    <ClInclude Include="DockingPoint.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FlightModel.cpp" />
@@ -109,6 +113,9 @@
     <ClCompile Include="WorldSnapshot.cpp" />
     <ClCompile Include="Collision.cpp" />
     <ClCompile Include="ShipFlight.cpp" />
+    <ClCompile Include="SystemContent.cpp" />
+    <ClCompile Include="Zone.cpp" />
+    <ClCompile Include="DockingPoint.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NeuronCore\NeuronCore.vcxproj">

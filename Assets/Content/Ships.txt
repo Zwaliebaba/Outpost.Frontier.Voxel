@@ -7,6 +7,7 @@
 #   reverse: the share of thrust a negative throttle gives
 #   charge, chargetime: s; maxbank: degrees
 #   capacity, charge, drain, cruisepower: units of a pool, and units per second
+#   docking: the docking points the hull may use, berth, medium or large (ch. 04 §2; plan task 2.2)
 #
 # The two escorts carry the blueprint's first-tier light fighter as authored: top speed 80 m/s,
 # thruster 200 m/s, strafe 33 m/s, pitch and yaw 92 degrees a second. They differ only in bank.
@@ -15,8 +16,8 @@ engine name=LightEngine thrust=48000 drag=599 reverse=0.2 chargetime=5 cruisepow
 powerplant name=LightPowerPlant capacity=1000 charge=100 thrustcapacity=1000 thrustcharge=100
 thruster name=BasicThruster force=72000 drain=165
 
-ship name=EscortLancer model=EscortLancer mass=100 inertia=2800,2800,1000 drag=1 torque=24000,24000,58000 angulardrag=15000,15000,35000 strafe=20000 strafedrain=2 maxbank=30 engine=LightEngine powerplant=LightPowerPlant thruster=BasicThruster
-ship name=EscortTalon  model=EscortTalon  mass=100 inertia=2800,2800,1000 drag=1 torque=24000,24000,58000 angulardrag=15000,15000,35000 strafe=20000 strafedrain=2 maxbank=35 engine=LightEngine powerplant=LightPowerPlant thruster=BasicThruster
+ship name=EscortLancer model=EscortLancer mass=100 inertia=2800,2800,1000 drag=1 torque=24000,24000,58000 angulardrag=15000,15000,35000 strafe=20000 strafedrain=2 maxbank=30 engine=LightEngine powerplant=LightPowerPlant thruster=BasicThruster docking=berth
+ship name=EscortTalon  model=EscortTalon  mass=100 inertia=2800,2800,1000 drag=1 torque=24000,24000,58000 angulardrag=15000,15000,35000 strafe=20000 strafedrain=2 maxbank=35 engine=LightEngine powerplant=LightPowerPlant thruster=BasicThruster docking=berth
 
 # Chase camera per hull (plan task 1.8; blueprint ch. 09 §3.9): metres up and back from the pivot, and the
 # look-ahead into a turn at full yaw, pitch-up and pitch-down throttle, in degrees. Both escorts are about

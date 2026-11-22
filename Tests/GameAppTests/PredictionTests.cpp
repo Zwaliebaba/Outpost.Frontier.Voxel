@@ -21,7 +21,7 @@ constexpr std::uint32_t TICKS_PER_SECOND = 60;
 constexpr std::string_view SHIPS = R"(engine name=LightEngine thrust=48000 drag=599 reverse=0.2 chargetime=5 cruisepower=20
 powerplant name=LightPowerPlant capacity=1000 charge=100 thrustcapacity=1000 thrustcharge=100
 thruster name=BasicThruster force=72000 drain=165
-ship name=Fighter model=Fighter mass=100 inertia=2800,2800,1000 drag=1 torque=24000,24000,58000 angulardrag=15000,15000,35000 strafe=20000 strafedrain=2 maxbank=30 engine=LightEngine powerplant=LightPowerPlant thruster=BasicThruster
+ship name=Fighter model=Fighter mass=100 inertia=2800,2800,1000 drag=1 torque=24000,24000,58000 angulardrag=15000,15000,35000 strafe=20000 strafedrain=2 maxbank=30 engine=LightEngine powerplant=LightPowerPlant thruster=BasicThruster docking=berth
 )";
 
 [[nodiscard]] Outpost::ShipBody Body()

@@ -28,7 +28,7 @@ namespace
 constexpr std::string_view SHIPS = R"(engine name=LightEngine thrust=48000 drag=599 reverse=0.2 chargetime=5 cruisepower=20
 powerplant name=LightPowerPlant capacity=1000 charge=100 thrustcapacity=1000 thrustcharge=100
 thruster name=BasicThruster force=72000 drain=165
-ship name=Fighter model=Fighter mass=100 inertia=2800,2800,1000 drag=1 torque=24000,24000,58000 angulardrag=15000,15000,35000 strafe=20000 strafedrain=2 maxbank=30 engine=LightEngine powerplant=LightPowerPlant thruster=BasicThruster
+ship name=Fighter model=Fighter mass=100 inertia=2800,2800,1000 drag=1 torque=24000,24000,58000 angulardrag=15000,15000,35000 strafe=20000 strafedrain=2 maxbank=30 engine=LightEngine powerplant=LightPowerPlant thruster=BasicThruster docking=berth
 )";
 
 // A fighter 20 x 10 x 40 m (VOX x, z, y), a wingman, and a wall 200 m square and 4 m thick whose

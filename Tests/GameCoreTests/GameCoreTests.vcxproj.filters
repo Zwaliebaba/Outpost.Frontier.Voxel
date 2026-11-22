@@ -16,6 +16,9 @@
     <Filter Include="Messages">
       <UniqueIdentifier>{AC712B50-9C91-4B48-9989-F568BBDD063F}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Content">
+      <UniqueIdentifier>{158B90CE-8027-4D4D-A427-D814395194CB}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TestSupport.h">
@@ -49,6 +52,12 @@
     </ClCompile>
     <ClCompile Include="ShipFlightTests.cpp">
       <Filter>Flight</Filter>
+    </ClCompile>
+    <ClCompile Include="ZoneTests.cpp">
+      <Filter>Content</Filter>
+    </ClCompile>
+    <ClCompile Include="DockingContentTests.cpp">
+      <Filter>Content</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

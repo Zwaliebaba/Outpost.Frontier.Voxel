@@ -151,6 +151,9 @@
     <CopyFileToFolders Include="..\Assets\Content\Ships.txt">
       <Filter>Assets\Content</Filter>
     </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Content\System.txt">
+      <Filter>Assets\Content</Filter>
+    </CopyFileToFolders>
     <CopyFileToFolders Include="..\Assets\Scene.txt">
       <Filter>Assets</Filter>
     </CopyFileToFolders>

@@ -15,7 +15,7 @@ namespace
 constexpr std::string_view MINIMAL_SCENE = R"(# a comment
 camera target=1,2,3 yaw=10 pitch=20 distance=300 fov=45
 model name=Box file=Models/TrussBeam.vox voxelsize=2
-socket model=Box name=End position=96,4,4 normal=1,0,0 up=0,0,1
+socket model=Box name=End class=module position=96,4,4 normal=1,0,0 up=0,0,1
 instance name=A model=Box position=0,0,0
 instance name=B model=Box parent=A parentsocket=End socket=End
 ship instance=A callsign=X-1 class=Frigate hull=50 module="Hull Section (B):34" module=Engines:90
