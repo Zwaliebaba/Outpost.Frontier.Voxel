@@ -56,3 +56,7 @@ The edges run one way. `GameLogic` (server) and `GameApp` (client) share `GameCo
 - Splitting `Outpost.exe` into separate client and server processes is a transport behind the snapshot, not a restructuring.
 - Assets are copied, not linked: editing `Assets/Scene.txt` takes effect at the next build, or immediately with `--assets Assets`.
 - *Added with the design:* what each project takes on as the game is built is listed in [GameDesign.md](../GameDesign.md) §9. The projects and the edges decided here do not change.
+- *Added 2026-11-22:*
+  - `NeuronCore` also owns the wire format and the in-process transport (ADR-008), because client and server both need them and neither may reach the other's library.
+  - `NeuronServer`'s tick clock now runs at 60 Hz (ADR-007).
+  - `GameCore` holds the message catalogue (ADR-008).

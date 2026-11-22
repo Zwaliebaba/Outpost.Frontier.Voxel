@@ -314,7 +314,7 @@ For Direct3D that list means what the Windows SDK installs: `d3d12.h`, `dxgi1_6.
 - [ ] No project's `ConformanceMode`, `LanguageStandard`, `WarningLevel` or `TreatWarningAsError` was changed, and no warning was silenced with a pragma.
 - [ ] Debug and Release still agree on everything §3 says they must.
 - [ ] No library outside R14's approved table, every package at a pinned version, each within its bounds.
-- [ ] The checkers pass — or, for one not yet written, the report says which and why.
+- [ ] The checkers pass: `CheckProjectFiles.py`, `CheckFormat.py`, `RunClangTidy.py` (CI runs the last if you cannot), and `TestCheckers.py` if you changed a checker.
 - [ ] It builds Debug|x64, and every test suite runs and passes.
 - [ ] If it touches rendering, input, audio or presentation: it was **run**, not just built.
 - [ ] `Design/ADR/` has a new file if the change *was* a decision.

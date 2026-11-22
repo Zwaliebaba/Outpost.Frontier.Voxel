@@ -79,7 +79,9 @@ Ships behind the camera or off screen get an edge arrow that points toward them;
 | What | Where |
 |---|---|
 | The design: what the game is, system by system, and the order to build it in | [`Design/GameDesign.md`](Design/GameDesign.md) |
-| The MVP implementation plan: the design's first six slices as tasks, tests, ADRs and exit criteria | [`Design/ImplementationPlan.md`](Design/ImplementationPlan.md) |
+| The MVP implementation plan: the design's first six slices as tasks, tests, ADRs and exit criteria, with what is done so far | [`Design/ImplementationPlan.md`](Design/ImplementationPlan.md) |
+| The checkers CI runs, and their self-test | [`Build/`](Build/) — see *Tests and checks* |
+| The message catalogue and the in-process transport (not yet used by the executable) | [`GameCore/Messages.h`](GameCore/Messages.h), [`NeuronCore/LoopbackTransport.h`](NeuronCore/LoopbackTransport.h), ADR-008 |
 | The scene: camera, lights, models, sockets, instances, ships, module damage, engines, objectives, resources, build items | [`Assets/Scene.txt`](Assets/Scene.txt) — plain text, documented in its header and in ADR-002 |
 | The models | `Assets/Models/*.vox` — genuine MagicaVoxel files, open them in MagicaVoxel |
 | The canonical palette (role → colour) | [`GameCore/Palette.h`](GameCore/Palette.h) for the index map, [`GameCore/Palette.cpp`](GameCore/Palette.cpp) for colours and the emissive material table |
