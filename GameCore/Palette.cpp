@@ -54,9 +54,10 @@ void Ramp(Neuron::VoxPalette& _palette, int _first, int _count, const Color3& _d
   Ramp(palette, FRAME_DARK, 8, {24, 24, 27}, {52, 52, 56});
   Ramp(palette, INSIGNIA, 8, {22, 58, 70}, {60, 128, 146});
 
-  // 97..199 are not assigned a role yet. They are filled with a neutral-to-cool ramp so that the
+  // 105..199 are not assigned a role yet. They are filled with a neutral-to-cool ramp so that the
   // palette stays coherent when a .vox is opened in MagicaVoxel and someone paints with them.
   Ramp(palette, 97, 52, {18, 19, 22}, {236, 238, 240});
+  Ramp(palette, ORE, 8, {44, 88, 76}, {136, 205, 158});
   Ramp(palette, 149, 51, {26, 34, 46}, {150, 176, 196});
 
   Ramp(palette, LAMP_AMBER, 1, {255, 184, 84}, {255, 184, 84});

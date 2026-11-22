@@ -41,7 +41,7 @@ public:
     Assert::IsTrue(materials[Pal::WINDOW_AMBER].glowRadius == 0.0f, L"windows emit without a sprite");
   }
 
-  TEST_METHOD(EveryGeneratedModelCarriesTheCanonicalPaletteChunk)
+  TEST_METHOD(EveryShippedModelCarriesTheCanonicalPaletteChunk)
   {
     const std::vector<std::uint8_t> expected = Neuron::PaletteToRgbaChunk(Outpost::CanonicalPalette());
     const std::filesystem::path models = AssetRoot() / "Models";
@@ -64,10 +64,10 @@ public:
       Assert::IsTrue(document.rgbaChunk == first, L"every file's RGBA chunk is byte-identical");
       ++count;
     }
-    Assert::IsTrue(count >= 19, L"all generated models are present");
+    Assert::IsTrue(count >= 26, L"all MVP models are present");
   }
 
-  TEST_METHOD(GeneratedModelsRespectTheDimensionLimit)
+  TEST_METHOD(ShippedModelsRespectTheDimensionLimit)
   {
     for (const auto& entry : std::filesystem::directory_iterator(AssetRoot() / "Models"))
     {

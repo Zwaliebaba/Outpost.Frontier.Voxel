@@ -35,6 +35,14 @@ model name=DebrisA        file=Models/DebrisA.vox voxelsize=1.2
 model name=DebrisB        file=Models/DebrisB.vox voxelsize=1.2
 model name=DebrisC        file=Models/DebrisC.vox voxelsize=1.2
 
+model name=Raider file=Models/Raider.vox
+model name=Reactor file=Models/Reactor.vox
+model name=Habitat file=Models/Habitat.vox
+model name=Refinery file=Models/Refinery.vox
+model name=TurretPlatform file=Models/TurretPlatform.vox
+model name=ShieldGenerator file=Models/ShieldGenerator.vox
+model name=Yard file=Models/Yard.vox
+
 # ── Sockets ─────────────────────────────────────────────────────────────────────────────────
 # The hangar's docking socket on its +X wall, and the matching mounts on the section module.
 socket model=HangarBay     name=ExtensionDock position=64,30,17 normal=1,0,0  up=0,0,1

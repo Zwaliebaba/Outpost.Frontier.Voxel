@@ -230,8 +230,8 @@ class CheckProjectFilesTests(TreeCase):
 
     def test_project_missing_from_solution(self) -> None:
         text = (self.tree / "Outpost.Frontier.slnx").read_text(encoding="utf-8-sig")
-        self.write("Outpost.Frontier.slnx", re.sub(r'\s*<Project Path="AssetGenerator/AssetGenerator.vcxproj"[^>]*/>', "", text))
-        self.assertFinding(self.check(), "solution", "AssetGenerator")
+        self.write("Outpost.Frontier.slnx", re.sub(r'\s*<Project Path="GameLogic/GameLogic.vcxproj"[^>]*/>', "", text))
+        self.assertFinding(self.check(), "solution", "GameLogic")
 
     def test_comment_in_project_file(self) -> None:
         self.edit("GameLogic/GameLogic.vcxproj", "<ItemGroup Label=\"ProjectConfigurations\">", "<!-- note -->\n  <ItemGroup Label=\"ProjectConfigurations\">")

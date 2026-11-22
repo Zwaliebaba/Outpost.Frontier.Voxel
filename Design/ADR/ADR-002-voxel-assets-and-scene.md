@@ -4,7 +4,7 @@
 
 ## Context
 
-The sample's models must be genuine MagicaVoxel `.vox` files: editable in MagicaVoxel, produced by a deterministic generator, and committed together with that generator. Every model has to agree on what a palette index means, emission has to come from the renderer rather than the file, and large structures must respect the format's 256-voxel dimension limit. Scene placement — which model goes where, how modules dock, what the HUD reports — must be editable without a rebuild of the code.
+The sample's models must be genuine MagicaVoxel `.vox` files: editable in MagicaVoxel and committed as source assets. Every model has to agree on what a palette index means, emission has to come from the renderer rather than the file, and large structures must respect the format's 256-voxel dimension limit. Scene placement — which model goes where, how modules dock, what the HUD reports — must be editable without a rebuild of the code.
 
 ## Decision
 
@@ -21,7 +21,7 @@ A voxel's colour index `c` is 1..255, and 0 is empty space. The `RGBA` chunk hol
 
 ### One canonical palette, emission elsewhere
 
-`GameCore/Palette` defines the palette as named families of shades: charcoal hull, gray and off-white armour, safety orange, hazard stripes, rock, steel, decking, glass, scorch, frames, insignia, amber lamps and windows, beacon red, nav green, breach embers and signal cyan. Every generated file embeds **the identical 1024-byte `RGBA` chunk**. A test compares every file in `Assets/Models/` byte for byte against the canonical chunk, and against each other.
+`GameCore/Palette` defines the palette as named families of shades: charcoal hull, gray and off-white armour, safety orange, hazard stripes, rock, steel, decking, glass, scorch, frames, insignia, amber lamps and windows, beacon red, nav green, breach embers and signal cyan. Every committed model embeds **the identical 1024-byte `RGBA` chunk**. A test compares every file in `Assets/Models/` byte for byte against the canonical chunk, and against each other.
 
 Emission is **not** in the file. `MaterialTable()` maps each palette index to an emissive colour and an optional glow-sprite radius. The renderer reads it as a 256-entry material buffer, so a lamp glows because of what its index means, not because of anything stored in the `.vox`. A palette mismatch in a loaded file is reported as a warning; the canonical table still wins.
 
@@ -29,9 +29,9 @@ Emission is **not** in the file. `MaterialTable()` maps each palette index to an
 
 No model exceeds 256 on any axis. The largest are the major asteroid (128 × 128 × 160), the frigate (48 × 150 × 40) and the hangar bay (64 × 52 × 38). The station is built from **modules** — hangar bay, hangar section, command block, tank cluster, docking collar, truss beam, truss tower — placed in the scene file and joined by sockets. The blueprint extension at the docking socket is the `HangarSection` model drawn as a wireframe (ADR-003), so the plan and the built module are the same geometry.
 
-### The generator
+### Authoring
 
-`AssetGenerator.exe --out Assets` writes all 19 models from code, with no randomness other than hashes of coordinates and fixed seeds, so the output is byte-identical on every run and in both configurations. `--check` regenerates in memory and fails if any committed file differs. Measured: the Release generator rewrote all 19 files in 0.42 s, wall clock via `Measure-Command`, and its output hashed identical to the committed files. Both the generator and its output are committed.
+The committed `.vox` files are the source of truth. Visual Studio copies them to the output directory. Tests validate the palette and file contents without requiring particular geometry.
 
 ### VOX to world
 
@@ -65,8 +65,8 @@ Unknown keywords and malformed values fail with the line number. `ValidateScene`
 
 ## Consequences
 
-- Editing a model by hand in MagicaVoxel is supported, but the next `AssetGenerator --out Assets` overwrites it. A hand-edited model should get its own file name and its own `model` line.
-- A new palette role is a change to `GameCore/Palette` plus regenerating every model, and the palette test fails until that is done.
+- Edits to an existing model keep its file name and scene reference.
+- A new palette role is a change to `GameCore/Palette` plus updating the shared palette in every model, and the palette test fails until that is done.
 - Anything larger than 256 voxels on an axis must be built from modules and sockets; the format leaves no alternative, and the scene file is designed around it.
 - *Added with the design ([GameDesign.md](../GameDesign.md)):* the concepts decided here carry the game.
   - A socket is the design's hardpoint, module mount and docking point, and will need a class (§3.4).

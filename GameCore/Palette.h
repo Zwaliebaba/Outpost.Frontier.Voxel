@@ -8,7 +8,7 @@
 namespace Outpost
 {
 
-// The canonical palette (ADR-002). Every generated .vox file embeds exactly this palette in its
+// The canonical palette (ADR-002). Every committed .vox file embeds exactly this palette in its
 // RGBA chunk, and an index means the same thing in every model. Each family is a run of shades so
 // generators can vary panels without changing what a surface is. Indices are VOXEL colour indices
 // (1..255); 0 is empty space.
@@ -27,6 +27,8 @@ inline constexpr std::uint8_t GLASS = 73;         // 73..76 unlit dark glass
 inline constexpr std::uint8_t SCORCH = 77;        // 77..80 heat-scorched metal at a breach rim
 inline constexpr std::uint8_t FRAME_DARK = 81;    // 81..88 recessed interior frames
 inline constexpr std::uint8_t INSIGNIA = 89;      // 89..96 dark teal insignia paint
+
+inline constexpr std::uint8_t ORE = 97; // 97..104 copper-green mineral seams
 
 // Emissive families. Their meaning is fixed here and their emission is in MaterialTable().
 inline constexpr std::uint8_t LAMP_AMBER = 200;   // a warm lamp; gets a glow sprite
