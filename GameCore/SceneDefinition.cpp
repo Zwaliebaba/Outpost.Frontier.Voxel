@@ -2,6 +2,7 @@
 
 #include "FileSys.h"
 #include "RecordFile.h"
+#include "VoxFile.h"
 
 #include <system_error>
 
@@ -252,6 +253,7 @@ bool ParseScene(std::string_view _text, SceneDefinition& _outScene, std::string&
     {
       SceneInstance instance;
       std::string style = "solid";
+      std::string owner = "neutral";
       if (!Required(record, "name", instance.name, error) || !Required(record, "model", instance.model, error) ||
           !Optional(record, "position", instance.position, &Neuron::Record::GetFloat3, error) ||
           !Optional(record, "rotation", instance.rotationDegrees, &Neuron::Record::GetFloat3, error) ||
@@ -259,8 +261,22 @@ bool ParseScene(std::string_view _text, SceneDefinition& _outScene, std::string&
           !Optional(record, "parent", instance.parent, &Neuron::Record::GetString, error) ||
           !Optional(record, "parentsocket", instance.parentSocket, &Neuron::Record::GetString, error) ||
           !Optional(record, "socket", instance.socket, &Neuron::Record::GetString, error) ||
-          !Optional(record, "style", style, &Neuron::Record::GetString, error))
+          !Optional(record, "style", style, &Neuron::Record::GetString, error) ||
+          !Optional(record, "owner", owner, &Neuron::Record::GetString, error))
       {
+        return false;
+      }
+      if (owner == "player")
+      {
+        instance.owner = Owner::Player;
+      }
+      else if (owner == "hostile")
+      {
+        instance.owner = Owner::Hostile;
+      }
+      else if (owner != "neutral")
+      {
+        _outError = LineError(record, "owner must be neutral, player or hostile");
         return false;
       }
       if (style == "blueprint")
@@ -464,6 +480,55 @@ std::vector<std::string> ValidateScene(const SceneDefinition& _scene, const std:
 XMMATRIX ModelToWorld(const SceneDefinition& _scene, std::size_t _instanceIndex) noexcept
 {
   return ModelToWorldRecursive(_scene, _instanceIndex, 0);
+}
+
+WorldObject ObjectFromInstance(const SceneDefinition& _scene, std::size_t _instanceIndex, ObjectId _id)
+{
+  const SceneInstance& instance = _scene.instances[_instanceIndex];
+  WorldObject object;
+  object.id = _id;
+  object.name = instance.name;
+  object.model = instance.model;
+  object.owner = instance.owner;
+  XMVECTOR scale{};
+  XMVECTOR rotation{};
+  XMVECTOR translation{};
+  if (XMMatrixDecompose(&scale, &rotation, &translation, ModelToWorld(_scene, _instanceIndex)))
+  {
+    object.scale = XMVectorGetX(scale);
+    XMStoreFloat4(&object.pose.orientation, XMQuaternionNormalize(rotation));
+    XMFLOAT3 position{};
+    XMStoreFloat3(&position, translation);
+    object.pose.position = WorldPosition{position.x, position.y, position.z};
+  }
+  return object;
+}
+
+bool LoadSceneContent(const std::filesystem::path& _assetRoot, SceneDefinition& _outScene, std::string& _outError)
+{
+  if (!LoadScene(_assetRoot / "Scene.txt", _outScene, _outError))
+  {
+    return false;
+  }
+  const std::vector<std::string> problems = ValidateScene(_outScene, _assetRoot);
+  if (!problems.empty())
+  {
+    _outError = problems.front();
+    return false;
+  }
+  for (ModelAsset& asset : _outScene.models)
+  {
+    Neuron::VoxDocument document;
+    const Neuron::VoxError error = Neuron::LoadVoxFile(_assetRoot / asset.file, document);
+    if (error != Neuron::VoxError::None)
+    {
+      _outError = asset.file + ": " + std::string(Neuron::VoxErrorName(error));
+      return false;
+    }
+    asset.SetSize(Neuron::Int3{static_cast<int>(document.model.SizeX()), static_cast<int>(document.model.SizeY()),
+                               static_cast<int>(document.model.SizeZ())});
+  }
+  return true;
 }
 
 XMMATRIX VoxToWorld(const SceneDefinition& _scene, std::size_t _instanceIndex) noexcept

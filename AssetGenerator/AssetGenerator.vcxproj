@@ -89,11 +89,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="CrowdScene.h" />
     <ClInclude Include="ModelCatalog.h" />
     <ClInclude Include="VoxelBuilder.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AsteroidModels.cpp" />
+    <ClCompile Include="CrowdScene.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="ModelCatalog.cpp" />
     <ClCompile Include="ShipModels.cpp" />

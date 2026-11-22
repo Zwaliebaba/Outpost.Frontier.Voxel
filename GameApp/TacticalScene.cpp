@@ -39,40 +39,45 @@ constexpr XMFLOAT3 SELECTION_RIM{0.25f, 0.85f, 1.0f};
 
 } // namespace
 
-void TacticalScene::Build(const SceneAssets& _assets)
+void TacticalScene::Build(const SceneAssets& _assets, const WorldSnapshot& _world)
 {
   m_assets = &_assets;
   m_instances.clear();
   const SceneDefinition& scene = _assets.Scene();
-  for (std::size_t i = 0; i < scene.instances.size(); ++i)
+  for (const WorldObject& object : _world.objects)
   {
-    const SceneInstance& instance = scene.instances[i];
     InstanceView view;
-    view.sceneIndex = i;
-    view.instance = &instance;
-    view.asset = scene.FindModel(instance.model);
-    view.model = _assets.FindModel(instance.model);
+    view.object = object.id;
+    view.name = object.name;
+    view.instance = scene.FindInstance(object.name);
+    view.asset = scene.FindModel(object.model);
+    view.model = _assets.FindModel(object.model);
     if (view.asset == nullptr || view.model == nullptr)
     {
       continue;
     }
-    if (instance.style == InstanceStyle::Blueprint)
+    bool isShip = false;
+    for (const ShipState& ship : _world.ships)
+    {
+      isShip = isShip || ship.object == object.id;
+    }
+    if (view.instance != nullptr && view.instance->style == InstanceStyle::Blueprint)
     {
       view.kind = InstanceView::Kind::Blueprint;
     }
-    else if (scene.FindShip(instance.name) != nullptr)
+    else if (isShip)
     {
       view.kind = InstanceView::Kind::Ship;
     }
-    else if (StartsWith(instance.model, "Asteroid"))
+    else if (StartsWith(object.model, "Asteroid"))
     {
       view.kind = InstanceView::Kind::Rock;
     }
-    else if (StartsWith(instance.model, "Debris"))
+    else if (StartsWith(object.model, "Debris"))
     {
       view.kind = InstanceView::Kind::Debris;
     }
-    const XMMATRIX voxToWorld = VoxToWorld(scene, i);
+    const XMMATRIX voxToWorld = Neuron::VoxToModelMatrix(view.asset->pivotVox, view.asset->voxelSize) * ObjectToWorld(object);
     XMStoreFloat4x4(&view.voxToWorld, voxToWorld);
     XMStoreFloat4x4(&view.worldToVox, XMMatrixInverse(nullptr, voxToWorld));
     view.voxelWorldSize = XMVectorGetX(XMVector3Length(voxToWorld.r[0]));
@@ -191,17 +196,25 @@ void TacticalScene::BuildShadowCamera()
 {
   XMVECTOR lo = XMVectorReplicate(std::numeric_limits<float>::max());
   XMVECTOR hi = XMVectorReplicate(-std::numeric_limits<float>::max());
+  bool bounded = false;
   for (const InstanceView& view : m_instances)
   {
     if (view.kind == InstanceView::Kind::Blueprint)
     {
       continue;
     }
+    bounded = true;
     for (const XMFLOAT3& corner : Neuron::BoxCorners(view.bounds))
     {
       lo = XMVectorMin(lo, XMLoadFloat3(&corner));
       hi = XMVectorMax(hi, XMLoadFloat3(&corner));
     }
+  }
+  if (!bounded)
+  {
+    // Nothing to shadow yet: the client draws before the server has said what exists.
+    lo = XMVectorZero();
+    hi = XMVectorZero();
   }
   const XMVECTOR center = (lo + hi) * 0.5f;
   XMStoreFloat3(&m_sceneCenter, center);
@@ -219,7 +232,7 @@ const InstanceView* TacticalScene::FindInstance(std::string_view _name) const no
 {
   for (const InstanceView& view : m_instances)
   {
-    if (view.instance->name == _name)
+    if (view.name == _name)
     {
       return &view;
     }

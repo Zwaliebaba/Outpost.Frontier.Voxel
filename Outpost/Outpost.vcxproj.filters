@@ -4,6 +4,9 @@
     <Filter Include="Assets">
       <UniqueIdentifier>{6F1D2A0E-3C47-4E5B-9A21-0B7C5D8E4F13}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Assets\Content">
+      <UniqueIdentifier>{C7D2E5A3-9B14-4F68-A0C3-6E1B8D4F2A57}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Assets\Models">
       <UniqueIdentifier>{A2B8C4D1-7E35-4F60-8B92-1C3D5E7F9A24}</UniqueIdentifier>
     </Filter>
@@ -87,6 +90,9 @@
     </CopyFileToFolders>
     <CopyFileToFolders Include="..\Assets\Models\Tug.vox">
       <Filter>Assets\Models</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="..\Assets\Content\Ships.txt">
+      <Filter>Assets\Content</Filter>
     </CopyFileToFolders>
     <CopyFileToFolders Include="..\Assets\Scene.txt">
       <Filter>Assets</Filter>

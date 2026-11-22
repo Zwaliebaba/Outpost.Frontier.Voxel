@@ -3,6 +3,8 @@
 #include "FontAtlas.h"
 #include "GraphicsDevice.h"
 #include "HudBatch.h"
+#include "InputScript.h"
+#include "LoopbackTransport.h"
 #include "OrbitCamera.h"
 #include "PointerGesture.h"
 #include "Renderer.h"
@@ -11,6 +13,7 @@
 #include "TacticalScene.h"
 #include "WorldSnapshot.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <string>
@@ -19,19 +22,20 @@
 namespace Outpost
 {
 
-enum class PointerButton : std::uint8_t
-{
-  Left,
-  Right,
-  Middle
-};
-
 /// The client half of the game as far as it is built: the design's tactical view
 /// (Design/GameDesign.md §3.1). It loads the scene's assets, owns the camera and the selection,
-/// and draws a WorldSnapshot — it never reads the server's World directly (AGENTS.md R18).
+/// builds its own WorldSnapshot from the messages the server sends, and draws that — it never
+/// reads the server's World (AGENTS.md R18, R25).
 class TacticalClient
 {
 public:
+  // The GPU timestamps a frame writes, as indices into GraphicsDevice::CompletedTimestampsMilliseconds():
+  // the frame's start, the end of the shadow pass, the end of the scene's voxels and effects, and the
+  // end of the frame after the HUD.
+  static constexpr std::size_t TIMESTAMP_SHADOWS_END = 1;
+  static constexpr std::size_t TIMESTAMP_SCENE_END = 2;
+  static constexpr std::size_t TIMESTAMP_FRAME_END = 3;
+
   TacticalClient() = default;
   /// Waits for the GPU before any of the client's resources is released (see the .cpp).
   ~TacticalClient();
@@ -50,6 +54,8 @@ public:
   void OnPointerUp(PointerButton _button, float _x, float _y, std::uint64_t _timeMilliseconds);
   void OnPointerCancel();
   void OnWheel(float _steps);
+  /// Plays one scripted input as if it came from the window at that time (plan task F5).
+  void Apply(const InputEvent& _event, std::uint64_t _timeMilliseconds);
   void ResetView();
   void ToggleHelp() noexcept
   {
@@ -59,6 +65,11 @@ public:
   {
     m_showStatus = !m_showStatus;
   }
+  /// Draws the shadow map every frame instead of once, as moving ships will need (plan task F6).
+  void SetShadowsEveryFrame(bool _everyFrame) noexcept
+  {
+    m_shadowsEveryFrame = _everyFrame;
+  }
 
   /// Selects the ship drawn by a scene instance, or clears the selection for an empty name.
   void Select(std::string_view _instance);
@@ -67,8 +78,21 @@ public:
     return m_selected;
   }
 
+  /// Decodes every message waiting for the client and applies it to the client's world. False,
+  /// with ProtocolError() saying why, if a message did not decode: a defect, never a normal event.
+  [[nodiscard]] bool Receive(Neuron::LoopbackTransport& _transport);
+  [[nodiscard]] const std::string& ProtocolError() const noexcept
+  {
+    return m_protocolError;
+  }
+  /// The world as the client has been told it.
+  [[nodiscard]] const WorldSnapshot& World() const noexcept
+  {
+    return m_world;
+  }
+
   /// Records and submits one frame. Returns false when the device was lost.
-  [[nodiscard]] bool Render(const WorldSnapshot& _snapshot, float _timeSeconds, bool _capture, bool _vsync, float _framesPerSecond);
+  [[nodiscard]] bool Render(float _timeSeconds, bool _capture, bool _vsync, float _framesPerSecond);
 
   [[nodiscard]] const SceneDefinition& Scene() const noexcept
   {
@@ -89,8 +113,8 @@ private:
   void BuildSilhouette();
   void RenderThumbnails(const HudLayout& _layout, float _timeSeconds);
   void RenderSilhouette(const HudLayout& _layout, float _timeSeconds);
-  [[nodiscard]] HudInput MakeHudInput(const WorldSnapshot& _snapshot, const ViewSetup& _view, float _timeSeconds,
-                                      float _framesPerSecond) const;
+  [[nodiscard]] HudInput MakeHudInput(const ViewSetup& _view, float _timeSeconds, float _framesPerSecond) const;
+  void RebuildSceneIfChanged();
 
   Neuron::GraphicsDevice* m_device = nullptr;
   Neuron::Renderer m_renderer;
@@ -104,6 +128,10 @@ private:
   bool m_panning = false;
   float m_lastX = 0.0f;
   float m_lastY = 0.0f;
+  WorldSnapshot m_world;
+  std::uint64_t m_builtRevision = 0;
+  std::string m_protocolError;
+  std::string m_initialSelection; // applied once the selected ship's object has arrived
   std::string m_selected;
   std::string m_silhouetteFor;
   std::vector<Neuron::GpuLineSegment> m_silhouette; // model space of the selected ship
@@ -111,6 +139,7 @@ private:
   DirectX::XMFLOAT3 m_silhouetteMax{0.0f, 0.0f, 0.0f};
   float m_hudScale = 0.0f;
   bool m_shadowDirty = true;
+  bool m_shadowsEveryFrame = false;
   bool m_showHelp = true;
   bool m_showStatus = true;
 };

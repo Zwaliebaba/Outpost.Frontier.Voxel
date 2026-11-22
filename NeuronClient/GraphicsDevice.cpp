@@ -249,6 +249,11 @@ bool GraphicsDevice::Initialize(const GraphicsDeviceDesc& _desc, std::string& _o
     _outError = "CreateEvent failed";
     return false;
   }
+  if (!CreateTimestampResources())
+  {
+    _outError = "timestamp queries could not be created";
+    return false;
+  }
   if (!CreateSizeDependentResources())
   {
     _outError = "swap-chain resources could not be created";
@@ -402,9 +407,12 @@ ID3D12GraphicsCommandList* GraphicsDevice::BeginFrame()
     m_fence->SetEventOnCompletion(waitFor, m_fenceEvent);
     WaitForSingleObject(m_fenceEvent, INFINITE);
   }
+  ReadCompletedTimestamps();
   m_allocators[m_backBufferIndex]->Reset();
   m_commandList->Reset(m_allocators[m_backBufferIndex].Get(), nullptr);
   m_uploadRings[m_backBufferIndex].Reset();
+  m_timestampCounts[m_backBufferIndex] = 0;
+  Timestamp();
 
   Transition(m_commandList.Get(), m_backBuffers[m_backBufferIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
   const D3D12_CPU_DESCRIPTOR_HANDLE rtv = BackBufferView();
@@ -439,6 +447,10 @@ bool GraphicsDevice::EndFrame(bool _captureBackBuffer, bool _vsync)
   {
     Transition(m_commandList.Get(), backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
   }
+  Timestamp();
+  const std::uint32_t firstQuery = m_backBufferIndex * MAX_TIMESTAMPS_PER_FRAME;
+  m_commandList->ResolveQueryData(m_timestampHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, firstQuery, m_timestampCounts[m_backBufferIndex],
+                                  m_timestampReadback.Get(), std::uint64_t{firstQuery} * sizeof(std::uint64_t));
   if (FAILED(m_commandList->Close()))
   {
     return false;
@@ -474,6 +486,59 @@ bool GraphicsDevice::EndFrame(bool _captureBackBuffer, bool _vsync)
     }
   }
   return true;
+}
+
+bool GraphicsDevice::CreateTimestampResources()
+{
+  D3D12_QUERY_HEAP_DESC heapDesc{};
+  heapDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+  heapDesc.Count = MAX_TIMESTAMPS_PER_FRAME * BACK_BUFFER_COUNT;
+  if (FAILED(m_device->CreateQueryHeap(&heapDesc, IID_PPV_ARGS(&m_timestampHeap))) ||
+      FAILED(m_queue->GetTimestampFrequency(&m_timestampFrequency)) || m_timestampFrequency == 0)
+  {
+    return false;
+  }
+  const D3D12_HEAP_PROPERTIES readbackHeap = HeapProperties(D3D12_HEAP_TYPE_READBACK);
+  const D3D12_RESOURCE_DESC readbackDesc = BufferDescription(std::uint64_t{heapDesc.Count} * sizeof(std::uint64_t));
+  return SUCCEEDED(m_device->CreateCommittedResource(&readbackHeap, D3D12_HEAP_FLAG_NONE, &readbackDesc, D3D12_RESOURCE_STATE_COPY_DEST,
+                                                     nullptr, IID_PPV_ARGS(&m_timestampReadback)));
+}
+
+void GraphicsDevice::Timestamp()
+{
+  std::uint32_t& count = m_timestampCounts[m_backBufferIndex];
+  if (count < MAX_TIMESTAMPS_PER_FRAME)
+  {
+    m_commandList->EndQuery(m_timestampHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, m_backBufferIndex * MAX_TIMESTAMPS_PER_FRAME + count);
+    ++count;
+  }
+}
+
+void GraphicsDevice::ReadCompletedTimestamps()
+{
+  // Called once this back buffer's last frame has finished on the GPU, so its resolved
+  // timestamps are final.
+  const std::uint32_t count = m_timestampCounts[m_backBufferIndex];
+  if (count < 2)
+  {
+    return;
+  }
+  const std::uint32_t firstQuery = m_backBufferIndex * MAX_TIMESTAMPS_PER_FRAME;
+  const D3D12_RANGE readRange{firstQuery * sizeof(std::uint64_t), (firstQuery + count) * sizeof(std::uint64_t)};
+  void* mapped = nullptr;
+  if (FAILED(m_timestampReadback->Map(0, &readRange, &mapped)))
+  {
+    return;
+  }
+  const auto* ticks = static_cast<const std::uint64_t*>(mapped) + firstQuery;
+  m_completedTimestampsMilliseconds.resize(count);
+  for (std::uint32_t i = 0; i < count; ++i)
+  {
+    const std::uint64_t elapsed = ticks[i] >= ticks[0] ? ticks[i] - ticks[0] : 0;
+    m_completedTimestampsMilliseconds[i] = static_cast<double>(elapsed) * 1000.0 / static_cast<double>(m_timestampFrequency);
+  }
+  const D3D12_RANGE noWrite{0, 0};
+  m_timestampReadback->Unmap(0, &noWrite);
 }
 
 void GraphicsDevice::WaitIdle()

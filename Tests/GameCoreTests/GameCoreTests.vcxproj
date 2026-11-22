@@ -95,10 +95,14 @@
     <ClInclude Include="TestSupport.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="FlightModelTests.cpp" />
+    <ClCompile Include="ManoeuvreTests.cpp" />
     <ClCompile Include="MessageTests.cpp" />
     <ClCompile Include="PaletteTests.cpp" />
     <ClCompile Include="SceneTests.cpp" />
+    <ClCompile Include="ShipArchetypeTests.cpp" />
     <ClCompile Include="TestSupport.cpp" />
+    <ClCompile Include="WorldObjectTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\NeuronCore\NeuronCore.vcxproj">

@@ -12,6 +12,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="InputScript.h">
+      <Filter>Client</Filter>
+    </ClInclude>
     <ClInclude Include="SceneAssets.h">
       <Filter>Scene</Filter>
     </ClInclude>
@@ -26,6 +29,9 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="InputScript.cpp">
+      <Filter>Client</Filter>
+    </ClCompile>
     <ClCompile Include="SceneAssets.cpp">
       <Filter>Scene</Filter>
     </ClCompile>

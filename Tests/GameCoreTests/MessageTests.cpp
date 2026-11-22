@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <variant>
 #include <span>
 #include <string>
 #include <utility>
@@ -30,10 +31,28 @@ namespace
   return message;
 }
 
+[[nodiscard]] Outpost::WorldObject SampleObject()
+{
+  Outpost::WorldObject object;
+  object.id = 12;
+  object.name = "Frigate";
+  object.model = "Frigate";
+  object.owner = Outpost::Owner::Hostile;
+  object.scale = 1.25f;
+  object.pose.position = Outpost::WorldPosition{1.0e9 + 0.25, -3.5, 42.0};
+  object.pose.orientation = DirectX::XMFLOAT4{0.0f, 0.70710677f, 0.0f, 0.70710677f};
+  object.poseTick = 9;
+  return object;
+}
+
 [[nodiscard]] std::vector<Outpost::Message> OneOfEach()
 {
-  return {Outpost::TickMessage{123'456'789'012ull}, SampleShip(), Outpost::ObjectiveMessage{2, {"Escort tug T-041 to dock", true}},
-          Outpost::ResourceMessage{77, 1, {"Ore", -5, 60}}};
+  return {Outpost::TickMessage{123'456'789'012ull},
+          SampleShip(),
+          Outpost::ObjectiveMessage{2, {"Escort tug T-041 to dock", true}},
+          Outpost::ResourceMessage{77, 1, {"Ore", -5, 60}},
+          Outpost::ObjectSpawnMessage{SampleObject()},
+          Outpost::ObjectStateMessage{10, 12, SampleObject().pose}};
 }
 
 /// The decoded message; fails the test if the bytes do not decode.
@@ -131,18 +150,98 @@ public:
     Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::Resource).delivery == Neuron::Delivery::Datagram);
     Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::Ship) == Outpost::Route{Neuron::Delivery::Reliable, Outpost::STREAM_WORLD});
     Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::Objective) == Outpost::Route{Neuron::Delivery::Reliable, Outpost::STREAM_WORLD});
+    Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::ObjectSpawn) ==
+                   Outpost::Route{Neuron::Delivery::Reliable, Outpost::STREAM_WORLD});
+    Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::ObjectState) ==
+                   Outpost::Route{Neuron::Delivery::Datagram, Outpost::STREAM_WORLD});
+  }
+
+  TEST_METHOD(APositionKeepsDoublePrecision)
+  {
+    // A quarter metre a billion metres out survives the wire, which a float would not carry.
+    const Outpost::Message decoded = Decoded(Outpost::Encode(Outpost::ObjectSpawnMessage{SampleObject()}));
+    Assert::AreEqual(1.0e9 + 0.25, std::get<Outpost::ObjectSpawnMessage>(decoded).object.pose.position.x);
+  }
+
+  TEST_METHOD(AnUnknownOwnerIsRefused)
+  {
+    std::vector<std::uint8_t> bytes = Outpost::Encode(Outpost::ObjectSpawnMessage{SampleObject()});
+    // The owner byte follows the id and the two names, each a 16-bit length and 7 bytes.
+    const std::size_t ownerOffset = Outpost::MESSAGE_HEADER_BYTES + 4 + (2 + 7) + (2 + 7);
+    Assert::AreEqual(std::uint8_t{2}, bytes[ownerOffset], L"the offset lands on the owner");
+    bytes[ownerOffset] = 3;
+    AssertError(bytes, Outpost::DecodeError::Malformed, L"owner 3 is not in the catalogue");
   }
 
   TEST_METHOD(EveryDatagramMessageFitsTheDatagramBudget)
   {
     // The largest a datagram message can be: names at a generous 255 bytes.
     const std::string longName(255, 'n');
-    const std::vector<Outpost::Message> largest{Outpost::TickMessage{~0ull}, Outpost::ResourceMessage{~0ull, 0xFFFF, {longName, -1, -1}}};
+    const std::vector<Outpost::Message> largest{Outpost::TickMessage{~0ull}, Outpost::ResourceMessage{~0ull, 0xFFFF, {longName, -1, -1}},
+                                                Outpost::ObjectStateMessage{~0ull, ~0u, SampleObject().pose}};
     for (const Outpost::Message& message : largest)
     {
       Assert::IsTrue(Outpost::RouteOf(Outpost::KindOf(message)).delivery == Neuron::Delivery::Datagram);
       Assert::IsTrue(Outpost::Encode(message).size() <= Neuron::LoopbackTransport::MAX_DATAGRAM_BYTES);
     }
+  }
+
+  TEST_METHOD(ASpawnAddsAnObjectAndRaisesTheRevision)
+  {
+    Outpost::WorldSnapshot world;
+    Outpost::ApplyMessage(Outpost::ObjectSpawnMessage{SampleObject()}, world);
+    Assert::AreEqual(std::size_t{1}, world.objects.size());
+    Assert::IsTrue(world.objects[0] == SampleObject());
+    Assert::AreEqual(std::uint64_t{1}, world.objectsRevision);
+  }
+
+  TEST_METHOD(OnlyANewerPoseMovesAnObject)
+  {
+    Outpost::WorldSnapshot world;
+    Outpost::ApplyMessage(Outpost::ObjectSpawnMessage{SampleObject()}, world); // pose from tick 9
+    Outpost::Pose moved = SampleObject().pose;
+    moved.position.y += 10.0;
+
+    Outpost::ApplyMessage(Outpost::ObjectStateMessage{8, 12, moved}, world);
+    Assert::IsTrue(world.objects[0].pose == SampleObject().pose, L"an older pose is dropped");
+
+    Outpost::ApplyMessage(Outpost::ObjectStateMessage{11, 12, moved}, world);
+    Assert::IsTrue(world.objects[0].pose == moved);
+    Assert::AreEqual(std::uint64_t{11}, world.objects[0].poseTick);
+    Assert::AreEqual(std::uint64_t{2}, world.objectsRevision);
+
+    Outpost::ApplyMessage(Outpost::ObjectStateMessage{12, 12, moved}, world);
+    Assert::AreEqual(std::uint64_t{12}, world.objects[0].poseTick, L"the same pose, newer, still advances the tick");
+    Assert::AreEqual(std::uint64_t{2}, world.objectsRevision, L"... without a rebuild");
+  }
+
+  TEST_METHOD(StateForAnUnknownObjectChangesNothing)
+  {
+    Outpost::WorldSnapshot world;
+    Outpost::ApplyMessage(Outpost::ObjectStateMessage{5, 99, SampleObject().pose}, world);
+    Assert::IsTrue(world.objects.empty());
+    Assert::AreEqual(std::uint64_t{0}, world.objectsRevision);
+  }
+
+  TEST_METHOD(AnOlderResourceIsDropped)
+  {
+    Outpost::WorldSnapshot world;
+    Outpost::ApplyMessage(Outpost::ResourceMessage{20, 1, {"Ore", 50, 60}}, world);
+    Outpost::ApplyMessage(Outpost::ResourceMessage{19, 1, {"Ore", 40, 60}}, world);
+    Assert::AreEqual(std::size_t{2}, world.resources.size(), L"index 1 makes room for index 0");
+    Assert::AreEqual(std::int64_t{50}, world.resources[1].amount);
+  }
+
+  TEST_METHOD(AShipIsKeyedByItsObject)
+  {
+    Outpost::WorldSnapshot world;
+    Outpost::ShipMessage ship = SampleShip();
+    ship.ship.object = 4;
+    Outpost::ApplyMessage(ship, world);
+    ship.ship.hullPercent = 12;
+    Outpost::ApplyMessage(ship, world);
+    Assert::AreEqual(std::size_t{1}, world.ships.size());
+    Assert::AreEqual(12, world.ships[0].hullPercent);
   }
 
   TEST_METHOD(MessagesCrossTheLoopbackOnTheirRoutes)

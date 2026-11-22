@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <Filter Include="Client">
+      <UniqueIdentifier>{2F8C5B13-6A47-4E0D-B9A2-7D1E3C6F5A84}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Hud">
       <UniqueIdentifier>{7C550C49-DDEC-5B51-BC1D-BB8362BCB206}</UniqueIdentifier>
     </Filter>
@@ -9,6 +12,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="InputScriptTests.cpp">
+      <Filter>Client</Filter>
+    </ClCompile>
     <ClCompile Include="TacticalHudTests.cpp">
       <Filter>Hud</Filter>
     </ClCompile>

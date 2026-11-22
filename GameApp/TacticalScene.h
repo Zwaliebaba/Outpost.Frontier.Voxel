@@ -14,8 +14,8 @@
 namespace Outpost
 {
 
-/// What the tactical view draws for one scene instance this session: its transforms, its world
-/// bounds for picking and HUD anchoring, and what kind of thing it is.
+/// What the tactical view draws for one world object it has been told about: its transforms, its
+/// world bounds for picking and HUD anchoring, and what kind of thing it is.
 struct InstanceView
 {
   enum class Kind : std::uint8_t
@@ -27,8 +27,9 @@ struct InstanceView
     Blueprint
   };
 
-  std::size_t sceneIndex = 0;
-  const SceneInstance* instance = nullptr;
+  ObjectId object = NO_OBJECT;
+  std::string name;                        // the object's placement name
+  const SceneInstance* instance = nullptr; // its placement record, when it has one
   const ModelAsset* asset = nullptr;
   const LoadedModel* model = nullptr;
   Kind kind = Kind::Station;
@@ -51,15 +52,17 @@ struct ViewSetup
   bool orthographic = false;
 };
 
-/// The 3D half of the tactical view: transforms and bounds from the scene, the key light's
-/// shadow camera, and the draw calls for voxels, the blueprint wireframe and the light effects.
+/// The 3D half of the tactical view: transforms and bounds for the objects the client was told
+/// about, the key light's shadow camera, and the draw calls for voxels, the blueprint wireframe and
+/// the light effects. It draws only what the world snapshot holds (AGENTS.md R25), placed at the
+/// poses the server sent; the scene's assets give each object its model and presentation.
 class TacticalScene
 {
 public:
   static constexpr float EXPOSURE = 1.05f;
   static constexpr float STAR_DISTANCE = 5000.0f;
 
-  void Build(const SceneAssets& _assets);
+  void Build(const SceneAssets& _assets, const WorldSnapshot& _world);
 
   [[nodiscard]] const std::vector<InstanceView>& Instances() const noexcept
   {

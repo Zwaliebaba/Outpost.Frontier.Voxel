@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdio>
 #include <unordered_set>
 
 namespace Neuron
@@ -186,6 +187,115 @@ float CompareComposition(const Image& _a, const Image& _b)
   }
   const double mean = distance / static_cast<double>(gridA.size());
   return static_cast<float>(std::clamp(1.0 - mean * 2.0, 0.0, 1.0));
+}
+
+PixelDifference ComparePixels(const Image& _a, const Image& _b)
+{
+  PixelDifference result;
+  if (_a.width != _b.width || _a.height != _b.height || _a.rgba.size() != _b.rgba.size())
+  {
+    result.differingPixels = std::max(_a.width * _a.height, _b.width * _b.height);
+    result.largestChannelDifference = 255;
+    result.maxX = std::max(_a.width, _b.width) - 1;
+    result.maxY = std::max(_a.height, _b.height) - 1;
+    return result;
+  }
+  result.minX = _a.width;
+  result.minY = _a.height;
+  for (std::size_t pixel = 0; pixel + 3 < _a.rgba.size(); pixel += 4)
+  {
+    bool differs = false;
+    for (std::size_t channel = 0; channel < 4; ++channel)
+    {
+      const int delta = std::abs(int{_a.rgba[pixel + channel]} - int{_b.rgba[pixel + channel]});
+      if (delta != 0)
+      {
+        differs = true;
+        result.largestChannelDifference = std::max(result.largestChannelDifference, static_cast<std::uint8_t>(delta));
+      }
+    }
+    if (differs)
+    {
+      const auto index = static_cast<std::uint32_t>(pixel / 4);
+      const std::uint32_t x = index % _a.width;
+      const std::uint32_t y = index / _a.width;
+      result.minX = std::min(result.minX, x);
+      result.minY = std::min(result.minY, y);
+      result.maxX = std::max(result.maxX, x);
+      result.maxY = std::max(result.maxY, y);
+      ++result.differingPixels;
+    }
+  }
+  if (result.differingPixels == 0)
+  {
+    result.minX = 0;
+    result.minY = 0;
+  }
+  return result;
+}
+
+std::string DescribeImage(std::uint32_t _width, std::uint32_t _height, const ImageStatistics& _statistics)
+{
+  char line[192]{};
+  std::snprintf(line, sizeof(line), "image %ux%u: mean luminance %.3f, lit %.1f%%, cyan %.2f%%, warm %.2f%%, %u distinct colours", _width,
+                _height, static_cast<double>(_statistics.meanLuminance), static_cast<double>(_statistics.litFraction) * 100.0,
+                static_cast<double>(_statistics.cyanFraction) * 100.0, static_cast<double>(_statistics.warmFraction) * 100.0,
+                _statistics.distinctColors);
+  return line;
+}
+
+bool FindImageDescription(std::string_view _report, std::uint32_t& _outWidth, std::uint32_t& _outHeight, ImageStatistics& _outStatistics)
+{
+  std::size_t start = 0;
+  while (start < _report.size())
+  {
+    std::size_t end = _report.find('\n', start);
+    if (end == std::string_view::npos)
+    {
+      end = _report.size();
+    }
+    const std::string line(_report.substr(start, end - start));
+    start = end + 1;
+    unsigned width = 0;
+    unsigned height = 0;
+    float luminance = 0.0f;
+    float lit = 0.0f;
+    float cyan = 0.0f;
+    float warm = 0.0f;
+    unsigned colors = 0;
+    if (sscanf_s(line.c_str(), "image %ux%u: mean luminance %f, lit %f%%, cyan %f%%, warm %f%%, %u distinct colours", &width, &height,
+                 &luminance, &lit, &cyan, &warm, &colors) == 7)
+    {
+      _outWidth = width;
+      _outHeight = height;
+      _outStatistics = ImageStatistics{luminance, lit / 100.0f, cyan / 100.0f, warm / 100.0f, colors};
+      return true;
+    }
+  }
+  return false;
+}
+
+std::string CompareStatistics(const ImageStatistics& _actual, const ImageStatistics& _expected, const StatisticsTolerance& _tolerance)
+{
+  std::string differences;
+  const auto check =
+    [&differences](const char* _name, float _actualValue, float _expectedValue, float _allowed, float _scale, int _decimals)
+  {
+    if (std::abs(_actualValue - _expectedValue) > _allowed)
+    {
+      char clause[128]{};
+      std::snprintf(clause, sizeof(clause), "%s%s %.*f, expected %.*f", differences.empty() ? "" : "; ", _name, _decimals,
+                    static_cast<double>(_actualValue * _scale), _decimals, static_cast<double>(_expectedValue * _scale));
+      differences += clause;
+    }
+  };
+  check("mean luminance", _actual.meanLuminance, _expected.meanLuminance, _tolerance.meanLuminance, 1.0f, 3);
+  check("lit %", _actual.litFraction, _expected.litFraction, _tolerance.fractionPoints, 100.0f, 2);
+  check("cyan %", _actual.cyanFraction, _expected.cyanFraction, _tolerance.fractionPoints, 100.0f, 2);
+  check("warm %", _actual.warmFraction, _expected.warmFraction, _tolerance.fractionPoints, 100.0f, 2);
+  check("distinct colours", static_cast<float>(_actual.distinctColors), static_cast<float>(_expected.distinctColors),
+        static_cast<float>(_expected.distinctColors) * _tolerance.distinctColorsShare, 1.0f, 0);
+  return differences;
 }
 
 } // namespace Neuron

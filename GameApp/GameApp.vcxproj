@@ -87,12 +87,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="InputScript.h" />
     <ClInclude Include="SceneAssets.h" />
     <ClInclude Include="TacticalClient.h" />
     <ClInclude Include="TacticalHud.h" />
     <ClInclude Include="TacticalScene.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="InputScript.cpp" />
     <ClCompile Include="SceneAssets.cpp" />
     <ClCompile Include="TacticalClient.cpp" />
     <ClCompile Include="TacticalHud.cpp" />

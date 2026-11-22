@@ -38,7 +38,11 @@ const char* UsageText() noexcept
   return "usage: Outpost [--windowed] [--size WxH] [--warp] [--debug-layer | --no-debug-layer] [--no-vsync]\n"
          "               [--assets directory]\n"
          "       Outpost --smoke-test [--frames N] [--size WxH] [--capture file.png] [--compare reference.png]\n"
-         "               [--report file.txt] [same device options]\n"
+         "               [--report file.txt] [--script file.txt] [--expect report.txt] [same device options]\n"
+         "               --script plays input commands at fixed ticks and runs one frame past the last;\n"
+         "               --expect fails the run when the frame's statistics leave a stored report's tolerance\n"
+         "       Outpost --benchmark [--frames N] [smoke-test options]: times every frame on the GPU with the\n"
+         "               shadow map redrawn each frame, and surface extraction per model; 600 frames by default\n"
          "Interactive sessions start borderless fullscreen unless --windowed; F11 or Alt+Enter switches.\n";
 }
 
@@ -54,6 +58,11 @@ bool ParseCommandLine(const std::vector<std::wstring>& _arguments, LaunchOptions
     if (argument == L"--smoke-test")
     {
       _outOptions.smokeTest = true;
+    }
+    else if (argument == L"--benchmark")
+    {
+      _outOptions.smokeTest = true;
+      _outOptions.benchmark = true;
     }
     else if (argument == L"--warp")
     {
@@ -82,6 +91,7 @@ bool ParseCommandLine(const std::vector<std::wstring>& _arguments, LaunchOptions
         _outError = "--frames expects 1..10000";
         return false;
       }
+      _outOptions.framesGiven = true;
     }
     else if (argument == L"--size" && hasValue)
     {
@@ -110,6 +120,14 @@ bool ParseCommandLine(const std::vector<std::wstring>& _arguments, LaunchOptions
     {
       _outOptions.report = _arguments[++i];
     }
+    else if (argument == L"--script" && hasValue)
+    {
+      _outOptions.script = _arguments[++i];
+    }
+    else if (argument == L"--expect" && hasValue)
+    {
+      _outOptions.expect = _arguments[++i];
+    }
     else if (argument == L"--assets" && hasValue)
     {
       _outOptions.assets = _arguments[++i];
@@ -119,6 +137,10 @@ bool ParseCommandLine(const std::vector<std::wstring>& _arguments, LaunchOptions
       _outError = "unknown or incomplete argument '" + Narrow(argument) + "'";
       return false;
     }
+  }
+  if (_outOptions.benchmark && !_outOptions.framesGiven)
+  {
+    _outOptions.frames = BENCHMARK_DEFAULT_FRAMES;
   }
   return true;
 }

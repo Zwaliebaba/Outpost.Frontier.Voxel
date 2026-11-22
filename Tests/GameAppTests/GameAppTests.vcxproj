@@ -94,6 +94,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="InputScriptTests.cpp" />
     <ClCompile Include="TacticalHudTests.cpp" />
     <ClCompile Include="TacticalSceneTests.cpp" />
   </ItemGroup>

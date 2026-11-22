@@ -1,0 +1,19 @@
+# Ship archetypes and the equipment they fly with (plan task 1.1; ADR-009; blueprint ch. 02 §3.7, §4).
+#
+# Units, SI throughout:
+#   mass kg; inertia kg m^2 per ship axis (pitch X, yaw Y, roll Z)
+#   drag, angulardrag: force per unit of speed, kg/s and N m s per radian
+#   thrust, force, strafe: N; torque: N m per axis
+#   reverse: the share of thrust a negative throttle gives
+#   charge, chargetime: s; maxbank: degrees
+#   capacity, charge, drain, cruisepower: units of a pool, and units per second
+#
+# The two escorts carry the blueprint's first-tier light fighter as authored: top speed 80 m/s,
+# thruster 200 m/s, strafe 33 m/s, pitch and yaw 92 degrees a second. They differ only in bank.
+
+engine name=LightEngine thrust=48000 drag=599 reverse=0.2 chargetime=5 cruisepower=20
+powerplant name=LightPowerPlant capacity=1000 charge=100 thrustcapacity=1000 thrustcharge=100
+thruster name=BasicThruster force=72000 drain=165
+
+ship name=EscortLancer model=EscortLancer mass=100 inertia=2800,2800,1000 drag=1 torque=24000,24000,58000 angulardrag=15000,15000,35000 strafe=20000 strafedrain=2 maxbank=30 engine=LightEngine powerplant=LightPowerPlant thruster=BasicThruster
+ship name=EscortTalon  model=EscortTalon  mass=100 inertia=2800,2800,1000 drag=1 torque=24000,24000,58000 angulardrag=15000,15000,35000 strafe=20000 strafedrain=2 maxbank=35 engine=LightEngine powerplant=LightPowerPlant thruster=BasicThruster

@@ -94,6 +94,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="FrameCaptureTests.cpp" />
     <ClCompile Include="SelectionTests.cpp" />
   </ItemGroup>
   <ItemGroup>

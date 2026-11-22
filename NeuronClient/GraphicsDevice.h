@@ -78,6 +78,9 @@ public:
   static constexpr DXGI_FORMAT RENDER_TARGET_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
   static constexpr DXGI_FORMAT DEPTH_FORMAT = DXGI_FORMAT_D32_FLOAT;
   static constexpr std::uint64_t UPLOAD_RING_BYTES = 48ull * 1024 * 1024;
+  // GPU timestamps a frame may write: BeginFrame and EndFrame each write one, and the caller may
+  // mark points between them with Timestamp().
+  static constexpr std::uint32_t MAX_TIMESTAMPS_PER_FRAME = 8;
 
   GraphicsDevice() = default;
   GraphicsDevice(const GraphicsDevice&) = delete;
@@ -98,6 +101,17 @@ public:
   [[nodiscard]] bool EndFrame(bool _captureBackBuffer, bool _vsync);
 
   void WaitIdle();
+
+  /// Records a GPU timestamp at this point of the frame being recorded. BeginFrame writes the first
+  /// and EndFrame the last; marks beyond MAX_TIMESTAMPS_PER_FRAME are dropped.
+  void Timestamp();
+
+  /// The timestamps of the most recent frame the GPU has finished, in milliseconds after that
+  /// frame's first; empty until one has finished. A frame's GPU time is the last entry.
+  [[nodiscard]] const std::vector<double>& CompletedTimestampsMilliseconds() const noexcept
+  {
+    return m_completedTimestampsMilliseconds;
+  }
 
   /// Default-heap buffer filled through a one-off upload; the call waits for the copy.
   [[nodiscard]] ComPtr<ID3D12Resource> CreateStaticBuffer(const void* _data, std::uint64_t _bytes);
@@ -172,6 +186,8 @@ private:
   [[nodiscard]] bool CreateSizeDependentResources();
   void ReleaseSizeDependentResources() noexcept;
   void InstallDebugCallback();
+  [[nodiscard]] bool CreateTimestampResources();
+  void ReadCompletedTimestamps();
   [[nodiscard]] bool ExecuteImmediate(ID3D12Resource* _uploadSource, ID3D12Resource* _destination, bool _isTexture,
                                       const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& _footprint, D3D12_RESOURCE_STATES _finalState);
   static void CALLBACK DebugMessageCallback(D3D12_MESSAGE_CATEGORY _category, D3D12_MESSAGE_SEVERITY _severity, D3D12_MESSAGE_ID _id,
@@ -197,6 +213,11 @@ private:
   ComPtr<ID3D12Resource> m_readback;
   std::uint64_t m_readbackRowPitch = 0;
   std::vector<std::uint8_t> m_capturedPixels;
+  ComPtr<ID3D12QueryHeap> m_timestampHeap;
+  ComPtr<ID3D12Resource> m_timestampReadback;
+  std::uint64_t m_timestampFrequency = 0;
+  std::array<std::uint32_t, BACK_BUFFER_COUNT> m_timestampCounts{};
+  std::vector<double> m_completedTimestampsMilliseconds;
   std::uint32_t m_capturedWidth = 0;
   std::uint32_t m_capturedHeight = 0;
   std::uint32_t m_rtvDescriptorSize = 0;

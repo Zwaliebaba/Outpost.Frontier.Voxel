@@ -1,5 +1,7 @@
 // Outpost.exe: the client with the server's logic in-process (ADR-001). The server half — World and
-// TickClock — owns the game state; the client half — TacticalClient — draws snapshots of it.
+// TickClock — owns the game state and publishes it through an Observer; the client half —
+// TacticalClient — builds its own picture from those messages and draws it. The two meet only in
+// the loopback transport (ADR-008, plan task F4).
 //
 // With --smoke-test it initializes, loads the scene, renders a few frames, checks the last one and
 // exits with an ExitCode, which is what CI and the README's verification steps run.
@@ -10,13 +12,20 @@
 #include "FileSys.h"
 #include "FrameCapture.h"
 #include "GraphicsDevice.h"
+#include "InputScript.h"
+#include "LoopbackTransport.h"
+#include "Observer.h"
 #include "TacticalClient.h"
 #include "TickClock.h"
+#include "VoxFile.h"
+#include "VoxelMesher.h"
 #include "World.h"
 
 #include <shellapi.h>
 
+#include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -117,7 +126,26 @@ struct Session
   Neuron::GraphicsDevice device;
   Outpost::TacticalClient client;
   Outpost::World world;
+  Outpost::Observer observer;
+  Neuron::LoopbackTransport transport;
 };
+
+/// The server publishes what changed and the client takes it in: the one hand-over between the
+/// halves, once per frame after the ticks. False, with the reason, if a message failed.
+[[nodiscard]] bool Exchange(Session& _session, std::string& _outError)
+{
+  if (!_session.observer.Publish(_session.world, _session.transport))
+  {
+    _outError = "the server could not encode or send a message";
+    return false;
+  }
+  if (!_session.client.Receive(_session.transport))
+  {
+    _outError = _session.client.ProtocolError();
+    return false;
+  }
+  return true;
+}
 
 /// Writes the debug layer's tally and every message it kept to the report; returns the error count.
 std::uint32_t ReportDebugLayer(Session& _session, const Outpost::LaunchOptions& _options, Report& _report)
@@ -132,32 +160,257 @@ std::uint32_t ReportDebugLayer(Session& _session, const Outpost::LaunchOptions& 
   return debugErrors;
 }
 
-[[nodiscard]] ExitCode RunSmokeTest(Session& _session, const Outpost::LaunchOptions& _options, Report& _report)
+/// Frame-time samples of one quantity in milliseconds, summarized as percentiles (plan task F6).
+[[nodiscard]] std::string Percentiles(const char* _name, std::vector<double> _samples)
 {
+  if (_samples.empty())
+  {
+    return std::string(_name) + ": no samples";
+  }
+  std::sort(_samples.begin(), _samples.end());
+  const auto at = [&_samples](double _fraction)
+  {
+    const auto index = static_cast<std::size_t>(std::llround(_fraction * static_cast<double>(_samples.size() - 1)));
+    return _samples[std::min(index, _samples.size() - 1)];
+  };
+  char line[256]{};
+  std::snprintf(line, sizeof(line), "%s ms: p50 %.3f, p95 %.3f, p99 %.3f, max %.3f over %zu frames", _name, at(0.50), at(0.95), at(0.99),
+                _samples.back(), _samples.size());
+  return line;
+}
+
+/// Median wall time of ExtractSurface over a few runs, in milliseconds.
+[[nodiscard]] double TimeSurfaceExtraction(const Neuron::VoxModel& _model, std::size_t& _outSurfaceVoxels)
+{
+  constexpr int RUNS = 5;
+  std::vector<double> times;
+  for (int run = 0; run < RUNS; ++run)
+  {
+    const auto start = std::chrono::steady_clock::now();
+    const Neuron::VoxelSurface surface = Neuron::ExtractSurface(_model);
+    times.push_back(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count());
+    _outSurfaceVoxels = surface.voxels.size();
+  }
+  std::sort(times.begin(), times.end());
+  return times[times.size() / 2];
+}
+
+constexpr int BRICK_VOXELS = 16;
+
+/// A copy of one 16-voxel brick of a model, at a brick-aligned origin.
+[[nodiscard]] Neuron::VoxModel CopyBrick(const Neuron::VoxModel& _model, int _originX, int _originY, int _originZ)
+{
+  Neuron::VoxModel brick(BRICK_VOXELS, BRICK_VOXELS, BRICK_VOXELS);
+  for (int z = 0; z < BRICK_VOXELS; ++z)
+  {
+    for (int y = 0; y < BRICK_VOXELS; ++y)
+    {
+      for (int x = 0; x < BRICK_VOXELS; ++x)
+      {
+        brick.Set(x, y, z, _model.At(_originX + x, _originY + y, _originZ + z));
+      }
+    }
+  }
+  return brick;
+}
+
+/// Solid voxels of the brick at an origin that have an empty neighbour in the whole model.
+[[nodiscard]] int CountBrickSurface(const Neuron::VoxModel& _model, int _originX, int _originY, int _originZ)
+{
+  int count = 0;
+  for (int z = _originZ; z < _originZ + BRICK_VOXELS; ++z)
+  {
+    for (int y = _originY; y < _originY + BRICK_VOXELS; ++y)
+    {
+      for (int x = _originX; x < _originX + BRICK_VOXELS; ++x)
+      {
+        if (_model.At(x, y, z) != 0 && (_model.At(x - 1, y, z) == 0 || _model.At(x + 1, y, z) == 0 || _model.At(x, y - 1, z) == 0 ||
+                                        _model.At(x, y + 1, z) == 0 || _model.At(x, y, z - 1) == 0 || _model.At(x, y, z + 1) == 0))
+        {
+          ++count;
+        }
+      }
+    }
+  }
+  return count;
+}
+
+/// How long surface extraction takes per shipped model, and for one 16-voxel brick, which is the
+/// unit damage will re-extract (plan tasks F6 and 3.1, ADR-013).
+void ReportSurfaceExtraction(const Outpost::SceneDefinition& _scene, const std::filesystem::path& _assetRoot, Report& _report)
+{
+  char line[256]{};
+  // The brick-aligned brick with the most surface voxels in any shipped model: the worst case for
+  // re-extracting one brick.
+  Neuron::VoxModel busiestBrick;
+  std::string busiestName;
+  int busiestSurface = -1;
+  for (const Outpost::ModelAsset& asset : _scene.models)
+  {
+    Neuron::VoxDocument document;
+    if (Neuron::LoadVoxFile(_assetRoot / asset.file, document) != Neuron::VoxError::None)
+    {
+      continue;
+    }
+    std::size_t surfaceVoxels = 0;
+    const double milliseconds = TimeSurfaceExtraction(document.model, surfaceVoxels);
+    std::snprintf(line, sizeof(line), "extract surface: %s %ux%ux%u, %zu solid, %zu surface: %.3f ms", asset.name.c_str(),
+                  document.model.SizeX(), document.model.SizeY(), document.model.SizeZ(), document.model.CountSolid(), surfaceVoxels,
+                  milliseconds);
+    _report.Line(line);
+    const Neuron::VoxModel& model = document.model;
+    for (int z = 0; z < static_cast<int>(model.SizeZ()); z += BRICK_VOXELS)
+    {
+      for (int y = 0; y < static_cast<int>(model.SizeY()); y += BRICK_VOXELS)
+      {
+        for (int x = 0; x < static_cast<int>(model.SizeX()); x += BRICK_VOXELS)
+        {
+          const int surface = CountBrickSurface(model, x, y, z);
+          if (surface > busiestSurface)
+          {
+            busiestSurface = surface;
+            busiestBrick = CopyBrick(model, x, y, z);
+            busiestName = asset.name + " at " + std::to_string(x) + "," + std::to_string(y) + "," + std::to_string(z);
+          }
+        }
+      }
+    }
+  }
+
+  Neuron::VoxModel solidBrick(BRICK_VOXELS, BRICK_VOXELS, BRICK_VOXELS);
+  for (int z = 0; z < BRICK_VOXELS; ++z)
+  {
+    for (int y = 0; y < BRICK_VOXELS; ++y)
+    {
+      for (int x = 0; x < BRICK_VOXELS; ++x)
+      {
+        solidBrick.Set(x, y, z, 1);
+      }
+    }
+  }
+  std::size_t surfaceVoxels = 0;
+  double milliseconds = TimeSurfaceExtraction(solidBrick, surfaceVoxels);
+  std::snprintf(line, sizeof(line), "extract surface: solid brick 16x16x16, %zu surface: %.3f ms", surfaceVoxels, milliseconds);
+  _report.Line(line);
+
+  if (busiestSurface >= 0)
+  {
+    milliseconds = TimeSurfaceExtraction(busiestBrick, surfaceVoxels);
+    std::snprintf(line, sizeof(line),
+                  "extract surface: busiest brick 16x16x16 (%s, %d surface in its model), %zu solid, %zu surface: %.3f ms",
+                  busiestName.c_str(), busiestSurface, busiestBrick.CountSolid(), surfaceVoxels, milliseconds);
+    _report.Line(line);
+  }
+}
+
+[[nodiscard]] ExitCode RunSmokeTest(Session& _session, const Outpost::LaunchOptions& _options, const std::filesystem::path& _assetRoot,
+                                    Report& _report)
+{
+  // A benchmark draws the shadow map every frame, as moving ships will need, and reads each
+  // frame's GPU timestamps once the GPU has finished it.
+  _session.client.SetShadowsEveryFrame(_options.benchmark);
+
+  // A script runs the timeline one frame past its last input unless --frames says how long.
+  Outpost::InputScript script;
+  int frames = _options.frames;
+  if (!_options.script.empty())
+  {
+    std::string error;
+    if (!Outpost::InputScript::Load(_options.script, script, error))
+    {
+      _report.Line("FAIL script: " + error);
+      return ExitCode::Usage;
+    }
+    const auto needed = static_cast<int>(script.LastTick()) + 1;
+    if (_options.framesGiven && _options.frames < needed)
+    {
+      _report.Line("FAIL script: it runs to tick " + std::to_string(script.LastTick()) + ", past --frames " +
+                   std::to_string(_options.frames));
+      return ExitCode::Usage;
+    }
+    frames = std::max(frames, needed);
+    _report.Line("script: " + _options.script.filename().string() + ", " + std::to_string(script.Events().size()) + " input(s) to tick " +
+                 std::to_string(script.LastTick()));
+  }
+
+  std::vector<double> gpuFrame;
+  std::vector<double> gpuShadows;
+  std::vector<double> gpuScene;
+  std::vector<double> gpuHud;
+  std::vector<double> frameInterval;
+  auto previous = std::chrono::steady_clock::now();
+
   // A fixed timeline: frame i is at i/60 s and advances the server by one tick, so the capture is
   // the same on every run and every machine.
-  for (int frame = 0; frame < _options.frames; ++frame)
+  for (int frame = 0; frame < frames; ++frame)
   {
     _session.world.Tick();
-    const bool last = frame + 1 == _options.frames;
+    std::string protocolError;
+    if (!Exchange(_session, protocolError))
+    {
+      _report.Line("FAIL protocol: " + protocolError + " during frame " + std::to_string(frame));
+      return ExitCode::Protocol;
+    }
+    if (frame == 0)
+    {
+      _report.Line("first publish: " + std::to_string(_session.observer.LastMessageCount()) + " message(s)");
+    }
+    // A tick's input happens at that tick's time, so gestures time out as they would live.
+    const std::uint64_t tick = _session.world.TickCount();
+    for (const Outpost::InputEvent& event : script.EventsAt(tick))
+    {
+      _session.client.Apply(event, tick * 1000 / Neuron::TickClock::TICKS_PER_SECOND);
+    }
+    const bool last = frame + 1 == frames;
     const float time = static_cast<float>(frame) / 60.0f;
-    if (!_session.client.Render(_session.world.Snapshot(), time, last, false, 60.0f))
+    if (!_session.client.Render(time, last, false, 60.0f))
     {
       _report.Line("FAIL render: the device was removed during frame " + std::to_string(frame));
       return ExitCode::Render;
     }
+    const auto now = std::chrono::steady_clock::now();
+    // The last frame captures and waits for the GPU, so it is not a representative interval.
+    if (_options.benchmark && frame >= Outpost::BENCHMARK_WARMUP_FRAMES && !last)
+    {
+      frameInterval.push_back(std::chrono::duration<double, std::milli>(now - previous).count());
+      const std::vector<double>& marks = _session.device.CompletedTimestampsMilliseconds();
+      if (marks.size() > Outpost::TacticalClient::TIMESTAMP_FRAME_END)
+      {
+        gpuShadows.push_back(marks[Outpost::TacticalClient::TIMESTAMP_SHADOWS_END]);
+        gpuScene.push_back(marks[Outpost::TacticalClient::TIMESTAMP_SCENE_END] - marks[Outpost::TacticalClient::TIMESTAMP_SHADOWS_END]);
+        gpuHud.push_back(marks[Outpost::TacticalClient::TIMESTAMP_FRAME_END] - marks[Outpost::TacticalClient::TIMESTAMP_SCENE_END]);
+        gpuFrame.push_back(marks.back());
+      }
+    }
+    previous = now;
   }
   _session.device.WaitIdle();
-  _report.Line("rendered " + std::to_string(_options.frames) + " frame(s), server tick " + std::to_string(_session.world.TickCount()));
+  _report.Line("rendered " + std::to_string(frames) + " frame(s), server tick " + std::to_string(_session.world.TickCount()));
+  if (!_session.client.Selected().empty())
+  {
+    _report.Line("selected: " + _session.client.Selected());
+  }
+  const Outpost::WorldSnapshot& told = _session.client.World();
+  _report.Line("client told of " + std::to_string(told.objects.size()) + " object(s), " + std::to_string(told.ships.size()) + " ship(s), " +
+               std::to_string(told.objectives.size()) + " objective(s), " + std::to_string(told.resources.size()) +
+               " resource(s), as of tick " + std::to_string(told.tick));
+  if (_options.benchmark)
+  {
+    _report.Line("benchmark: " + std::to_string(_options.width) + "x" + std::to_string(_options.height) +
+                 ", v-sync off, shadow map every frame, " + std::to_string(Outpost::BENCHMARK_WARMUP_FRAMES) +
+                 " warm-up frame(s) not measured");
+    _report.Line(Percentiles("gpu frame", gpuFrame));
+    _report.Line(Percentiles("gpu shadow pass", gpuShadows));
+    _report.Line(Percentiles("gpu scene pass", gpuScene));
+    _report.Line(Percentiles("gpu hud", gpuHud));
+    _report.Line(Percentiles("cpu frame interval", frameInterval));
+    ReportSurfaceExtraction(_session.client.Scene(), _assetRoot, _report);
+  }
 
   const Neuron::Image image = CapturedImage(_session.device);
   const Neuron::ImageStatistics statistics = Neuron::MeasureImage(image);
   char line[256]{};
-  std::snprintf(line, sizeof(line), "image %ux%u: mean luminance %.3f, lit %.1f%%, cyan %.2f%%, warm %.2f%%, %u distinct colours",
-                image.width, image.height, static_cast<double>(statistics.meanLuminance),
-                static_cast<double>(statistics.litFraction) * 100.0, static_cast<double>(statistics.cyanFraction) * 100.0,
-                static_cast<double>(statistics.warmFraction) * 100.0, statistics.distinctColors);
-  _report.Line(line);
+  _report.Line(Neuron::DescribeImage(image.width, image.height, statistics));
 
   if (!_options.capture.empty())
   {
@@ -176,6 +429,12 @@ std::uint32_t ReportDebugLayer(Session& _session, const Outpost::LaunchOptions& 
       std::snprintf(line, sizeof(line), "composition similarity to %s: %.3f", _options.compare.filename().string().c_str(),
                     static_cast<double>(Neuron::CompareComposition(image, reference)));
       _report.Line(line);
+      const Neuron::PixelDifference difference = Neuron::ComparePixels(image, reference);
+      std::snprintf(line, sizeof(line), "pixels differing from %s: %u, largest channel difference %u, within %u,%u to %u,%u",
+                    _options.compare.filename().string().c_str(), difference.differingPixels,
+                    static_cast<unsigned>(difference.largestChannelDifference), difference.minX, difference.minY, difference.maxX,
+                    difference.maxY);
+      _report.Line(line);
     }
     else
     {
@@ -192,10 +451,38 @@ std::uint32_t ReportDebugLayer(Session& _session, const Outpost::LaunchOptions& 
   // the amber hangar and breach light.
   const bool imageOk = statistics.meanLuminance > 0.02f && statistics.litFraction > 0.05f && statistics.distinctColors > 400 &&
                        statistics.cyanFraction > 0.001f && statistics.warmFraction > 0.0005f;
-  if (!imageOk)
+  // A benchmark may run a generated scene with no shipyard in view (--assets), so its image is
+  // reported and not judged.
+  if (!imageOk && !_options.benchmark)
   {
     _report.Line("FAIL image check: the frame looks blank or incomplete");
     return ExitCode::ImageCheck;
+  }
+  if (!_options.expect.empty())
+  {
+    std::string expected;
+    std::uint32_t expectedWidth = 0;
+    std::uint32_t expectedHeight = 0;
+    Neuron::ImageStatistics expectedStatistics;
+    if (!Neuron::ReadTextFile(_options.expect, expected) ||
+        !Neuron::FindImageDescription(expected, expectedWidth, expectedHeight, expectedStatistics))
+    {
+      _report.Line("FAIL expect: no image line in " + _options.expect.string());
+      return ExitCode::Usage;
+    }
+    if (expectedWidth != image.width || expectedHeight != image.height)
+    {
+      _report.Line("FAIL expect: the frame is " + std::to_string(image.width) + "x" + std::to_string(image.height) + ", the report's " +
+                   std::to_string(expectedWidth) + "x" + std::to_string(expectedHeight));
+      return ExitCode::Mismatch;
+    }
+    const std::string differences = Neuron::CompareStatistics(statistics, expectedStatistics);
+    if (!differences.empty())
+    {
+      _report.Line("FAIL expect: " + differences);
+      return ExitCode::Mismatch;
+    }
+    _report.Line("matches " + _options.expect.filename().string());
   }
   _report.Line("PASS");
   return ExitCode::Success;
@@ -238,13 +525,19 @@ std::uint32_t ReportDebugLayer(Session& _session, const Outpost::LaunchOptions& 
     {
       _session.world.Tick();
     }
+    std::string protocolError;
+    if (!Exchange(_session, protocolError))
+    {
+      MessageBoxW(_session.window.Handle(), L"A message between the server and the client failed.", L"Outpost: Frontier", MB_ICONERROR);
+      return ExitCode::Protocol;
+    }
     if (elapsed > 0)
     {
       framesPerSecond = framesPerSecond * 0.95f + 0.05f * (1'000'000.0f / static_cast<float>(elapsed));
     }
     const bool capture = _session.window.TakeCaptureRequest();
     const float time = std::chrono::duration<float>(now - start).count();
-    if (!_session.client.Render(_session.world.Snapshot(), time, capture, true, framesPerSecond))
+    if (!_session.client.Render(time, capture, true, framesPerSecond))
     {
       MessageBoxW(_session.window.Handle(), L"The graphics device was lost.", L"Outpost: Frontier", MB_ICONERROR);
       return ExitCode::Render;
@@ -337,13 +630,22 @@ int WINAPI wWinMain(_In_ HINSTANCE _instance, _In_opt_ HINSTANCE /*_previous*/, 
           report.Line("scene: " + std::to_string(session->client.Scene().instances.size()) + " instances, " +
                       std::to_string(session->client.Assets().ModelCount()) + " models, " +
                       std::to_string(session->client.Assets().SurfaceVoxelCount()) + " surface voxels");
-          session->world.Load(session->client.Scene());
-          session->window.Attach(&session->device, &session->client);
-          if (options.smokeTest)
+          // The server loads its own content; it is never handed the client's (ADR-009).
+          if (!session->world.LoadContent(assetRoot, error))
           {
-            result = RunSmokeTest(*session, options, report);
+            report.Line("FAIL server content: " + error);
+            result = ExitCode::Scene;
           }
           else
+          {
+            report.Line("server: " + std::to_string(session->world.State().objects.size()) + " objects");
+          }
+          session->window.Attach(&session->device, &session->client);
+          if (result == ExitCode::Success && options.smokeTest)
+          {
+            result = RunSmokeTest(*session, options, assetRoot, report);
+          }
+          else if (result == ExitCode::Success)
           {
             result = RunInteractive(*session);
             report.Line("interactive session ended after server tick " + std::to_string(session->world.TickCount()));

@@ -32,4 +32,28 @@ const ShipState* WorldSnapshot::FindShip(std::string_view _instance) const noexc
   return nullptr;
 }
 
+const WorldObject* WorldSnapshot::FindObject(ObjectId _id) const noexcept
+{
+  for (const WorldObject& object : objects)
+  {
+    if (object.id == _id)
+    {
+      return &object;
+    }
+  }
+  return nullptr;
+}
+
+WorldObject* WorldSnapshot::FindObject(ObjectId _id) noexcept
+{
+  for (WorldObject& object : objects)
+  {
+    if (object.id == _id)
+    {
+      return &object;
+    }
+  }
+  return nullptr;
+}
+
 } // namespace Outpost

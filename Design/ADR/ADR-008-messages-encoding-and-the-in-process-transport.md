@@ -34,9 +34,9 @@ Each kind has one fixed route, given by `RouteOf`: a delivery and, for reliable 
 
 | Delivery | For | Today |
 |---|---|---|
-| Reliable, ordered within a stream | Facts that must all arrive, in order: identity, objectives, later commands and docking | `Ship`, `Objective` on stream 0, the world stream |
+| Reliable, ordered within a stream | Facts that must all arrive, in order: identity, objectives, later commands and docking | `Ship`, `Objective`, `ObjectSpawn` on stream 0, the world stream |
 | Reliable, sharded by object | Voxel damage events, which R22 needs complete and in order per object, not globally (slice 3) | — |
-| Datagram, newest wins | State that changes every tick; the receiver keeps the copy with the latest tick | `Tick`, `Resource` |
+| Datagram, newest wins | State that changes every tick; the receiver keeps the copy with the latest tick | `Tick`, `Resource`, `ObjectState` |
 | Datagram, redundant | Per-tick flight input, each datagram repeating the last few inputs (slice 1) | — |
 
 A datagram message must fit `MAX_DATAGRAM_BYTES`, which is **1,100 bytes** of payload. QUIC guarantees that every path carries a UDP payload of at least 1,200 bytes. A datagram frame gives up part of that to the short header, the packet number, the 16-byte authentication tag and its own frame header, and 1,100 leaves room for all of them. In slice 10 the maximum MsQuic reports for each connection replaces the constant. A test encodes the largest datagram message of every kind against the budget.
@@ -58,6 +58,19 @@ A datagram message must fit `MAX_DATAGRAM_BYTES`, which is **1,100 bytes** of pa
 - `ShipModuleState`, `ShipState`, `ObjectiveState` and `ResourceState` gain defaulted equality, so messages can be compared.
 - A reader of an unknown or newer catalogue gets a clean refusal instead of misread bytes, which is what lets a host and a client of different builds fail politely (the blueprint's version check, ch. 11 §3.13).
 - Until F4, nothing in the executable uses this path; the snapshot is still handed over by reference.
+
+## Since: F4 put the executable on this path
+
+Catalogue version 2 adds two kinds under the rules above, and the by-reference hand-over is gone.
+
+- `ObjectSpawn` (reliable, world stream) introduces an object: its `ObjectId`, its content names (ADR-009), its owner, its scale and its pose. Later messages name it by id alone.
+- `ObjectState` (datagram, newest wins) carries an object's pose as of a tick. A pose is a position in three doubles (ADR-007) and an orientation as a float quaternion: 40 bytes. With the tick and the id the payload is 52 bytes, and 60 with the header.
+- `Ship` now names the object it is, and the receiver keys ships by that id rather than by name.
+- `ApplyMessage` (`GameCore/Messages`) is the one function that turns a decoded message into the receiver's `WorldSnapshot`. It drops newest-wins messages older than the copy it holds, and state for an object it was never told of.
+- `GameLogic/Observer` is the observer of the decision above. It remembers what its client was told and sends only what changed: a spawn for an object the client has not seen, a pose when one moved, a ship, objective or resource when it differs. In single player it passes every object.
+- The executable runs `Observer::Publish` and `TacticalClient::Receive` once a frame, after the ticks. A message that fails to encode, send or decode ends a smoke run with exit code 8 (`Protocol`).
+- The client builds its scene from the objects it was told about, at the poses it received, and rebuilds when an object appears or moves. Until the first messages arrive it draws nothing. The first build after F4 asserted in `XMMatrixLookAtLH`, because an empty scene gave the shadow camera infinite bounds; the shadow camera now falls back to the origin when there is nothing to bound.
+- **Measured:** the sample scene's first publish is 51 messages: one tick, 38 spawns, 4 ships, 3 objectives and 5 resources, as the smoke report prints. That report also says what the client was told. Drawing at a received pose rather than the scene's own matrix moved 5 % of the WARP capture's pixels by float rounding, and the smoke reference was stored again (`Design/Measurements/SmokeBaseline.md`, which records how that was traced).
 
 ## Verified
 

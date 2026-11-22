@@ -3,11 +3,13 @@
 Each .cpp is linted with the switches its own project's Debug|x64 configuration gives MSVC,
 through clang's MSVC driver (--driver-mode=cl): language standard, conformance, instruction set,
 floating-point model, character set, runtime library, preprocessor definitions and the include
-directories of other projects. The rules come from /.clang-tidy, which clang-tidy finds itself.
+directories of other projects and of the NuGet packages it imports (ADR-017). The rules come from
+/.clang-tidy, which clang-tidy finds itself.
 
 Run it where MSVC's environment is set (a Developer PowerShell, or CI after "Import the MSVC
 environment"): INCLUDE is what makes the CRT and the Windows SDK visible to clang. Run it after a
-build, because NeuronClient includes the shader headers the build writes to CompiledShaders/.
+build, because NeuronClient includes the shader headers the build writes to CompiledShaders/, and
+QuicSpike the headers of a package only a restore puts under packages/.
 
 Usage:
   python Build/RunClangTidy.py                         every translation unit
@@ -35,6 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import BuildTree  # noqa: E402
 
 CONFIGURATION = "Debug|x64"  # what CI builds, and so what the linter must see
+PACKAGE_IMPORT = re.compile(r"(?:^|[\\/])packages[\\/]", re.IGNORECASE)
 
 
 @dataclass
@@ -48,7 +51,32 @@ class ConfigurationError(Exception):
     pass
 
 
-def project_arguments(root: Path, project: BuildTree.Project) -> list[str]:
+def package_include_directories(root: Path, project: BuildTree.Project, require_restore: bool) -> list[str]:
+    """The include directories the build files of a project's NuGet packages add (R14, ADR-017)."""
+    directories: list[str] = []
+    for element in project.root.iter(f"{{{BuildTree.MSBUILD_NAMESPACE}}}Import"):
+        target = element.get("Project", "")
+        if not PACKAGE_IMPORT.search(target):
+            continue
+        path = Path(os.path.normpath(root / project.directory / target.replace("\\", os.sep)))
+        if not path.is_file():
+            if require_restore:
+                raise ConfigurationError(f"{project.path}: {target} is not restored; restore the solution's NuGet packages first")
+            continue
+        imported = BuildTree.parse_xml(path.read_text(encoding="utf-8-sig"))
+        for setting in imported.iter(f"{{{BuildTree.MSBUILD_NAMESPACE}}}AdditionalIncludeDirectories"):
+            for directory in (setting.text or "").split(";"):
+                directory = directory.strip()
+                if not directory or directory.startswith("%("):
+                    continue
+                expanded = directory.replace("$(MSBuildThisFileDirectory)", str(path.parent) + os.sep)
+                if "$(" in expanded:
+                    raise ConfigurationError(f"{path}: cannot expand '{directory}'")
+                directories.append(os.path.normpath(expanded))
+    return directories
+
+
+def project_arguments(root: Path, project: BuildTree.Project, require_restore: bool = True) -> list[str]:
     """The cl.exe switches a project's configuration implies, in clang-cl's spelling."""
     value = lambda name: project.property_value(CONFIGURATION, name)  # noqa: E731
     arguments = ["--driver-mode=cl", "/EHsc", "/nologo"]
@@ -97,6 +125,7 @@ def project_arguments(root: Path, project: BuildTree.Project) -> list[str]:
         if os.path.normcase(normalized) == own:
             continue  # AGENTS.md §3: a project never lists itself; quoted includes resolve beside the file
         arguments.append(f"/I{normalized}")
+    arguments += [f"/I{directory}" for directory in package_include_directories(root, project, require_restore)]
     return arguments
 
 
@@ -113,7 +142,7 @@ def collect_units(root: Path, selected: set[PurePosixPath] | None, require_build
             continue
         if require_build and any(item.kind == "FxCompile" for item in project.items) and not (root / project.directory / "CompiledShaders").is_dir():
             raise ConfigurationError(f"{project.directory}/CompiledShaders/ does not exist; build the solution first")
-        arguments = project_arguments(root, project)
+        arguments = project_arguments(root, project, require_restore=require_build)
         for source in sources:
             relative = project.directory / source
             if selected is None or relative in selected:

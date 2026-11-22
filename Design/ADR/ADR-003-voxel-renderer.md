@@ -66,6 +66,8 @@ Exit codes: 0 success, 1 usage, 2 device (no FL 12_1 / SM 6.7 adapter), 3 scene,
 
 The interactive Debug build on an RTX 3070 Ti Laptop GPU showed 165 fps on its status line, the display's v-sync limit, so no uncapped frame time has been measured.
 
+*Measured since (plan task F6, [measurement note](../Measurements/F6-RendererBaseline.md)):* on that GPU, Release at 1920 × 1080 with the shadow map redrawn every frame, the sample takes 1.4 ms per GPU frame. GameDesign.md §8.2's 100-player crowd, 3.6 million surface voxels a frame, takes 6.3 to 7.0 ms at full detail and 0.6 to 2.0 ms with distance stand-ins for levels of detail. The verdict is go: this technique stays.
+
 ## Consequences
 
 - Fill cost scales with screen coverage, not triangle count, and the pixel shader runs once per covered pixel per voxel quad. Very close voxels are the expensive case; the 12-pixel switch to box bounds keeps their quads tight.

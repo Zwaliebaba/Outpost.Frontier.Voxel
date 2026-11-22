@@ -29,15 +29,22 @@ How the code is written is in [AGENTS.md](AGENTS.md); the engineering decisions 
 | GPU | Direct3D 12, feature level 12_1, shader model 6.7 — or WARP (`--warp`) |
 | CPU | AVX2 (the projects compile `/arch:AVX2`) |
 
-Nothing else today: no packages, no Agility SDK, no `d3dx12.h`. NuGet is the repository's package manager and libraries are approved one at a time (AGENTS.md R14); none is used yet.
+There is no Agility SDK and no `d3dx12.h`. NuGet is the repository's package manager, and libraries are approved one at a time (AGENTS.md R14).
 
-That stays true for building, testing and single player. Networked play, the design's slice 10, will add one library: MsQuic, Microsoft's QUIC implementation, restored from the NuGet package `Microsoft.Native.Quic.MsQuic.Schannel`, the first library approved under AGENTS.md R14. It will also need Windows 11 or Windows Server 2022, whose TLS 1.3 the Schannel build uses. Nothing in the tree uses it yet.
+One package is used so far: MsQuic, Microsoft's QUIC implementation, from `Microsoft.Native.Quic.MsQuic.Schannel` 2.6.4 ([ADR-017](Design/ADR/ADR-017-nuget-and-the-msquic-transport.md)).
+
+- Only the `QuicSpike` tool references it.
+- The game, its tests and single player never load `msquic.dll`.
+- Networked play, the design's slice 10, will use it. That needs Windows 11 or Windows Server 2022, whose TLS 1.3 the Schannel build uses.
 
 ## Build and run
 
 Run these from the repository root in a *Developer PowerShell for VS 2026*. Always build through the solution — see AGENTS.md §3 for why.
 
 ```powershell
+# NuGet packages, once after a clone and whenever a pinned version changes (Visual Studio does this itself)
+msbuild Outpost.Frontier.slnx /t:restore /p:RestorePackagesConfig=true /p:Configuration=Debug /p:Platform=x64 /nologo
+
 # Everything, Debug and Release
 msbuild Outpost.Frontier.slnx /p:Configuration=Debug   /p:Platform=x64 /m /v:minimal /nologo
 msbuild Outpost.Frontier.slnx /p:Configuration=Release /p:Platform=x64 /m /v:minimal /nologo
@@ -81,7 +88,9 @@ Ships behind the camera or off screen get an edge arrow that points toward them;
 | The design: what the game is, system by system, and the order to build it in | [`Design/GameDesign.md`](Design/GameDesign.md) |
 | The MVP implementation plan: the design's first six slices as tasks, tests, ADRs and exit criteria, with what is done so far | [`Design/ImplementationPlan.md`](Design/ImplementationPlan.md) |
 | The checkers CI runs, and their self-test | [`Build/`](Build/) — see *Tests and checks* |
-| The message catalogue and the in-process transport (not yet used by the executable) | [`GameCore/Messages.h`](GameCore/Messages.h), [`NeuronCore/LoopbackTransport.h`](NeuronCore/LoopbackTransport.h), ADR-008 |
+| The message catalogue and the in-process transport the executable runs on; the observer that publishes world state | [`GameCore/Messages.h`](GameCore/Messages.h), [`NeuronCore/LoopbackTransport.h`](NeuronCore/LoopbackTransport.h), [`GameLogic/Observer.h`](GameLogic/Observer.h), ADR-008 |
+| Ship archetypes, the flight model and the manoeuvre layer (slice 1, tasks 1.1 to 1.3) | [`Assets/Content/Ships.txt`](Assets/Content/Ships.txt), [`GameCore/FlightModel.h`](GameCore/FlightModel.h), [`GameCore/Manoeuvre.h`](GameCore/Manoeuvre.h), ADR-009 |
+| The MsQuic spike: the catalogue over QUIC on localhost, with induced loss and a pinned certificate | [`QuicSpike/`](QuicSpike/), ADR-017. Run `.\x64\Debug\QuicSpike.exe`; it exits 0 when every check passes |
 | The scene: camera, lights, models, sockets, instances, ships, module damage, engines, objectives, resources, build items | [`Assets/Scene.txt`](Assets/Scene.txt) — plain text, documented in its header and in ADR-002 |
 | The models | `Assets/Models/*.vox` — genuine MagicaVoxel files, open them in MagicaVoxel |
 | The canonical palette (role → colour) | [`GameCore/Palette.h`](GameCore/Palette.h) for the index map, [`GameCore/Palette.cpp`](GameCore/Palette.cpp) for colours and the emissive material table |
@@ -123,13 +132,21 @@ Every library has its own test project under `Tests\`. In Visual Studio, *Test �
 | Project | Tests | Covers |
 |---|---|---|
 | `Tests\NeuronCoreTests` | 28 | VOX read/write and a hand-authored fixture that pins the palette offset; rejection of bad magic, truncated chunks, invalid dimensions and out-of-bounds voxels; meshing of single and adjacent voxels; wireframes and the side profile; VOX-to-world axes, handedness and socket mating; the wire format's byte order and round trips; the in-process transport's order and datagram budget |
-| `Tests\NeuronClientTests` | 8 | Selection maths: ships ahead, beside the view, straddling the near plane and behind the camera; pick rays; click versus drag; orbit-camera limits |
+| `Tests\NeuronClientTests` | 14 | Selection maths: ships ahead, beside the view, straddling the near plane and behind the camera; pick rays; click versus drag; orbit-camera limits; pixel differences between captures, the report's image line, and the `--expect` tolerance |
 | `Tests\NeuronServerTests` | 5 | The tick clock at 60 Hz (ADR-007): whole ticks, carried remainders, ten minutes exactly 36,000 ticks, stall catch-up, interpolation |
-| `Tests\GameCoreTests` | 21 | The canonical palette, including byte equality across every generated file; scene parsing and validation; the shipped blueprint landing on its dock; the message catalogue: round trips, header, refusals, routes, the datagram budget |
-| `Tests\GameLogicTests` | 5 | The world: the first snapshot, exact income per minute, fractional income, capacity, reloading |
-| `Tests\GameAppTests` | 6 | The HUD: every vertex on screen at 720p, 1080p and 4K with ships off screen and behind the camera; build slots; scaling; fonts. The draw constants the voxel shader unprojects through |
+| `Tests\GameCoreTests` | 66 | The canonical palette, including byte equality across every generated file; scene parsing and validation; the shipped blueprint landing on its dock; the message catalogue: round trips, header, refusals, routes, the datagram budget, and applying messages to the client's world; world objects and poses; ship records; the flight model against chapter 02's worked example; the manoeuvre layer |
+| `Tests\GameLogicTests` | 11 | The world: its objects, the first state, exact income per minute, fractional income, capacity, reloading; the observer: one message per object, nothing sent twice, only what changed |
+| `Tests\GameAppTests` | 11 | The HUD: every vertex on screen at 720p, 1080p and 4K with ships off screen and behind the camera; build slots; scaling; fonts. The draw constants the voxel shader unprojects through. Input scripts: parsing, drags and clicks expanded per tick, mistakes reported with the line |
 
-Smoke-test options: `--frames N`, `--size WxH`, `--no-vsync`, `--debug-layer` / `--no-debug-layer`, and `--assets <dir>`. The smoke test always renders in a window of exactly `--size`, never fullscreen, so its captures do not depend on the monitor.
+Smoke-test options:
+
+- `--frames N`, `--size WxH`, `--no-vsync`, `--debug-layer` / `--no-debug-layer` and `--assets <dir>`.
+- `--script <file>` plays input commands at fixed server ticks: `drag`, `click`, `wheel`, `reset`, `help` and `status`. An example is `Design\Measurements\ScriptedSmoke.txt`.
+- `--expect <report>` fails the run when the image statistics leave a stored report's tolerance.
+
+`--benchmark` times every frame on the GPU, and `AssetGenerator --crowd <dir>` writes the F6 crowd scenes ([F6-RendererBaseline.md](Design/Measurements/F6-RendererBaseline.md)).
+
+Checking against the stored references is described in [SmokeBaseline.md](Design/Measurements/SmokeBaseline.md). The smoke test always renders in a window of exactly `--size`, never fullscreen, so its captures do not depend on the monitor.
 
 Exit codes:
 
@@ -143,10 +160,30 @@ Exit codes:
 | 5 | Debug-layer errors |
 | 6 | Image check failed (blank, flat, or missing the cyan HUD or warm lights) |
 | 7 | Capture failed |
+| 8 | The client could not decode or apply the server's messages |
+| 9 | `--expect`: the statistics differ from the stored report |
 
 ### What was run for this version
 
-All of the following passed on 2026-11-21, on Windows 11 with an RTX 3070 Ti Laptop GPU:
+On 2026-11-22, on branch `mvp-foundations` (F0 to F7, slice 1 tasks 1.1 to 1.3), Windows 11 with an RTX 3070 Ti Laptop GPU:
+
+- **Builds:** a Debug x64 rebuild through the solution after a NuGet restore, with no warnings. Release x64 built too.
+- **Unit tests:** `vstest.console.exe` over all six suites, Debug: 135 of 135 passed.
+- **Smoke test on WARP:**
+  - Debug: 0 pixels differ from `Design\Measurements\SmokeBaselineWarp.png`, and the statistics match its report.
+  - The scripted run matches its own stored reference.
+  - Release matches the statistics but not every pixel; see SmokeBaseline.md.
+- **Smoke test on hardware:** Debug with the debug layer on: exit 0, 0 debug-layer errors, and statistics matching `SmokeBaselineGpu.txt`.
+- **QuicSpike:** every check passed, Debug at 600 ticks and Release at 300 (ADR-017).
+- **Checkers:**
+  - `CheckProjectFiles.py` clean.
+  - `TestCheckers.py` 41 tests passed.
+  - `CheckFormat.py` clean with clang-format 18.1.3, the pinned version.
+  - `RunClangTidy.py` clean over 73 translation units. That was the local clang-tidy 22.1.3 with `--any-version`; CI pins 22.1.8.
+
+Not run here: the GitHub Actions workflow itself, and an interactive session driven by hand.
+
+The earlier record, for the sample as first published: all of the following passed on 2026-11-21, on Windows 11 with an RTX 3070 Ti Laptop GPU:
 - **Builds:** Debug and Release x64 through the solution, with `/warnaserror`: zero warnings.
 - **Unit tests:** `vstest.console.exe` over all six `*Tests.dll` suites, Debug and Release: 55 of 55 passed.
 - **Smoke test on WARP**, Debug (debug layer on) and Release, at 1920×1080:
@@ -167,6 +204,6 @@ Not run here:
 
 In scope: one static tactical scene; camera control; ship selection and inspection; HUD; asset generation; tests.
 
-Out of scope, by the brief: a ship editor, live destruction, combat and networking. The client draws a server snapshot in-process, which is where a transport would go.
+Out of scope, by the brief: a ship editor, live destruction, combat and networking. The client builds its picture of the world from the server's encoded messages over the in-process transport. `QuicSpike` carries the same messages over MsQuic, so that is where a network transport goes.
 
 Where the design puts those ([Design/GameDesign.md](Design/GameDesign.md) §11): combat and live destruction arrive together in slice 3, as voxel damage; networking is slice 10, over QUIC with MsQuic (GameDesign.md §8.1), and the rules that keep it possible bind from slice 1 (AGENTS.md R18 to R25); a ship editor is not part of the game. The hull and module percentages and the resources the HUD shows are read from `Scene.txt` today; in the design they are measured from voxel masks and produced by the outpost.

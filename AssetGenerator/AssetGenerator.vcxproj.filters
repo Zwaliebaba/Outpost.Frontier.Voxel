@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <Filter Include="Benchmark">
+      <UniqueIdentifier>{3C1F6A52-7D0E-4B8A-9E21-5A4C8D2B7F10}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Builder">
       <UniqueIdentifier>{57E9068C-058A-527C-9E44-5FB3B1C20339}</UniqueIdentifier>
     </Filter>
@@ -12,6 +15,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CrowdScene.h">
+      <Filter>Benchmark</Filter>
+    </ClInclude>
     <ClInclude Include="ModelCatalog.h">
       <Filter>Builder</Filter>
     </ClInclude>
@@ -22,6 +28,9 @@
   <ItemGroup>
     <ClCompile Include="AsteroidModels.cpp">
       <Filter>Models</Filter>
+    </ClCompile>
+    <ClCompile Include="CrowdScene.cpp">
+      <Filter>Benchmark</Filter>
     </ClCompile>
     <ClCompile Include="Main.cpp">
       <Filter>Tool</Filter>

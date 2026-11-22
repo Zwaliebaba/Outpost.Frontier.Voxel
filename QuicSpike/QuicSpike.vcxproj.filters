@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Network">
+      <UniqueIdentifier>{167D9B95-D4D2-4432-9744-BEA5AF4111E0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Spike">
+      <UniqueIdentifier>{BF193E28-D2C5-458F-83E2-471F54735517}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="LossyRelay.h">
+      <Filter>Spike</Filter>
+    </ClInclude>
+    <ClInclude Include="QuicEvents.h">
+      <Filter>Network</Filter>
+    </ClInclude>
+    <ClInclude Include="QuicLibrary.h">
+      <Filter>Network</Filter>
+    </ClInclude>
+    <ClInclude Include="QuicPeer.h">
+      <Filter>Network</Filter>
+    </ClInclude>
+    <ClInclude Include="SelfSignedCertificate.h">
+      <Filter>Network</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="LossyRelay.cpp">
+      <Filter>Spike</Filter>
+    </ClCompile>
+    <ClCompile Include="Main.cpp">
+      <Filter>Spike</Filter>
+    </ClCompile>
+    <ClCompile Include="QuicEvents.cpp">
+      <Filter>Network</Filter>
+    </ClCompile>
+    <ClCompile Include="QuicLibrary.cpp">
+      <Filter>Network</Filter>
+    </ClCompile>
+    <ClCompile Include="QuicPeer.cpp">
+      <Filter>Network</Filter>
+    </ClCompile>
+    <ClCompile Include="SelfSignedCertificate.cpp">
+      <Filter>Network</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config">
+      <Filter>Network</Filter>
+    </None>
+  </ItemGroup>
+</Project>

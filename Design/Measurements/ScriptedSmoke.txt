@@ -1,0 +1,5 @@
+# The scripted smoke run (plan task F5): select the fighter on the right, orbit the view, zoom in.
+# Pixels of the 1920 x 1080 smoke frame; ticks are server ticks, one per frame.
+click tick=2 at=1545,700
+drag tick=4 button=left from=960,540 to=1180,580 ticks=20
+wheel tick=30 steps=1

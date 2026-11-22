@@ -1,11 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <Filter Include="Capture">
+      <UniqueIdentifier>{6E0B4A1C-2F37-4C58-9D16-8B3A7E5C2D91}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Selection">
       <UniqueIdentifier>{A258C01D-6664-51D9-85CD-1429872EFC10}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="FrameCaptureTests.cpp">
+      <Filter>Capture</Filter>
+    </ClCompile>
     <ClCompile Include="SelectionTests.cpp">
       <Filter>Selection</Filter>
     </ClCompile>

@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <Filter Include="Flight">
+      <UniqueIdentifier>{8A3E1F52-4C69-4D07-B1E8-2F5A7C9D0B36}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Palette">
       <UniqueIdentifier>{93D3B622-94AF-5DEC-8921-515E673685C3}</UniqueIdentifier>
     </Filter>
@@ -12,11 +15,23 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="FlightModel.h">
+      <Filter>Flight</Filter>
+    </ClInclude>
+    <ClInclude Include="Manoeuvre.h">
+      <Filter>Flight</Filter>
+    </ClInclude>
+    <ClInclude Include="ShipArchetype.h">
+      <Filter>Flight</Filter>
+    </ClInclude>
     <ClInclude Include="Palette.h">
       <Filter>Palette</Filter>
     </ClInclude>
     <ClInclude Include="SceneDefinition.h">
       <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="WorldObject.h">
+      <Filter>Messages</Filter>
     </ClInclude>
     <ClInclude Include="WorldSnapshot.h">
       <Filter>Scene</Filter>
@@ -26,11 +41,23 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="FlightModel.cpp">
+      <Filter>Flight</Filter>
+    </ClCompile>
+    <ClCompile Include="Manoeuvre.cpp">
+      <Filter>Flight</Filter>
+    </ClCompile>
+    <ClCompile Include="ShipArchetype.cpp">
+      <Filter>Flight</Filter>
+    </ClCompile>
     <ClCompile Include="Palette.cpp">
       <Filter>Palette</Filter>
     </ClCompile>
     <ClCompile Include="SceneDefinition.cpp">
       <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="WorldObject.cpp">
+      <Filter>Messages</Filter>
     </ClCompile>
     <ClCompile Include="WorldSnapshot.cpp">
       <Filter>Scene</Filter>

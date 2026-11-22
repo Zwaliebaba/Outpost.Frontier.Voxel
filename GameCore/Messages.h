@@ -18,7 +18,7 @@ namespace Outpost
 // kind has a fixed route: reliable on a named stream, or a datagram whose newest copy wins.
 
 /// Raised whenever a message is added, removed or changes its encoding.
-inline constexpr std::uint16_t CATALOGUE_VERSION = 1;
+inline constexpr std::uint16_t CATALOGUE_VERSION = 2;
 
 /// Every encoded message begins with: catalogue version (16 bits), kind (16 bits), payload length
 /// in bytes (32 bits).
@@ -32,7 +32,9 @@ enum class MessageKind : std::uint16_t
   Tick = 1,
   Ship = 2,
   Objective = 3,
-  Resource = 4
+  Resource = 4,
+  ObjectSpawn = 5,
+  ObjectState = 6
 };
 
 /// The server's tick, so the client knows how current its picture is. Newest wins.
@@ -71,7 +73,27 @@ struct ResourceMessage
   friend bool operator==(const ResourceMessage&, const ResourceMessage&) = default;
 };
 
-using Message = std::variant<TickMessage, ShipMessage, ObjectiveMessage, ResourceMessage>;
+/// An object the client has not been told of: its identity, the content names it is presented by,
+/// and its pose. A fact: reliable, on the world stream. Later messages name it by id alone.
+struct ObjectSpawnMessage
+{
+  WorldObject object;
+
+  friend bool operator==(const ObjectSpawnMessage&, const ObjectSpawnMessage&) = default;
+};
+
+/// An object's pose as of a tick. Changes whenever it moves, so a datagram; the receiver keeps the
+/// copy with the latest tick for each object.
+struct ObjectStateMessage
+{
+  std::uint64_t tick = 0;
+  ObjectId id = NO_OBJECT;
+  Pose pose;
+
+  friend bool operator==(const ObjectStateMessage&, const ObjectStateMessage&) = default;
+};
+
+using Message = std::variant<TickMessage, ShipMessage, ObjectiveMessage, ResourceMessage, ObjectSpawnMessage, ObjectStateMessage>;
 
 /// How a kind of message travels.
 struct Route
@@ -99,5 +121,9 @@ enum class DecodeError : std::uint8_t
 [[nodiscard]] std::vector<std::uint8_t> Encode(const Message& _message);
 
 [[nodiscard]] std::expected<Message, DecodeError> Decode(std::span<const std::uint8_t> _bytes);
+
+/// Applies a decoded message to the receiver's picture of the world. Newest-wins messages older
+/// than the copy held, and state for an object never spawned, change nothing.
+void ApplyMessage(const Message& _message, WorldSnapshot& _world);
 
 } // namespace Outpost

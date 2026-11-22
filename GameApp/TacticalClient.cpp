@@ -1,11 +1,15 @@
 #include "TacticalClient.h"
 
+#include "Messages.h"
 #include "ModelAxes.h"
 #include "ScreenProjection.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <optional>
+#include <string>
+#include <utility>
 
 namespace Outpost
 {
@@ -54,9 +58,11 @@ bool TacticalClient::Initialize(Neuron::GraphicsDevice& _device, const std::file
   {
     return false;
   }
-  m_scene.Build(m_assets);
+  // Nothing is drawn until the server has said what exists (R25); the selection waits for it.
+  m_scene.Build(m_assets, m_world);
+  m_builtRevision = m_world.objectsRevision;
   ResetView();
-  Select(m_assets.Scene().selectedShip);
+  m_initialSelection = m_assets.Scene().selectedShip;
   if (!RebuildFonts(HudScaleFor(_device.Height())))
   {
     _outError = "HUD font atlas could not be built";
@@ -141,7 +147,7 @@ void TacticalClient::OnPointerUp(PointerButton _button, float _x, float _y, std:
   const XMMATRIX viewProjection = XMLoadFloat4x4(&view.view) * XMLoadFloat4x4(&view.projection);
   const Neuron::Ray ray = Neuron::PickRay(_x, _y, XMMatrixInverse(nullptr, viewProjection), view.viewportSize.x, view.viewportSize.y);
   const InstanceView* picked = m_scene.PickShip(ray);
-  Select(picked != nullptr ? std::string_view(picked->instance->name) : std::string_view());
+  Select(picked != nullptr ? std::string_view(picked->name) : std::string_view());
 }
 
 void TacticalClient::OnPointerCancel()
@@ -219,16 +225,74 @@ void TacticalClient::BuildSilhouette()
   XMStoreFloat3(&m_silhouetteMax, hi);
 }
 
-HudInput TacticalClient::MakeHudInput(const WorldSnapshot& _snapshot, const ViewSetup& _view, float _timeSeconds,
-                                      float _framesPerSecond) const
+void TacticalClient::Apply(const InputEvent& _event, std::uint64_t _timeMilliseconds)
 {
+  switch (_event.kind)
+  {
+  case InputEvent::Kind::PointerDown:
+    OnPointerDown(_event.button, _event.xPixels, _event.yPixels, _timeMilliseconds);
+    break;
+  case InputEvent::Kind::PointerMove:
+    OnPointerMove(_event.xPixels, _event.yPixels);
+    break;
+  case InputEvent::Kind::PointerUp:
+    OnPointerUp(_event.button, _event.xPixels, _event.yPixels, _timeMilliseconds);
+    break;
+  case InputEvent::Kind::Wheel:
+    OnWheel(_event.wheelSteps);
+    break;
+  case InputEvent::Kind::ResetView:
+    ResetView();
+    break;
+  case InputEvent::Kind::ToggleHelp:
+    ToggleHelp();
+    break;
+  case InputEvent::Kind::ToggleStatus:
+    ToggleStatus();
+    break;
+  }
+}
+
+bool TacticalClient::Receive(Neuron::LoopbackTransport& _transport)
+{
+  while (std::optional<Neuron::Packet> packet = _transport.Receive(Neuron::Peer::Client))
+  {
+    const auto message = Decode(packet->bytes);
+    if (!message.has_value())
+    {
+      m_protocolError = "a message from the server did not decode (error " + std::to_string(static_cast<int>(message.error())) + ")";
+      return false;
+    }
+    ApplyMessage(*message, m_world);
+  }
+  return true;
+}
+
+void TacticalClient::RebuildSceneIfChanged()
+{
+  if (m_world.objectsRevision == m_builtRevision)
+  {
+    return;
+  }
+  m_scene.Build(m_assets, m_world);
+  m_builtRevision = m_world.objectsRevision;
+  m_shadowDirty = true;
+  if (!m_initialSelection.empty() && m_scene.FindInstance(m_initialSelection) != nullptr)
+  {
+    Select(std::exchange(m_initialSelection, std::string()));
+  }
+}
+
+HudInput TacticalClient::MakeHudInput(const ViewSetup& _view, float _timeSeconds, float _framesPerSecond) const
+{
+  const WorldSnapshot& snapshot = m_world;
   HudInput input;
   input.width = _view.viewportSize.x;
   input.height = _view.viewportSize.y;
   input.scale = m_hudScale;
   input.timeSeconds = _timeSeconds;
-  input.snapshot = &_snapshot;
-  input.selected = m_selected.empty() ? nullptr : _snapshot.FindShip(m_selected);
+  input.snapshot = &snapshot;
+  input.selected = m_selected.empty() ? nullptr : snapshot.FindShip(m_selected);
   input.radarRangeWorld = RADAR_RANGE_WORLD;
   input.cameraYawDegrees = m_camera.Pose().yawDegrees;
   input.cameraFovDegrees = m_camera.Pose().fovYDegrees;
@@ -246,11 +310,11 @@ HudInput TacticalClient::MakeHudInput(const WorldSnapshot& _snapshot, const View
     {
     case InstanceView::Kind::Ship:
     {
-      const ShipState* ship = _snapshot.FindShip(view.instance->name);
-      const bool selected = view.instance->name == m_selected;
+      const ShipState* ship = snapshot.FindShip(view.name);
+      const bool selected = view.name == m_selected;
       blip.kind = selected ? RadarBlip::Kind::SelectedShip : RadarBlip::Kind::Ship;
       ShipMarker marker;
-      marker.callsign = ship != nullptr ? ship->callsign : view.instance->name;
+      marker.callsign = ship != nullptr ? ship->callsign : view.name;
       marker.hullPercent = ship != nullptr ? ship->hullPercent : 100;
       marker.selected = selected;
       marker.bounds = Neuron::ProjectBox(Neuron::BoxCorners(view.bounds), viewProjection, input.width, input.height);
@@ -356,27 +420,30 @@ void TacticalClient::RenderSilhouette(const HudLayout& _layout, float _timeSecon
   m_renderer.DrawLines(m_silhouette);
 }
 
-bool TacticalClient::Render(const WorldSnapshot& _snapshot, float _timeSeconds, bool _capture, bool _vsync, float _framesPerSecond)
+bool TacticalClient::Render(float _timeSeconds, bool _capture, bool _vsync, float _framesPerSecond)
 {
+  RebuildSceneIfChanged();
   if (m_device->BeginFrame() == nullptr)
   {
     return false;
   }
   m_renderer.ClearMainTargets(CLEAR_COLOR);
-  if (m_shadowDirty)
+  if (m_shadowDirty || m_shadowsEveryFrame)
   {
     // The scene is static, so the key light's shadow map is drawn once and kept.
     m_scene.RenderShadows(m_renderer);
     m_shadowDirty = false;
   }
+  m_device->Timestamp();
 
   const ViewSetup view = MainView();
   m_renderer.BeginPass(m_scene.MakeFrame(view, _timeSeconds, true));
   const InstanceView* selected = m_selected.empty() ? nullptr : m_scene.FindInstance(m_selected);
   m_scene.Render(m_renderer, view, selected, _timeSeconds);
+  m_device->Timestamp();
 
   m_batch.Begin(&m_fonts);
-  const HudInput input = MakeHudInput(_snapshot, view, _timeSeconds, _framesPerSecond);
+  const HudInput input = MakeHudInput(view, _timeSeconds, _framesPerSecond);
   const HudLayout layout = m_hud.Build(m_batch, input);
   Neuron::FrameConstants hudFrame{};
   hudFrame.viewportSize = view.viewportSize;

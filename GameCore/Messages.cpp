@@ -2,6 +2,7 @@
 
 #include "WireFormat.h"
 
+#include <algorithm>
 #include <limits>
 #include <type_traits>
 
@@ -19,6 +20,7 @@ void WritePayload(Neuron::WireWriter& _writer, const TickMessage& _message)
 void WritePayload(Neuron::WireWriter& _writer, const ShipMessage& _message)
 {
   const ShipState& ship = _message.ship;
+  _writer.Uint32(ship.object);
   _writer.String(ship.instance);
   _writer.String(ship.callsign);
   _writer.String(ship.shipClass);
@@ -52,6 +54,49 @@ void WritePayload(Neuron::WireWriter& _writer, const ResourceMessage& _message)
   _writer.Int64(_message.resource.capacity);
 }
 
+void WritePose(Neuron::WireWriter& _writer, const Pose& _pose)
+{
+  _writer.Float64(_pose.position.x);
+  _writer.Float64(_pose.position.y);
+  _writer.Float64(_pose.position.z);
+  _writer.Float32(_pose.orientation.x);
+  _writer.Float32(_pose.orientation.y);
+  _writer.Float32(_pose.orientation.z);
+  _writer.Float32(_pose.orientation.w);
+}
+
+[[nodiscard]] Pose ReadPose(Neuron::WireReader& _reader) noexcept
+{
+  Pose pose;
+  pose.position.x = _reader.Float64();
+  pose.position.y = _reader.Float64();
+  pose.position.z = _reader.Float64();
+  pose.orientation.x = _reader.Float32();
+  pose.orientation.y = _reader.Float32();
+  pose.orientation.z = _reader.Float32();
+  pose.orientation.w = _reader.Float32();
+  return pose;
+}
+
+void WritePayload(Neuron::WireWriter& _writer, const ObjectSpawnMessage& _message)
+{
+  const WorldObject& object = _message.object;
+  _writer.Uint32(object.id);
+  _writer.String(object.name);
+  _writer.String(object.model);
+  _writer.Uint8(static_cast<std::uint8_t>(object.owner));
+  _writer.Float32(object.scale);
+  _writer.Uint64(object.poseTick);
+  WritePose(_writer, object.pose);
+}
+
+void WritePayload(Neuron::WireWriter& _writer, const ObjectStateMessage& _message)
+{
+  _writer.Uint64(_message.tick);
+  _writer.Uint32(_message.id);
+  WritePose(_writer, _message.pose);
+}
+
 [[nodiscard]] bool ReadBool(Neuron::WireReader& _reader, bool& _out) noexcept
 {
   const std::uint8_t value = _reader.Uint8();
@@ -71,6 +116,7 @@ void WritePayload(Neuron::WireWriter& _writer, const ResourceMessage& _message)
   case MessageKind::Ship:
   {
     ShipMessage ship;
+    ship.ship.object = _reader.Uint32();
     ship.ship.instance = _reader.String();
     ship.ship.callsign = _reader.String();
     ship.ship.shipClass = _reader.String();
@@ -106,6 +152,30 @@ void WritePayload(Neuron::WireWriter& _writer, const ResourceMessage& _message)
     message = std::move(resource);
     break;
   }
+  case MessageKind::ObjectSpawn:
+  {
+    ObjectSpawnMessage spawn;
+    spawn.object.id = _reader.Uint32();
+    spawn.object.name = _reader.String();
+    spawn.object.model = _reader.String();
+    const std::uint8_t owner = _reader.Uint8();
+    wellFormed = owner <= static_cast<std::uint8_t>(Owner::Hostile);
+    spawn.object.owner = static_cast<Owner>(owner);
+    spawn.object.scale = _reader.Float32();
+    spawn.object.poseTick = _reader.Uint64();
+    spawn.object.pose = ReadPose(_reader);
+    message = std::move(spawn);
+    break;
+  }
+  case MessageKind::ObjectState:
+  {
+    ObjectStateMessage state;
+    state.tick = _reader.Uint64();
+    state.id = _reader.Uint32();
+    state.pose = ReadPose(_reader);
+    message = state;
+    break;
+  }
   default:
     return std::unexpected(DecodeError::UnknownKind);
   }
@@ -118,7 +188,7 @@ void WritePayload(Neuron::WireWriter& _writer, const ResourceMessage& _message)
 
 [[nodiscard]] bool IsKnownKind(std::uint16_t _kind) noexcept
 {
-  return _kind >= static_cast<std::uint16_t>(MessageKind::Tick) && _kind <= static_cast<std::uint16_t>(MessageKind::Resource);
+  return _kind >= static_cast<std::uint16_t>(MessageKind::Tick) && _kind <= static_cast<std::uint16_t>(MessageKind::ObjectState);
 }
 
 } // namespace
@@ -141,10 +211,18 @@ MessageKind KindOf(const Message& _message)
       {
         return MessageKind::Objective;
       }
+      else if constexpr (std::is_same_v<T, ResourceMessage>)
+      {
+        return MessageKind::Resource;
+      }
+      else if constexpr (std::is_same_v<T, ObjectSpawnMessage>)
+      {
+        return MessageKind::ObjectSpawn;
+      }
       else
       {
-        static_assert(std::is_same_v<T, ResourceMessage>);
-        return MessageKind::Resource;
+        static_assert(std::is_same_v<T, ObjectStateMessage>);
+        return MessageKind::ObjectState;
       }
     },
     _message);
@@ -156,9 +234,11 @@ Route RouteOf(MessageKind _kind) noexcept
   {
   case MessageKind::Tick:
   case MessageKind::Resource:
+  case MessageKind::ObjectState:
     return Route{Neuron::Delivery::Datagram, STREAM_WORLD};
   case MessageKind::Ship:
   case MessageKind::Objective:
+  case MessageKind::ObjectSpawn:
   default:
     return Route{Neuron::Delivery::Reliable, STREAM_WORLD};
   }
@@ -210,6 +290,79 @@ std::expected<Message, DecodeError> Decode(std::span<const std::uint8_t> _bytes)
   }
   Neuron::WireReader payload(_bytes.subspan(MESSAGE_HEADER_BYTES));
   return ReadPayload(static_cast<MessageKind>(kind), payload);
+}
+
+void ApplyMessage(const Message& _message, WorldSnapshot& _world)
+{
+  std::visit(
+    [&_world](const auto& _value)
+    {
+      using T = std::decay_t<decltype(_value)>;
+      if constexpr (std::is_same_v<T, TickMessage>)
+      {
+        _world.tick = std::max(_world.tick, _value.tick);
+      }
+      else if constexpr (std::is_same_v<T, ShipMessage>)
+      {
+        for (ShipState& ship : _world.ships)
+        {
+          if (ship.object == _value.ship.object)
+          {
+            ship = _value.ship;
+            return;
+          }
+        }
+        _world.ships.push_back(_value.ship);
+      }
+      else if constexpr (std::is_same_v<T, ObjectiveMessage>)
+      {
+        if (_world.objectives.size() <= _value.index)
+        {
+          _world.objectives.resize(std::size_t{_value.index} + 1);
+        }
+        _world.objectives[_value.index] = _value.objective;
+      }
+      else if constexpr (std::is_same_v<T, ResourceMessage>)
+      {
+        if (_world.resources.size() <= _value.index)
+        {
+          _world.resources.resize(std::size_t{_value.index} + 1);
+          _world.resourceTicks.resize(std::size_t{_value.index} + 1, 0);
+        }
+        if (_value.tick >= _world.resourceTicks[_value.index])
+        {
+          _world.resources[_value.index] = _value.resource;
+          _world.resourceTicks[_value.index] = _value.tick;
+        }
+      }
+      else if constexpr (std::is_same_v<T, ObjectSpawnMessage>)
+      {
+        if (WorldObject* known = _world.FindObject(_value.object.id))
+        {
+          *known = _value.object;
+        }
+        else
+        {
+          _world.objects.push_back(_value.object);
+        }
+        ++_world.objectsRevision;
+      }
+      else
+      {
+        static_assert(std::is_same_v<T, ObjectStateMessage>);
+        WorldObject* object = _world.FindObject(_value.id);
+        if (object != nullptr && _value.tick >= object->poseTick)
+        {
+          if (!(object->pose == _value.pose))
+          {
+            object->pose = _value.pose;
+            ++_world.objectsRevision;
+          }
+          object->poseTick = _value.tick;
+        }
+      }
+    },
+    _message);
 }
 
 } // namespace Outpost

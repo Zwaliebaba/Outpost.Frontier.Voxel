@@ -146,6 +146,15 @@ jobs:
         shell: pwsh
         run: python Build\CheckProjectFiles.py
 
+      # The NuGet packages R14 approves, at the versions each packages.config pins (ADR-017). A
+      # restore of its own, so that a feed problem reads as one rather than as a missing header.
+      - name: Restore NuGet packages
+        if: steps.solution.outputs.path != ''
+        shell: pwsh
+        run: |
+          msbuild "${{ steps.solution.outputs.path }}" /t:restore /p:RestorePackagesConfig=true `
+            /p:Configuration=$env:CONFIGURATION /p:Platform=$env:PLATFORM /nologo /v:minimal /warnaserror
+
       # /warnaserror covers MSBuild's own warnings; /WX for the compiler is set in the projects.
       - name: Build
         if: steps.solution.outputs.path != ''

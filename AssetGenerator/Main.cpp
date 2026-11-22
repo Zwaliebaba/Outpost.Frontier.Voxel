@@ -1,11 +1,14 @@
 // AssetGenerator: writes every scene model as an editable MagicaVoxel .vox file (ADR-002).
 //
 //   AssetGenerator.exe [--out <AssetsDirectory>] [--check]
+//   AssetGenerator.exe --crowd <Directory>
 //
 // Without --out it finds the repository's Assets directory by walking up from the executable.
 // Output is deterministic: the same source produces byte-identical files. --check regenerates in
-// memory and fails if any file on disk differs, which is how a stale asset is caught.
+// memory and fails if any file on disk differs, which is how a stale asset is caught. --crowd
+// writes the crowd benchmark's generated scenes (plan task F6, CrowdScene.h), which are not shipped.
 
+#include "CrowdScene.h"
 #include "FileSys.h"
 #include "ModelCatalog.h"
 #include "Palette.h"
@@ -24,7 +27,7 @@ int g_moduleAnchor = 0;
 
 [[nodiscard]] int Usage()
 {
-  std::fputs("usage: AssetGenerator [--out <AssetsDirectory>] [--check]\n", stderr);
+  std::fputs("usage: AssetGenerator [--out <AssetsDirectory>] [--check]\n       AssetGenerator --crowd <Directory>\n", stderr);
   return 2;
 }
 
@@ -44,6 +47,10 @@ int wmain(int _argc, wchar_t** _argv)
     else if (argument == L"--check")
     {
       check = true;
+    }
+    else if (argument == L"--crowd" && i + 1 < _argc)
+    {
+      return AssetGen::WriteCrowdScenes(_argv[++i]) == 0 ? 0 : 1;
     }
     else
     {

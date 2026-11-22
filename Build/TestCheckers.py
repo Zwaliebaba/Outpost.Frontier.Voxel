@@ -350,6 +350,34 @@ class RunClangTidyTests(TreeCase):
         self.assertIn("/D_WINDLL", result.stdout)
         self.assertIn("UnitTest", result.stdout)
 
+    def fake_restore(self, project: str) -> Path:
+        """Writes the build file a project's package import names, as a NuGet restore would."""
+        text = (self.tree / project / f"{project}.vcxproj").read_text(encoding="utf-8-sig")
+        target = next(element.get("Project", "") for element in BuildTree.parse_xml(text).iter(f"{{{BuildTree.MSBUILD_NAMESPACE}}}Import") if "packages" in element.get("Project", ""))
+        path = Path(os.path.normpath(self.tree / project / target.replace("\\", os.sep)))
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            '<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">\n  <ItemDefinitionGroup>\n    <ClCompile>\n'
+            "      <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)include/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>\n"
+            "    </ClCompile>\n  </ItemDefinitionGroup>\n</Project>\n",
+            encoding="utf-8",
+        )
+        return path.parent / "include"
+
+    def test_package_headers_are_on_the_include_path(self) -> None:
+        include = self.fake_restore("QuicSpike")
+        result = self.dry_run("QuicSpike/QuicPeer.cpp")
+        self.assertClean(result)
+        self.assertIn(f"/I{os.path.normpath(include)}", result.stdout.split())
+
+    def test_real_run_needs_the_packages_restored(self) -> None:
+        # Called directly: a real run first needs the pinned clang-tidy, which this job may not have.
+        import RunClangTidy
+
+        (self.tree / "NeuronClient" / "CompiledShaders").mkdir(exist_ok=True)  # as if built, so only the restore is missing
+        with self.assertRaisesRegex(RunClangTidy.ConfigurationError, "not restored"):
+            RunClangTidy.collect_units(self.tree, None, require_build=True)
+
     def test_unknown_file_is_refused(self) -> None:
         result = self.dry_run("GameLogic/NoSuchFile.cpp")
         self.assertEqual(result.returncode, 2)

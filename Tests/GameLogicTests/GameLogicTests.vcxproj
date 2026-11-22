@@ -92,6 +92,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ObserverTests.cpp" />
     <ClCompile Include="WorldTests.cpp" />
   </ItemGroup>
   <ItemGroup>

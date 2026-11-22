@@ -1,5 +1,7 @@
 #pragma once
 
+#include "WorldObject.h"
+
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -8,8 +10,8 @@
 namespace Outpost
 {
 
-// The state the server hands the client. Today both live in one process and the snapshot is
-// passed by reference; when they split, this is what travels.
+// The world as plain data. The server keeps its state in one; the client builds its own from the
+// messages the server's observer sends (plan task F4, ADR-008), and never sees the server's.
 
 struct ShipModuleState
 {
@@ -26,6 +28,7 @@ struct ShipState
   std::string shipClass;
   int hullPercent = 100;
   std::vector<ShipModuleState> modules;
+  ObjectId object = NO_OBJECT; // the world object this ship is
 
   /// Modules below full health, worst first.
   [[nodiscard]] std::vector<ShipModuleState> DamagedModules() const;
@@ -53,11 +56,17 @@ struct ResourceState
 struct WorldSnapshot
 {
   std::uint64_t tick = 0;
+  std::vector<WorldObject> objects; // in the order the server created them
   std::vector<ShipState> ships;
   std::vector<ObjectiveState> objectives;
   std::vector<ResourceState> resources;
+  std::vector<std::uint64_t> resourceTicks; // per resource, the tick of the copy held (newest wins)
+  // Raised whenever an object appears or moves, so that presentation rebuilds only then.
+  std::uint64_t objectsRevision = 0;
 
   [[nodiscard]] const ShipState* FindShip(std::string_view _instance) const noexcept;
+  [[nodiscard]] const WorldObject* FindObject(ObjectId _id) const noexcept;
+  [[nodiscard]] WorldObject* FindObject(ObjectId _id) noexcept;
 };
 
 } // namespace Outpost

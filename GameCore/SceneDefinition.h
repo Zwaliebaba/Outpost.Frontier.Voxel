@@ -49,6 +49,7 @@ struct SceneInstance
   std::string parentSocket; // ... at this socket of its model ...
   std::string socket;       // ... by this socket of our model (position/rotation are then ignored)
   InstanceStyle style = InstanceStyle::Solid;
+  Owner owner = Owner::Neutral; // owner=neutral|player|hostile (ADR-009)
 };
 
 struct EngineMount
@@ -140,6 +141,11 @@ struct SceneDefinition
 [[nodiscard]] bool ParseScene(std::string_view _text, SceneDefinition& _outScene, std::string& _outError);
 [[nodiscard]] bool LoadScene(const std::filesystem::path& _path, SceneDefinition& _outScene, std::string& _outError);
 
+/// _assetRoot/Scene.txt loaded and validated, with every model's size read from its .vox file so
+/// that pivots, and with them the poses of attached instances, are known (ADR-009). This is what
+/// the server loads; the client loads the same and the models' voxels besides.
+[[nodiscard]] bool LoadSceneContent(const std::filesystem::path& _assetRoot, SceneDefinition& _outScene, std::string& _outError);
+
 /// Every reference in the scene: model files that must exist under _assetRoot, models, parents
 /// and sockets that must resolve, and ships, engines and lights that must name an instance.
 /// Returns one message per problem; empty means the scene is consistent.
@@ -154,5 +160,9 @@ struct SceneDefinition
 /// A socket's frame in world space for an instance (rows: right, up, outward normal, origin).
 [[nodiscard]] DirectX::XMMATRIX SocketWorld(const SceneDefinition& _scene, std::size_t _instanceIndex,
                                             const Neuron::Socket& _socket) noexcept;
+
+/// The world object a scene instance becomes: its names, owner, scale, and the pose of
+/// ModelToWorld, socket attachments followed. Model sizes must be set (LoadSceneContent).
+[[nodiscard]] WorldObject ObjectFromInstance(const SceneDefinition& _scene, std::size_t _instanceIndex, ObjectId _id);
 
 } // namespace Outpost

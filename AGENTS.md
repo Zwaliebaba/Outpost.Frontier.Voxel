@@ -151,6 +151,7 @@ The concrete layout is recorded in [ADR-001](Design/ADR/ADR-001-solution-layout.
 | `Game` | `GameApp` | static library | `Outpost` | NeuronCore, NeuronClient, GameCore |
 | *(root)* | `Outpost` | Windows executable | `Outpost` | all of the above |
 | `Tools` | `AssetGenerator` | console executable | `Outpost` | NeuronCore, GameCore |
+| `Tools` | `QuicSpike` | console executable | `Outpost` | NeuronCore, GameCore; the MsQuic package ([ADR-017](Design/ADR/ADR-017-nuget-and-the-msquic-transport.md)) |
 | `Tests` | `NeuronCoreTests` | unit-test DLL | `NeuronCoreTests` | NeuronCore |
 | `Tests` | `NeuronClientTests` | unit-test DLL | `NeuronClientTests` | NeuronCore, NeuronClient |
 | `Tests` | `NeuronServerTests` | unit-test DLL | `NeuronServerTests` | NeuronServer |
@@ -196,6 +197,9 @@ That alignment matters more than it looks, because **CI builds Debug only** (§6
 **Build through the solution, never a `.vcxproj` directly.** Output paths and cross-project include directories are anchored on `$(SolutionDir)`, and MSBuild defines `SolutionDir` only for a solution build. Building a project file directly resolves every one of those paths against the *project* folder instead of the repository root. **It does not fail — that is the problem.** Output lands in the wrong folder, so the next solution build links against whichever copy is staler, and every cross-project include path becomes a directory that does not exist. The breakage is latent: it bites the first time a file reaches across projects, which may be weeks after someone got into the habit. To build one project, name it as a target on the solution — and with a `.slnx` that has solution folders, the target of a project inside a folder is the folder path, not the bare project name: `/t:Engine\NeuronClient`. A bare `/t:NeuronClient` fails with MSB4057. A project at the solution root is named bare: `/t:Outpost`.
 
 ```powershell
+# NuGet packages (R14), after a clone and whenever a pinned version changes. Visual Studio does this itself.
+msbuild Outpost.Frontier.slnx /t:restore /p:RestorePackagesConfig=true /p:Configuration=Debug /p:Platform=x64 /nologo
+
 # Everything, from the repository root, naming the solution.
 msbuild Outpost.Frontier.slnx /p:Configuration=Debug /p:Platform=x64 /m /v:minimal /nologo
 

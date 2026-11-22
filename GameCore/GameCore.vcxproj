@@ -87,15 +87,23 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="FlightModel.h" />
+    <ClInclude Include="Manoeuvre.h" />
     <ClInclude Include="Messages.h" />
     <ClInclude Include="Palette.h" />
     <ClInclude Include="SceneDefinition.h" />
+    <ClInclude Include="ShipArchetype.h" />
+    <ClInclude Include="WorldObject.h" />
     <ClInclude Include="WorldSnapshot.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="FlightModel.cpp" />
+    <ClCompile Include="Manoeuvre.cpp" />
     <ClCompile Include="Messages.cpp" />
     <ClCompile Include="Palette.cpp" />
     <ClCompile Include="SceneDefinition.cpp" />
+    <ClCompile Include="ShipArchetype.cpp" />
+    <ClCompile Include="WorldObject.cpp" />
     <ClCompile Include="WorldSnapshot.cpp" />
   </ItemGroup>
   <ItemGroup>

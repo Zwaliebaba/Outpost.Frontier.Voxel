@@ -228,7 +228,13 @@ QUIC answers the Frontier blueprint's list of what not to copy in one piece (ch.
 | Platform | The Schannel build (decided). It uses Windows' own TLS 1.3, which exists from Windows 11 and Windows Server 2022, so that is the floor for networked play; single player keeps today's. Schannel does not offer QUIC's 0-RTT reconnect, which the game does not need |
 | Acquisition | The NuGet package `Microsoft.Native.Quic.MsQuic.Schannel`, at an exact pinned version (decided), restored by NuGet, the repository's package manager |
 
-Which project references the package, whether `msquic.dll` is loaded at run time or linked, how the restore runs in CI, and how the package's imported build files square with ADR-005's plain project files are ADR-017's to decide. It is due before the first code that touches MsQuic, which is the MVP's spike (ImplementationPlan.md, task F7), well before slice 10. The constraint it must meet is AGENTS.md R14's: single player and the test suites never load MsQuic.
+[ADR-017](ADR/ADR-017-nuget-and-the-msquic-transport.md) decided the rest:
+
+- A project pins the package in `packages.config` and imports only the package's own build file, and CI restores before it builds.
+- `msquic.dll` is loaded at run time from the executable's folder and never linked, so single player and the test suites never load it (AGENTS.md R14).
+- State datagrams are built only when the connection can send.
+
+The MVP's spike (ImplementationPlan.md, task F7) proved this shape against the real catalogue.
 
 ### 8.2 Scale target: 100 players in one scene
 
@@ -268,7 +274,7 @@ Four further points complete the picture:
 
 | Project | Takes on |
 |---|---|
-| `NeuronCore` | Voxel masks, the carving and connectivity arithmetic, typed records and reference checking; the transport interface and the in-process transport, which client and server both need and which neither may take from the other's library. The MsQuic transport (§8.1) sits here too, or in a new engine library that both halves reference; ADR-017 decides which |
+| `NeuronCore` | Voxel masks, the carving and connectivity arithmetic, typed records and reference checking; the transport interface and the in-process transport, which client and server both need and which neither may take from the other's library. The MsQuic transport (§8.1) sits here too, or in a new engine library that both halves reference. ADR-017 sets the bounds, and slice 10 makes the choice |
 | `NeuronServer` | The tick, listening for and admitting sessions, observers with interest, priority and per-client budgets (§8.2), save infrastructure |
 | `NeuronClient` | Rendering of voxels that change, in bricks with levels of detail, culled on the GPU, with cascaded shadows and clustered lights (§8.2); the chase camera beside the orbit camera, devices to commands, audio, connecting to a host |
 | `GameCore` | What both sides share: archetypes, materials, the flight and equipment model, zones, the message catalogue |
