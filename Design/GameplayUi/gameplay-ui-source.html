@@ -262,7 +262,7 @@
     } else if(state.dockTab==='yard') {
       markup=`<div class="of-kicker">Shipyard</div><h3>Build & refit</h3><p>Available hull plans</p><div class="of-catalog"><button class="of-catalog-button" type="button" data-action="yard-hull">${Icon('navigation')}<span><strong>Lancer escort</strong><small>Owned plan · crew available</small></span></button></div><hr class="of-separator"><p>Build queue</p><div class="of-service-line">No vessels under construction</div><div class="of-actions">${Action('Request escort','yard-build',true)}${Action('Refit E-114','yard-refit')}</div>`;
     } else {
-      markup=`<div class="of-kicker">Hangar F-01</div><h3>Ship services</h3><div class="of-service-line">Repair available · hangar online</div><div class="of-service-line">Launch ready · engine and power online</div><div class="of-service-line">Autosave on launch</div><hr class="of-separator"><div class="of-actions">${Action('Repair ship','repair',true)}${Action('Save game','save')}</div>`;
+      markup=`<div class="of-kicker">Hangar F-01</div><h3>Ship services</h3><div class="of-service-line">Repair available · hangar online</div><div class="of-service-line">Launch ready · engine and power online</div><div class="of-service-line">Saved on launch, docking and quit</div><hr class="of-separator"><div class="of-actions">${Action('Repair ship','repair',true)}${Action('Save game','save')}</div>`;
     }
     panel.innerHTML=markup;
     if(state.context==='docked') {

@@ -342,7 +342,7 @@ The first six slices are the MVP; [ImplementationPlan.md](ImplementationPlan.md)
 
 ## 13. Open decisions
 
-*D1 to D12 were decided by the owner on 2026-11-22: D1, D2, D5, D6 and D12 for the MVP plan ([ImplementationPlan.md](ImplementationPlan.md)), the rest the same day. Eleven follow the recommendation; D10 does not, and the rest of this document follows the decision. D13 came out of the scale review (§8.2) and was decided the same day, as recommended.*
+*D1 to D12 were decided by the owner on 2026-11-22: D1, D2, D5, D6 and D12 for the MVP plan ([ImplementationPlan.md](ImplementationPlan.md)), the rest the same day. Eleven follow the recommendation; D10 does not, and the rest of this document follows the decision. D13 came out of the scale review (§8.2) and was decided the same day, as recommended. D14 to D20 were decided on 2026-11-22: D14 and D15 confirm choices made while building slice 1, and D16 to D20 answer the questions slice 2 raised before it started. D17 overrides the blueprint's single-player save rule, and D19 its pause menu.*
 
 | # | Question | Decision |
 |---|---|---|
@@ -359,6 +359,13 @@ The first six slices are the MVP; [ImplementationPlan.md](ImplementationPlan.md)
 | D11 | Voice — *decided* | None at first. Comms are text; the rules of chatter (ch. 06 §3.12) are kept |
 | D12 | Wing size — *decided* | About three, capped by crew |
 | D13 | How many outposts one system can hold — *decided* | A fixed set of authored claim sites per system, about twenty, so that a crowded system has a bounded amount of player-built structure to draw and send (§8.2). In multiplayer, claims are first come, first served |
+| D14 | The ship the player flies in the MVP — *decided* | The escort Lancer, E-114. The Talon stays parked as the other escort |
+| D15 | Flight controls — *decided* | Cursor sensitivity 1.0: the cursor at the window's edge asks for the full turn rate. Escape cancels an order or the cursor lock; F10 or Alt+F4 quits, and Escape never quits. The chase camera sits 13 m up and 65 m back for the Lancer, 12 m up and 60 m back for the Talon |
+| D16 | What happens to a docked ship — *decided* | It stays in its berth as a world object, visible from the tactical view, and cannot be damaged or collided with while docked. The blueprint's landing removes the ship from space; this game keeps it, because docked is the tactical view of the station the ship sits in. A raid can wreck the station around a docked player, not the ship |
+| D17 | When the game saves — *decided* | One rule for both modes, the blueprint's multiplayer rule (ch. 11 §3.10): the character is saved on launch, on docking and on quit, into one slot, each save written completely before it replaces the last. There are no manual saves and no save slots. Quitting in space keeps the sortie. With D1, a save is where the player resumes, never a way to undo |
+| D18 | What happens at start-up — *decided* | No menu. The save is loaded if there is one; otherwise a new game starts docked in the shipyard's hangar, in the tactical view, so that the first thing the player does is launch |
+| D19 | Pause — *decided* | It does not exist, in either mode. Time never stops (pillar 2). Nothing replaces the blueprint's pause menu: quitting is a key (D15), and saving is automatic (D17) |
+| D20 | How the player starts a docking — *decided* | A Dock key asks the nearest station within 10 km that has a docking point for the ship's class (ch. 04 §3.2's range). Once ships can be targeted (slice 3), the key docks at the target when there is one |
 
 ## 14. Basis
 
