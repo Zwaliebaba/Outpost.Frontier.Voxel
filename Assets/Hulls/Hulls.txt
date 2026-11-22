@@ -1,0 +1,56 @@
+# Hull authoring data (ADR-021). Not loaded by the current game.
+# VOX coordinates: +Z up, forward +Y. Bounds are min-inclusive, max-exclusive.
+catalog name=MvpHulls version=1
+
+hull name=Frigate model=FrigateIntact legacy=Frigate size=48,150,40 sha256=7c505c31b824f7329253e3bfd113f1a1af08dbc1cfe8e1a37fd7907cc3337893
+region hull=Frigate name=Core function=core min=22,28,12 max=26,34,16
+region hull=Frigate name=Reactor function=power min=20,36,10 max=28,46,20
+region hull=Frigate name=ShieldGenerator function=shield min=22,96,12 max=26,102,18
+region hull=Frigate name=EnginePort function=engine min=8,0,7 max=16,15,17
+region hull=Frigate name=EngineStarboard function=engine min=32,0,7 max=40,15,17
+region hull=Frigate name=Sensors function=sensor min=18,68,27 max=30,93,35
+region hull=Frigate name=WeaponFore function=weapon min=20,110,25 max=28,127,28
+region hull=Frigate name=WeaponAft function=weapon min=20,38,27 max=28,54,30
+region hull=Frigate name=Atmospherics function=atmosphere min=28,60,11 max=34,88,23
+region hull=Frigate name=HullSectionB function=structure min=0,50,0 max=48,97,40
+
+hull name=EscortLancer model=EscortLancerIntact legacy=EscortLancer size=28,52,18 sha256=3ec725c7c8b622db308b038707f01260ef3253b90fca8b4997d9d47fe5da5e86
+region hull=EscortLancer name=Core function=core min=12,19,7 max=16,23,10
+region hull=EscortLancer name=Reactor function=power min=12,10,7 max=16,16,10
+region hull=EscortLancer name=ShieldGenerator function=shield min=12,24,7 max=16,28,10
+region hull=EscortLancer name=EnginePort function=engine min=3,6,3 max=8,31,10
+region hull=EscortLancer name=EngineStarboard function=engine min=20,6,3 max=25,31,10
+region hull=EscortLancer name=Sensors function=sensor min=12,30,11 max=16,39,15
+region hull=EscortLancer name=WeaponPort function=weapon min=3,31,3 max=8,35,10
+region hull=EscortLancer name=WeaponStarboard function=weapon min=20,31,3 max=25,35,10
+
+hull name=EscortTalon model=EscortTalonIntact legacy=EscortTalon size=44,42,16 sha256=8a287bd61979c982f10e6a4e35c669dd3ff468a5c58f147aeff73fa1e7369502
+region hull=EscortTalon name=Core function=core min=20,18,6 max=24,22,9
+region hull=EscortTalon name=Reactor function=power min=20,8,6 max=24,13,9
+region hull=EscortTalon name=ShieldGenerator function=shield min=20,23,6 max=24,26,9
+region hull=EscortTalon name=Engine function=engine min=19,0,5 max=25,7,10
+region hull=EscortTalon name=Sensors function=sensor min=20,26,11 max=24,32,14
+region hull=EscortTalon name=WeaponPort function=weapon min=0,18,5 max=3,31,9
+region hull=EscortTalon name=WeaponStarboard function=weapon min=41,18,5 max=44,31,9
+region hull=EscortTalon name=WingStrutPort function=structure min=3,10,5 max=18,30,9
+region hull=EscortTalon name=WingStrutStarboard function=structure min=26,10,5 max=41,30,9
+
+hull name=Tug model=TugIntact legacy=Tug size=26,38,22 sha256=1ee11bb0b965e446c8b51eacddd9dcf303cf92c1f133f0d2406662f6313968cf
+region hull=Tug name=Core function=core min=11,16,6 max=15,20,10
+region hull=Tug name=Reactor function=power min=11,10,6 max=15,14,10
+region hull=Tug name=EnginePort function=engine min=4,0,4 max=11,10,14
+region hull=Tug name=EngineStarboard function=engine min=15,0,4 max=22,10,14
+region hull=Tug name=Sensors function=sensor min=9,27,15 max=17,35,19
+region hull=Tug name=ClampPort function=clamp min=2,30,5 max=7,38,12
+region hull=Tug name=ClampStarboard function=clamp min=19,30,5 max=24,38,12
+region hull=Tug name=CargoSystems function=cargo min=8,21,5 max=18,27,13
+
+hull name=Raider model=RaiderIntact legacy=Raider size=48,54,20 sha256=ee09dbfe7512e7acc82ae0418b7852a47585e76628d334456e185339bf3397ab
+region hull=Raider name=Core function=core min=22,18,8 max=26,23,12
+region hull=Raider name=Reactor function=power min=22,10,8 max=26,15,12
+region hull=Raider name=ShieldGenerator function=shield min=22,24,8 max=26,27,12
+region hull=Raider name=EnginePort function=engine min=4,0,4 max=15,16,14
+region hull=Raider name=EngineStarboard function=engine min=33,0,4 max=44,16,14
+region hull=Raider name=Sensors function=sensor min=21,27,11 max=27,37,17
+region hull=Raider name=WeaponPort function=weapon min=3,31,5 max=15,54,14
+region hull=Raider name=WeaponStarboard function=weapon min=33,31,5 max=45,54,14

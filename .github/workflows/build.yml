@@ -238,6 +238,13 @@ jobs:
           python -m pip install --disable-pip-version-check "clang-format==$CLANG_FORMAT_VERSION"
           clang-format --version
 
+      # Development-only authoring validation; NumPy is never linked or shipped with the game.
+      - name: Validate damage-ready hull assets
+        run: |
+          python -m pip install --disable-pip-version-check numpy==2.2.6
+          python Tools/ValidateHullAssets.py
+          python Tools/TestHullAssets.py
+
       # The checkers' own tests: each checker must pass over the tree as it is and fail on a planted
       # violation of every rule it claims. Here rather than on Windows because it is seconds, needs
       # only Python, git and the pinned clang-format, and a checker that stopped catching anything
