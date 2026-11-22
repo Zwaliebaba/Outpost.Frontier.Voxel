@@ -10,6 +10,9 @@
     <Filter Include="Support">
       <UniqueIdentifier>{00EFABDC-1FD1-5528-8F05-97DF1D3AC0C4}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Messages">
+      <UniqueIdentifier>{AC712B50-9C91-4B48-9989-F568BBDD063F}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TestSupport.h">
@@ -25,6 +28,9 @@
     </ClCompile>
     <ClCompile Include="TestSupport.cpp">
       <Filter>Support</Filter>
+    </ClCompile>
+    <ClCompile Include="MessageTests.cpp">
+      <Filter>Messages</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

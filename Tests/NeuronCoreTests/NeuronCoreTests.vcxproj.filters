@@ -13,6 +13,9 @@
     <Filter Include="Vox">
       <UniqueIdentifier>{57B52DB4-7739-5BEF-BAC5-E10DB8D6FEF5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Network">
+      <UniqueIdentifier>{52931AA7-C1E4-4B6A-9518-65EDD66663D4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TestSupport.h">
@@ -31,6 +34,12 @@
     </ClCompile>
     <ClCompile Include="VoxelMesherTests.cpp">
       <Filter>Meshing</Filter>
+    </ClCompile>
+    <ClCompile Include="LoopbackTransportTests.cpp">
+      <Filter>Network</Filter>
+    </ClCompile>
+    <ClCompile Include="WireFormatTests.cpp">
+      <Filter>Network</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

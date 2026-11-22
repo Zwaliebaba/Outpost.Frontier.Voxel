@@ -13,6 +13,9 @@
     <Filter Include="Voxel">
       <UniqueIdentifier>{EA63A037-04B0-5428-A7A2-4D75A2E2B0B9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Network">
+      <UniqueIdentifier>{8C45F12B-336A-4736-9297-DAD48E13ADED}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FileSys.h">
@@ -48,6 +51,12 @@
     <ClInclude Include="WindowsSdk.h">
       <Filter>Platform</Filter>
     </ClInclude>
+    <ClInclude Include="LoopbackTransport.h">
+      <Filter>Network</Filter>
+    </ClInclude>
+    <ClInclude Include="WireFormat.h">
+      <Filter>Network</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FileSys.cpp">
@@ -76,6 +85,12 @@
     </ClCompile>
     <ClCompile Include="VoxelWireframe.cpp">
       <Filter>Voxel</Filter>
+    </ClCompile>
+    <ClCompile Include="LoopbackTransport.cpp">
+      <Filter>Network</Filter>
+    </ClCompile>
+    <ClCompile Include="WireFormat.cpp">
+      <Filter>Network</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

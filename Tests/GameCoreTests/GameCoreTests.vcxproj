@@ -95,6 +95,7 @@
     <ClInclude Include="TestSupport.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="MessageTests.cpp" />
     <ClCompile Include="PaletteTests.cpp" />
     <ClCompile Include="SceneTests.cpp" />
     <ClCompile Include="TestSupport.cpp" />

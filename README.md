@@ -120,10 +120,10 @@ Every library has its own test project under `Tests\`. In Visual Studio, *Test â
 
 | Project | Tests | Covers |
 |---|---|---|
-| `Tests\NeuronCoreTests` | 20 | VOX read/write and a hand-authored fixture that pins the palette offset; rejection of bad magic, truncated chunks, invalid dimensions and out-of-bounds voxels; meshing of single and adjacent voxels; wireframes and the side profile; VOX-to-world axes, handedness and socket mating |
+| `Tests\NeuronCoreTests` | 28 | VOX read/write and a hand-authored fixture that pins the palette offset; rejection of bad magic, truncated chunks, invalid dimensions and out-of-bounds voxels; meshing of single and adjacent voxels; wireframes and the side profile; VOX-to-world axes, handedness and socket mating; the wire format's byte order and round trips; the in-process transport's order and datagram budget |
 | `Tests\NeuronClientTests` | 8 | Selection maths: ships ahead, beside the view, straddling the near plane and behind the camera; pick rays; click versus drag; orbit-camera limits |
 | `Tests\NeuronServerTests` | 5 | The tick clock at 60 Hz (ADR-007): whole ticks, carried remainders, ten minutes exactly 36,000 ticks, stall catch-up, interpolation |
-| `Tests\GameCoreTests` | 12 | The canonical palette, including byte equality across every generated file; scene parsing and validation; the shipped blueprint landing on its dock |
+| `Tests\GameCoreTests` | 21 | The canonical palette, including byte equality across every generated file; scene parsing and validation; the shipped blueprint landing on its dock; the message catalogue: round trips, header, refusals, routes, the datagram budget |
 | `Tests\GameLogicTests` | 5 | The world: the first snapshot, exact income per minute, fractional income, capacity, reloading |
 | `Tests\GameAppTests` | 6 | The HUD: every vertex on screen at 720p, 1080p and 4K with ships off screen and behind the camera; build slots; scaling; fonts. The draw constants the voxel shader unprojects through |
 
