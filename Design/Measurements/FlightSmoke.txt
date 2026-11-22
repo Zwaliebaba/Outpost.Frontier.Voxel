@@ -1,18 +1,23 @@
-# The flight smoke run (plan task 1.11): the player's escort, E-114, flown by its commands and then
-# ordered from the tactical view. Pixels of the 1920 x 1080 smoke frame; ticks are server ticks, one
-# per frame. Keys are named as in Assets/Content/Bindings.txt.
+# The flight smoke run (plan tasks 1.11 and 2.8): the player's escort, E-114, launched from its berth
+# and flown by its commands into the frigate's breach, where the hazard warning shows. Pixels of the
+# 1920 x 1080 smoke frame; ticks are server ticks, one per frame. Keys are named as in
+# Assets/Content/Bindings.txt.
 #
-# Full throttle over a second, and at once a hard turn away from the frigate parked ahead: the
-# cursor at the right edge, the left button held past the quarter-second that arms it.
-key   tick=1   name=W ticks=60
-move  tick=9   at=1900,500
-key   tick=10  name=MouseLeft ticks=75
-# The thruster for a second, then the cursor back to the centre.
-key   tick=120 name=Tab ticks=60
-move  tick=190 at=960,540
-# The throttle back to nothing, so that what moves the ship after is the order alone. Then the
-# tactical view, and a go-to order on a point by a right click; the ship flies it until the end.
-key   tick=230 name=S ticks=60
-press tick=300 name=F9
-click tick=310 at=760,640 button=right
-move  tick=480 at=960,540
+# A new game starts docked, in the tactical view (GameDesign.md D18). Launch, clicked in the Services
+# inspector; the station carries the ship out of the hangar and releases it at the berth's entry
+# about 700 ticks later, nose away from the yard, with the frigate below and behind on the left.
+click tick=5 at=1720,232
+# Throttle to four fifths, and at once a hard turn to the right: the cursor at the right edge, the
+# left button held past the quarter-second that arms it. The turn clears the frigate's stern. The
+# flight starts well after the release, so that a release a few ticks either way flies the same path.
+key   tick=720 name=W ticks=48
+move  tick=720 at=1900,540
+key   tick=721 name=MouseLeft ticks=218
+# The cursor below the centre: the nose goes down and round, half a loop, until the ship flies back
+# level under the frigate, 115 m lower than it was released.
+move  tick=765 at=960,916
+move  tick=929 at=960,540
+# Under the hull the throttle comes back to nothing, and the ship stops below the breach, inside its
+# zone and clear of the hull above. The run ends there, the warning on the HUD.
+key   tick=1008 name=S ticks=60
+move  tick=1110 at=960,540

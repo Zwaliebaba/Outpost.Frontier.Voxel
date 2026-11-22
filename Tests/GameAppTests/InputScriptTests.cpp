@@ -1,6 +1,14 @@
+#include "DockedView.h"
+#include "FileSys.h"
+#include "FontAtlas.h"
+#include "HudBatch.h"
 #include "InputScript.h"
+#include "TacticalHud.h"
 
+#include <algorithm>
+#include <filesystem>
 #include <string>
+#include <system_error>
 
 #include "CppUnitTest.h"
 
@@ -26,6 +34,31 @@ namespace
   std::string error;
   Assert::IsFalse(Outpost::InputScript::Parse(_text, script, error));
   return error;
+}
+
+int g_moduleAnchor = 0;
+
+/// A smoke script stored in Design/Measurements, found by walking up from the test DLL as the assets
+/// are.
+[[nodiscard]] Outpost::InputScript StoredScript(const char* _name)
+{
+  std::filesystem::path directory = Neuron::ModuleDirectory(&g_moduleAnchor);
+  std::filesystem::path file;
+  for (int parents = 0; parents <= 4 && file.empty(); ++parents)
+  {
+    const std::filesystem::path candidate = directory / "Design" / "Measurements" / _name;
+    std::error_code ignored;
+    if (std::filesystem::is_regular_file(candidate, ignored))
+    {
+      file = candidate;
+    }
+    directory = directory.parent_path();
+  }
+  Assert::IsFalse(file.empty(), L"the script is found in Design/Measurements above the test DLL");
+  Outpost::InputScript script;
+  std::string error;
+  Assert::IsTrue(Outpost::InputScript::Load(file, script, error), std::wstring(error.begin(), error.end()).c_str());
+  return script;
 }
 
 } // namespace
@@ -101,6 +134,40 @@ public:
     const std::string error = ParseError("press tick=1 name=Warp\n");
     Assert::IsTrue(error.find("line 1") != std::string::npos, std::wstring(error.begin(), error.end()).c_str());
     Assert::IsFalse(ParseError("key tick=1 name=W ticks=0\n").empty(), L"a key is held for one tick at least");
+  }
+
+  TEST_METHOD(TheStoredScriptsParse)
+  {
+    // A stored script is only run by hand, on WARP, for minutes: a key the bindings lost or a record
+    // that no longer parses should fail here first.
+    Assert::IsTrue(StoredScript("ScriptedSmoke.txt").LastTick() > 0);
+    Assert::IsTrue(StoredScript("FlightSmoke.txt").LastTick() > 0);
+  }
+
+  TEST_METHOD(TheFlightScriptStartsByClickingLaunch)
+  {
+    // The flight run starts docked and leaves by the Services inspector's Launch button. Its click is
+    // a pixel of the 1920 x 1080 smoke frame, so it must stay on the button if the docked view moves.
+    const Outpost::InputScript script = StoredScript("FlightSmoke.txt");
+    Assert::IsTrue(script.Events().size() >= 2);
+    const Outpost::InputEvent& press = script.Events()[0];
+    const Outpost::InputEvent& release = script.Events()[1];
+    Assert::IsTrue(press.kind == Outpost::InputEvent::Kind::PointerDown && press.button == Outpost::PointerButton::Left);
+    Assert::IsTrue(release.kind == Outpost::InputEvent::Kind::PointerUp && release.tick == press.tick, L"a click, in one tick");
+    Assert::IsTrue(press.tick >= 2, L"after the first frame has laid the controls out");
+
+    Neuron::FontAtlas atlas;
+    Assert::IsTrue(atlas.Build(Outpost::TacticalHud::Fonts(1.0f)));
+    Neuron::HudBatch batch;
+    batch.Begin(&atlas);
+    Outpost::DockedViewInput docked; // the smoke frame, at scale 1, with Services open as a new game shows it
+    const Outpost::DockedViewLayout layout = Outpost::DockedView{}.Build(batch, docked);
+    const auto launch = std::ranges::find(layout.controls, Outpost::DockedView::LAUNCH, &Outpost::DockedControl::id);
+    Assert::IsTrue(launch != layout.controls.end(), L"the Services inspector offers Launch");
+    Assert::IsTrue(launch->enabled);
+    Assert::IsTrue(press.xPixels > launch->rect.left && press.xPixels < launch->rect.right && press.yPixels > launch->rect.top &&
+                     press.yPixels < launch->rect.bottom,
+                   L"the script's click lands on the Launch button");
   }
 
   TEST_METHOD(AnEmptyScriptHasNoTicks)
