@@ -1,0 +1,77 @@
+{
+  "checks": [
+    {
+      "width": 1024,
+      "context": "flight",
+      "horizontalOverflow": false
+    },
+    {
+      "width": 1024,
+      "context": "combat",
+      "horizontalOverflow": false
+    },
+    {
+      "width": 1024,
+      "context": "mining",
+      "horizontalOverflow": false
+    },
+    {
+      "width": 1024,
+      "context": "docked",
+      "horizontalOverflow": false
+    },
+    {
+      "width": 736,
+      "context": "flight",
+      "horizontalOverflow": false
+    },
+    {
+      "width": 736,
+      "context": "combat",
+      "horizontalOverflow": false
+    },
+    {
+      "width": 736,
+      "context": "mining",
+      "horizontalOverflow": false
+    },
+    {
+      "width": 736,
+      "context": "docked",
+      "horizontalOverflow": false
+    },
+    {
+      "width": 320,
+      "context": "flight",
+      "horizontalOverflow": false
+    },
+    {
+      "width": 320,
+      "context": "combat",
+      "horizontalOverflow": false
+    },
+    {
+      "width": 320,
+      "context": "mining",
+      "horizontalOverflow": false
+    },
+    {
+      "width": 320,
+      "context": "docked",
+      "horizontalOverflow": false
+    }
+  ],
+  "interactions": [
+    "combat subtarget",
+    "cargo full refusal",
+    "insufficient Alloy refusal",
+    "F-03 placement and queued request",
+    "fleet docking request",
+    "repair request"
+  ],
+  "javascriptErrors": [],
+  "preview": "gameplay-ui-preview.html",
+  "transport": "local HTTP",
+  "externalNetwork": "blocked during interaction checks",
+  "scope": "Browser mockup with example data; no runtime game or DDS loader changes"
+}

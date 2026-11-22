@@ -120,6 +120,10 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <CopyFileToFolders Include="..\Assets\Palettes\OutpostFrontier.png">
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)Assets\Palettes</DestinationFolders>
+      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)Assets\Palettes</DestinationFolders>
+    </CopyFileToFolders>
     <CopyFileToFolders Include="..\Assets\Models\FrigateIntact.vox">
       <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)Assets\Models</DestinationFolders>
       <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)Assets\Models</DestinationFolders>

@@ -153,6 +153,18 @@ The [signal and glazing guide](Design/SignalMaterials.md) describes bright yello
 and see-through blue glass (225). VOX files include matching MagicaVoxel material attributes;
 the game supplies the canonical emission, double-flash timing and glass coverage.
 
+Import [`Assets/Palettes/OutpostFrontier.png`](Assets/Palettes/OutpostFrontier.png) into MagicaVoxel
+to reuse the same colors and alpha. Regenerate the strip with `python Tools/ExportPalette.py`;
+Emit/Glass properties stay in the VOX files.
+
+### Gameplay UI proposal
+
+The [gameplay UI proposal](Design/GameplayUiProposal.md) includes Flight, Combat, Mining and
+Docked layouts, screenshots, interaction checks and the requested DDS texture plan. Download/open
+[the interactive preview](Design/GameplayUi/gameplay-ui-preview.html) in a browser to review it.
+These are design review files with example data; the game's implemented flight HUD remains the
+current runtime UI until the proposed integration is built.
+
 ## Tests and checks
 
 ```powershell
