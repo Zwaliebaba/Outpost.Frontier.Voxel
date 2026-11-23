@@ -74,4 +74,10 @@ struct VoxelSurface
 /// share a hidden face. Glass remains solid for connectivity and gameplay.
 [[nodiscard]] VoxelSurface ExtractSurface(const VoxModel& _model, const VoxPalette* _palette = nullptr);
 
+/// The surface voxels of the cells inside [_min, _max] (inclusive, clamped to the grid), with every
+/// neighbour and occlusion sample read from the whole model, so that the regions which tile a model
+/// give, together, exactly ExtractSurface's voxels: a damaged model is re-extracted one brick at a
+/// time (ADR-013). Faces are not built; the bounds and solid count are the region's.
+[[nodiscard]] VoxelSurface ExtractSurfaceRegion(const VoxModel& _model, const VoxPalette* _palette, const Int3& _min, const Int3& _max);
+
 } // namespace Neuron

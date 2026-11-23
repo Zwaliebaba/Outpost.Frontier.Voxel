@@ -78,27 +78,16 @@ constexpr std::array<std::array<Int3, 4>, FACE_DIRECTION_COUNT> CORNERS = {{
   return count <= 4 ? std::uint16_t{2} : std::uint16_t{3};
 }
 
-} // namespace
-
-Int3 FaceNormal(FaceDirection _direction) noexcept
-{
-  return NORMALS[static_cast<std::size_t>(_direction)];
-}
-
-std::vector<VoxelFace> MeshFaces(const VoxModel& _model)
-{
-  return ExtractSurface(_model).faces;
-}
-
-VoxelSurface ExtractSurface(const VoxModel& _model, const VoxPalette* _palette)
+// The surface of the cells in [_min, _max], neighbours read from the whole model. Faces only when asked.
+[[nodiscard]] VoxelSurface Extract(const VoxModel& _model, const VoxPalette* _palette, const Int3& _min, const Int3& _max, bool _withFaces)
 {
   VoxelSurface surface;
   surface.boundsMin = Int3{static_cast<int>(_model.SizeX()), static_cast<int>(_model.SizeY()), static_cast<int>(_model.SizeZ())};
-  for (int z = 0; z < static_cast<int>(_model.SizeZ()); ++z)
+  for (int z = _min.z; z <= _max.z; ++z)
   {
-    for (int y = 0; y < static_cast<int>(_model.SizeY()); ++y)
+    for (int y = _min.y; y <= _max.y; ++y)
     {
-      for (int x = 0; x < static_cast<int>(_model.SizeX()); ++x)
+      for (int x = _min.x; x <= _max.x; ++x)
       {
         const std::uint8_t colorIndex = _model.At(x, y, z);
         if (colorIndex == VOX_EMPTY)
@@ -123,6 +112,10 @@ VoxelSurface ExtractSurface(const VoxModel& _model, const VoxPalette* _palette)
           voxel.faceOcclusion =
             static_cast<std::uint16_t>(voxel.faceOcclusion | (FaceOcclusion(_model, x, y, z, direction, _palette) << (face * 2)));
 
+          if (!_withFaces)
+          {
+            continue;
+          }
           VoxelFace out{Int3{x, y, z}, direction, colorIndex, {}};
           for (std::size_t corner = 0; corner < 4; ++corner)
           {
@@ -143,6 +136,32 @@ VoxelSurface ExtractSurface(const VoxModel& _model, const VoxPalette* _palette)
     surface.boundsMin = Int3{0, 0, 0};
   }
   return surface;
+}
+
+} // namespace
+
+Int3 FaceNormal(FaceDirection _direction) noexcept
+{
+  return NORMALS[static_cast<std::size_t>(_direction)];
+}
+
+std::vector<VoxelFace> MeshFaces(const VoxModel& _model)
+{
+  return ExtractSurface(_model).faces;
+}
+
+VoxelSurface ExtractSurface(const VoxModel& _model, const VoxPalette* _palette)
+{
+  const Int3 max{static_cast<int>(_model.SizeX()) - 1, static_cast<int>(_model.SizeY()) - 1, static_cast<int>(_model.SizeZ()) - 1};
+  return Extract(_model, _palette, Int3{0, 0, 0}, max, true);
+}
+
+VoxelSurface ExtractSurfaceRegion(const VoxModel& _model, const VoxPalette* _palette, const Int3& _min, const Int3& _max)
+{
+  const Int3 low{std::max(_min.x, 0), std::max(_min.y, 0), std::max(_min.z, 0)};
+  const Int3 high{std::min(_max.x, static_cast<int>(_model.SizeX()) - 1), std::min(_max.y, static_cast<int>(_model.SizeY()) - 1),
+                  std::min(_max.z, static_cast<int>(_model.SizeZ()) - 1)};
+  return Extract(_model, _palette, low, high, false);
 }
 
 } // namespace Neuron
