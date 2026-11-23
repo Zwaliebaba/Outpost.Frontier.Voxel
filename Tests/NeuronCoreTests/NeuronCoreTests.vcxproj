@@ -103,6 +103,7 @@
     <ClCompile Include="WireFormatTests.cpp" />
     <ClCompile Include="VoxelMesherTests.cpp" />
     <ClCompile Include="RecordFileTests.cpp" />
+    <ClCompile Include="VoxelMaskTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\NeuronCore\NeuronCore.vcxproj">
