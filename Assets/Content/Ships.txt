@@ -8,6 +8,14 @@
 #   charge, chargetime: s; maxbank: degrees
 #   capacity, charge, drain, cruisepower: units of a pool, and units per second
 #   docking: the docking points the hull may use, berth, medium or large (ch. 04 §2; plan task 2.2)
+#   shield: the shield generator; capacity and regen in shield points, draw from the power pool a second,
+#     offline the share of capacity it collapses at, rebuild the seconds it then stays down (ch. 03 §3.5)
+#   launcher: refire s, power per shot, speed m/s, lifetime s; damage and energydamage as the blueprint's
+#     hull and energy damage (a shield takes half the first and all the second); carve the energy a hit
+#     spends removing voxels, in material strength units, with its shape, radius and length in cells
+#     (ADR-012, ADR-014). The carve's numbers are whole: it is integer arithmetic.
+#   mount: a launcher in a weapon module of the ship's hull (Assets/Hulls/Hulls.txt); its muzzle is the
+#     middle of the module's forward face
 #
 # The two escorts carry the blueprint's first-tier light fighter as authored: top speed 80 m/s,
 # thruster 200 m/s, strafe 33 m/s, pitch and yaw 92 degrees a second. They differ only in bank.
@@ -16,11 +24,29 @@ engine name=LightEngine thrust=48000 drag=599 reverse=0.2 chargetime=5 cruisepow
 powerplant name=LightPowerPlant capacity=1000 charge=100 thrustcapacity=1000 thrustcharge=100
 thruster name=BasicThruster force=72000 drain=165
 
-ship name=EscortLancer model=EscortLancer mass=100 inertia=2800,2800,1000 drag=1 torque=24000,24000,58000 angulardrag=15000,15000,35000 strafe=20000 strafedrain=2 maxbank=30 engine=LightEngine powerplant=LightPowerPlant thruster=BasicThruster docking=berth
-ship name=EscortTalon  model=EscortTalon  mass=100 inertia=2800,2800,1000 drag=1 torque=24000,24000,58000 angulardrag=15000,15000,35000 strafe=20000 strafedrain=2 maxbank=35 engine=LightEngine powerplant=LightPowerPlant thruster=BasicThruster docking=berth
+# First tier, after the blueprint's class 1 guns (median 136 damage and 42 power a second): five shots a
+# second of 28 damage for 8.5 power, 600 m/s for a second, so 600 m of range. A shield of 450, the
+# blueprint's smallest, collapses at 15 % after 28 hits and refills from nothing in 45 s (ch. 03 §4).
+# The carve, a capsule of radius 2 boring six cells along the shot with 400 units, was set by the
+# headless duel (ADR-014): the beaten ship's core is reached within the first rebuild windows.
+shield name=LightShield capacity=450 regen=10 draw=10 offline=0.15 rebuild=12
+launcher name=LightBlaster refire=0.2 power=8.5 speed=600 lifetime=1 damage=28 carve=400 shape=capsule radius=2 length=6
+
+ship name=EscortLancer model=EscortLancer mass=100 inertia=2800,2800,1000 drag=1 torque=24000,24000,58000 angulardrag=15000,15000,35000 strafe=20000 strafedrain=2 maxbank=30 engine=LightEngine powerplant=LightPowerPlant thruster=BasicThruster shield=LightShield docking=berth
+ship name=EscortTalon  model=EscortTalon  mass=100 inertia=2800,2800,1000 drag=1 torque=24000,24000,58000 angulardrag=15000,15000,35000 strafe=20000 strafedrain=2 maxbank=35 engine=LightEngine powerplant=LightPowerPlant thruster=BasicThruster shield=LightShield docking=berth
+# The raider is a light fighter of the same tier as the escorts (plan task 3.8: a duel of equals).
+ship name=Raider       model=Raider       mass=100 inertia=2800,2800,1000 drag=1 torque=24000,24000,58000 angulardrag=15000,15000,35000 strafe=20000 strafedrain=2 maxbank=35 engine=LightEngine powerplant=LightPowerPlant thruster=BasicThruster shield=LightShield docking=berth
+
+mount ship=EscortLancer launcher=LightBlaster region=WeaponPort
+mount ship=EscortLancer launcher=LightBlaster region=WeaponStarboard
+mount ship=EscortTalon  launcher=LightBlaster region=WeaponPort
+mount ship=EscortTalon  launcher=LightBlaster region=WeaponStarboard
+mount ship=Raider       launcher=LightBlaster region=WeaponPort
+mount ship=Raider       launcher=LightBlaster region=WeaponStarboard
 
 # Chase camera per hull (plan task 1.8; blueprint ch. 09 §3.9): metres up and back from the pivot, and the
 # look-ahead into a turn at full yaw, pitch-up and pitch-down throttle, in degrees. Both escorts are about
 # 45 m long, so the camera sits about a hull length behind the tail.
 chase ship=EscortLancer up=13 back=65 lookside=20 lookup=7 lookdown=25
 chase ship=EscortTalon  up=12 back=60 lookside=20 lookup=7 lookdown=25
+chase ship=Raider       up=12 back=60 lookside=20 lookup=7 lookdown=25

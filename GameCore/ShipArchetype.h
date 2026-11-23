@@ -1,6 +1,8 @@
 #pragma once
 
 #include "DockingPoint.h"
+#include "Launcher.h"
+#include "Shield.h"
 
 #include <DirectXMath.h>
 
@@ -13,6 +15,7 @@ namespace Outpost
 {
 
 struct SceneDefinition;
+struct HullContent;
 
 /// An engine as authored (blueprint ch. 02 §4). Almost all of a ship's drag is its engine's, so
 /// killing the engine is what lets a ship drift.
@@ -63,7 +66,20 @@ struct ShipArchetype
   std::string engine;
   std::string powerPlant;
   std::string thruster;
+  std::string shield;                      // its shield generator, or empty for none (plan task 3.5)
   DockKind dockingClass = DockKind::Berth; // the docking points it may use (ch. 04 §2)
+};
+
+/// A launcher fitted to a hull, in the weapon module it sits in (plan task 3.4). A hull's mounts are
+/// numbered in the order the file gives them.
+struct MountRecord
+{
+  std::string ship;     // the ship archetype
+  std::string launcher; // the launcher archetype
+  std::string region;   // the weapon module of the ship's hull it sits in (Assets/Hulls/Hulls.txt)
+  // Its muzzle, from the pivot in the ship's frame: the middle of the region's forward face. Set by
+  // ResolveMounts, which needs the scene and the hulls.
+  DirectX::XMFLOAT3 muzzleModel{};
 };
 
 /// How the chase camera sits behind one hull (blueprint ch. 09 §3.9). Presentation, so a record of
@@ -86,12 +102,19 @@ struct ShipContent
   std::vector<ThrusterArchetype> thrusters;
   std::vector<ShipArchetype> ships;
   std::vector<ChaseCameraRecord> chaseCameras;
+  std::vector<ShieldArchetype> shields;
+  std::vector<LauncherArchetype> launchers;
+  std::vector<MountRecord> mounts; // in file order
 
   [[nodiscard]] const EngineArchetype* FindEngine(std::string_view _name) const noexcept;
   [[nodiscard]] const PowerPlantArchetype* FindPowerPlant(std::string_view _name) const noexcept;
   [[nodiscard]] const ThrusterArchetype* FindThruster(std::string_view _name) const noexcept;
   [[nodiscard]] const ShipArchetype* FindShip(std::string_view _name) const noexcept;
   [[nodiscard]] const ChaseCameraRecord* FindChaseCamera(std::string_view _ship) const noexcept;
+  [[nodiscard]] const ShieldArchetype* FindShield(std::string_view _name) const noexcept;
+  [[nodiscard]] const LauncherArchetype* FindLauncher(std::string_view _name) const noexcept;
+  /// The regions a ship's mounts sit in, in mount order.
+  [[nodiscard]] std::vector<std::string> MountRegions(std::string_view _ship) const;
 };
 
 /// Parses the ship family (ADR-009): unknown keywords and keys, missing keys, values out of range,
@@ -102,5 +125,10 @@ struct ShipContent
 
 /// Every ship's model= names a model of the scene. Empty when all resolve; otherwise one line each.
 [[nodiscard]] std::vector<std::string> ResolveShipModels(const ShipContent& _content, const SceneDefinition& _scene);
+
+/// Every mount's region is a weapon module of its ship's hull, and no ship has more mounts than
+/// MAX_LAUNCHERS. Sets each mount's muzzle from its region and the model's pivot. Empty when all
+/// resolve; otherwise one line each.
+[[nodiscard]] std::vector<std::string> ResolveMounts(ShipContent& _content, const SceneDefinition& _scene, const HullContent& _hulls);
 
 } // namespace Outpost

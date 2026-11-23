@@ -168,8 +168,8 @@ FlightHudLayout FlightHud::Build(HudBatch& _batch, const FlightHudInput& _input)
 
   if (_input.showHelp)
   {
-    const char* help = "Hold LMB: steer   Space: mouse lock   W/S, wheel: throttle   Tab: thruster   C: cruise   Z: engine   "
-                       "A/D/R/F: strafe   Q/E: roll   G: dock   Esc: cancel   H: help   F10: quit";
+    const char* help = "Hold LMB: steer   Hold RMB: fire   Space: mouse lock   W/S, wheel: throttle   Tab: thruster   C: cruise   "
+                       "Z: engine   A/D/R/F: strafe   Q/E: roll   K: repair   G: dock   Esc: cancel   H: help   F10: quit";
     const float helpWidth = _batch.TextWidth(FontSmall, help);
     const float helpY = _input.height - 26.0f * s;
     layout.help = Rect(centerX - helpWidth * 0.5f, helpY, helpWidth, _batch.LineHeight(FontSmall));

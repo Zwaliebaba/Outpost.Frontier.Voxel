@@ -43,6 +43,11 @@ command name=YawRight hold=true
 command name=MouseFlight hold=true
 command name=MouseFlightLock
 
+# Flight: combat (plan tasks 3.4 and 3.11; GameDesign.md D22). Hold the right button to fire at the
+# point under the cursor; a repair kit patches the hull in the field.
+command name=Fire hold=true
+command name=RepairKit
+
 # Tactical.
 command name=ResetView
 
@@ -79,6 +84,8 @@ bind command=YawLeft context=Flying key=Left
 bind command=YawRight context=Flying key=Right
 bind command=MouseFlight context=Flying key=MouseLeft
 bind command=MouseFlightLock context=Flying key=Space
+bind command=Fire context=Flying key=MouseRight
+bind command=RepairKit context=Flying key=K
 
 bind command=ResetView context=Tactical key=Home
 bind command=ResetView context=Tactical key=R

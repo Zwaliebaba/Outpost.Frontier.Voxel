@@ -10,6 +10,9 @@
     <Filter Include="Persistence">
       <UniqueIdentifier>{04FBF547-C595-4092-B510-A4EF31D45985}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Combat">
+      <UniqueIdentifier>{0B8200DB-B597-59D8-85AA-8F184920B887}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Observer.h">
@@ -33,6 +36,12 @@
     <ClInclude Include="SpaceSupport.h">
       <Filter>Universe</Filter>
     </ClInclude>
+    <ClInclude Include="Combat.h">
+      <Filter>Combat</Filter>
+    </ClInclude>
+    <ClInclude Include="Ai.h">
+      <Filter>Combat</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Observer.cpp">
@@ -55,6 +64,12 @@
     </ClCompile>
     <ClCompile Include="SpaceSupport.cpp">
       <Filter>Universe</Filter>
+    </ClCompile>
+    <ClCompile Include="Combat.cpp">
+      <Filter>Combat</Filter>
+    </ClCompile>
+    <ClCompile Include="Ai.cpp">
+      <Filter>Combat</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

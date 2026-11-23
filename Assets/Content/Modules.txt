@@ -1,0 +1,20 @@
+# Module functions: when a module weakens and when it stops (plan task 3.3; ADR-014; GameDesign.md §7.1).
+#
+# A module is a region of a hull's cells (Assets/Hulls/Hulls.txt), and its health is the share of
+# those cells still present, in whole percent rounded down. Below 'reduced' it works at
+# 'reducedrate' percent of its rate; below 'stopped' it does nothing, so a function that only stops
+# gives both the same value. A function with no record here never weakens, but a module with no
+# cells left has always stopped.
+#
+#   core:   the ship is destroyed when its core stops, and breaks up into wrecks
+#   power:  the reactor; its rate is the power pool's charge rate
+#   shield: the generator; its rate is the shield's regeneration
+#   engine: thrust is the mean of the engine modules' rates, so one engine shot away halves it
+#   weapon: a weapon module that has stopped disables the launcher mounted in it
+
+function name=core   reduced=50 stopped=50 reducedrate=100
+function name=power  reduced=60 stopped=20 reducedrate=50
+function name=shield reduced=60 stopped=20 reducedrate=50
+function name=engine reduced=60 stopped=20 reducedrate=50
+function name=weapon reduced=50 stopped=50 reducedrate=100
+function name=sensor reduced=60 stopped=20 reducedrate=50

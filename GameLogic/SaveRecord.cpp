@@ -63,6 +63,26 @@ std::string SaveText(int _value)
   return Shortest(_value);
 }
 
+std::string SaveText(std::span<const Neuron::CellSpan> _value)
+{
+  std::string text;
+  for (const Neuron::CellSpan& span : _value)
+  {
+    text += (text.empty() ? "" : ",") + std::to_string(span.start) + ":" + std::to_string(span.count);
+  }
+  return text;
+}
+
+std::string SaveText(std::span<const std::int32_t> _value)
+{
+  std::string text;
+  for (const std::int32_t value : _value)
+  {
+    text += (text.empty() ? "" : ",") + std::to_string(value);
+  }
+  return text;
+}
+
 std::string SaveText(bool _value)
 {
   return _value ? "1" : "0";
@@ -169,6 +189,55 @@ void SaveRecord::Read(std::string_view _key, std::int32_t& _out)
   if (const std::string* value = Value(_key); value != nullptr && !Neuron::ParseInt(*value, _out))
   {
     Malformed(_key, "a whole number");
+  }
+}
+
+void SaveRecord::Read(std::string_view _key, std::vector<Neuron::CellSpan>& _out)
+{
+  const std::string* value = Value(_key);
+  if (value == nullptr)
+  {
+    return;
+  }
+  std::vector<Neuron::CellSpan> spans;
+  std::string_view rest = *value;
+  while (!rest.empty())
+  {
+    const std::size_t comma = rest.find(',');
+    const std::string_view item = rest.substr(0, comma);
+    rest = comma == std::string_view::npos ? std::string_view() : rest.substr(comma + 1);
+    const std::size_t colon = item.find(':');
+    std::uint64_t start = 0;
+    std::uint64_t count = 0;
+    if (colon == std::string_view::npos || !Neuron::ParseUInt64(item.substr(0, colon), start) ||
+        !Neuron::ParseUInt64(item.substr(colon + 1), count) || start > 0xFFFFFFFFull || count == 0 || count > 0xFFFFFFFFull ||
+        (!spans.empty() && start < static_cast<std::uint64_t>(spans.back().start) + spans.back().count))
+    {
+      Malformed(_key, "sorted, apart cell spans as start:count,...");
+      return;
+    }
+    spans.push_back(Neuron::CellSpan{static_cast<std::uint32_t>(start), static_cast<std::uint32_t>(count)});
+  }
+  _out = std::move(spans);
+}
+
+void SaveRecord::Read(std::string_view _key, std::span<std::int32_t> _out)
+{
+  const std::string* value = Value(_key);
+  if (value == nullptr)
+  {
+    return;
+  }
+  std::string_view rest = *value;
+  for (std::size_t i = 0; i < _out.size(); ++i)
+  {
+    const std::size_t comma = rest.find(',');
+    if ((comma == std::string_view::npos) != (i + 1 == _out.size()) || !Neuron::ParseInt(rest.substr(0, comma), _out[i]))
+    {
+      Malformed(_key, std::to_string(_out.size()) + " whole numbers");
+      return;
+    }
+    rest = comma == std::string_view::npos ? std::string_view() : rest.substr(comma + 1);
   }
 }
 

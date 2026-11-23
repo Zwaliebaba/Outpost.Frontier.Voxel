@@ -2,6 +2,7 @@
 
 #include "Zone.h"
 
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -30,7 +31,8 @@ struct SystemContent
 {
   std::vector<Zone> zones;
   std::vector<StationDefinition> stations;
-  std::string startStation; // where a new game starts, docked (GameDesign.md D18)
+  std::string startStation;         // where a new game starts, docked (GameDesign.md D18)
+  std::int64_t startRepairKits = 0; // the repair kits a new character carries (plan task 3.11)
 
   [[nodiscard]] const Zone* FindZone(std::string_view _name) const noexcept;
   [[nodiscard]] const StationDefinition* FindStation(std::string_view _name) const noexcept;

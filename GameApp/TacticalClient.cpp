@@ -102,7 +102,18 @@ bool TacticalClient::Initialize(Neuron::GraphicsDevice& _device, const std::file
   {
     return false;
   }
-  const std::vector<std::string> problems = ResolveShipModels(m_ships, m_assets.Scene());
+  std::vector<std::string> problems = ResolveShipModels(m_ships, m_assets.Scene());
+  if (!problems.empty())
+  {
+    _outError = problems.front();
+    return false;
+  }
+  // The hulls, so that the own ship's muzzles and condition are the server's (plan tasks 3.4, 3.6).
+  if (!LoadHullContent(_assetRoot, m_hulls, _outError))
+  {
+    return false;
+  }
+  problems = ResolveMounts(m_ships, m_assets.Scene(), m_hulls);
   if (!problems.empty())
   {
     _outError = problems.front();
@@ -363,6 +374,10 @@ void TacticalClient::ProcessCommands()
       {
         RequestDock(DockCommand::Launch);
       }
+      else if (name == "RepairKit")
+      {
+        m_pendingItem = ItemKind::RepairKit;
+      }
       else if (name == "Cancel" && m_universe.ownDock.phase != DockPhase::None)
       {
         RequestDock(DockCommand::Cancel);
@@ -483,6 +498,39 @@ bool TacticalClient::TakeCaptureRequest() noexcept
   return std::exchange(m_captureRequested, false);
 }
 
+void TacticalClient::ApplyOwnCondition()
+{
+  if (!m_prediction.Active())
+  {
+    return;
+  }
+  const UniverseObject* object = m_universe.FindObject(m_universe.ownShip);
+  const ShipState* ship = object != nullptr ? m_universe.FindShip(object->name) : nullptr;
+  const HullRecord* hull = object != nullptr ? m_hulls.HullForModel(object->model) : nullptr;
+  const ShipArchetype* archetype = object != nullptr ? FlyingArchetype(m_ships, *object) : nullptr;
+  if (ship == nullptr || hull == nullptr || archetype == nullptr)
+  {
+    return;
+  }
+  const ShipCondition condition = ConditionOf(m_hulls, *hull, ship->modules, m_ships.MountRegions(archetype->name));
+  m_prediction.SetSpec(ApplyCondition(m_baseSpec, condition));
+}
+
+UniversePosition TacticalClient::AimPoint() const
+{
+  if (!m_prediction.Active() || m_lastView.viewportSize.x <= 0.0f)
+  {
+    return m_prediction.State().position;
+  }
+  const XMMATRIX viewProjection = XMLoadFloat4x4(&m_lastView.view) * XMLoadFloat4x4(&m_lastView.projection);
+  const XMFLOAT2 cursor = m_flightInput.Cursor();
+  const Neuron::Ray ray =
+    Neuron::PickRay(cursor.x, cursor.y, XMMatrixInverse(nullptr, viewProjection), m_lastView.viewportSize.x, m_lastView.viewportSize.y);
+  const XMFLOAT3 point{ray.origin.x + ray.direction.x * AIM_DISTANCE_METRES, ray.origin.y + ray.direction.y * AIM_DISTANCE_METRES,
+                       ray.origin.z + ray.direction.z * AIM_DISTANCE_METRES};
+  return m_scene.FromRender(point);
+}
+
 void TacticalClient::ResetChaseCamera(const XMFLOAT4& _orientation)
 {
   Neuron::ChaseCameraDesc desc;
@@ -535,6 +583,8 @@ void TacticalClient::TakeOwnShipNews(std::uint32_t _ticksPerSecond)
     return;
   }
   m_prediction.Begin(ShipBodyFor(m_assets.Scene(), m_ships, *archetype, *object), m_universe.ownShipTick, m_universe.ownShipState);
+  m_baseSpec = m_prediction.Body().spec;
+  ApplyOwnCondition();
   m_maxBankDegrees = archetype->maxBankDegrees;
   ResetChaseCamera(m_prediction.State().orientation);
 }
@@ -543,6 +593,17 @@ bool TacticalClient::SendTick(Neuron::LoopbackTransport& _transport, std::uint32
 {
   m_ticksPerSecond = _ticksPerSecond;
   ProcessCommands();
+  if (m_pendingItem.has_value() && m_universe.ownShip != NO_OBJECT)
+  {
+    const Message message = UseItemMessage{m_universe.tick, m_universe.ownShip, *m_pendingItem};
+    const Route route = RouteOf(KindOf(message));
+    m_pendingItem.reset();
+    if (!_transport.Send(Neuron::Peer::Client, route.delivery, route.stream, Encode(message)))
+    {
+      m_protocolError = "an item could not be used";
+      return false;
+    }
+  }
   if (m_pendingDock.has_value() && m_universe.ownShip != NO_OBJECT)
   {
     const Message message = DockCommandMessage{m_universe.tick, m_universe.ownShip, *m_pendingDock};
@@ -565,7 +626,9 @@ bool TacticalClient::SendTick(Neuron::LoopbackTransport& _transport, std::uint32
     m_prediction.SetBodies(StaticBodies(m_assets.Scene(), m_ships, m_universe.objects));
     m_bodiesRevision = m_universe.objectsRevision;
   }
-  const ShipCommand command = m_flightInput.Sample(m_commands, m_prediction.State(), m_chase.Up(), m_maxBankDegrees, _ticksPerSecond);
+  ApplyOwnCondition();
+  ShipCommand command = m_flightInput.Sample(m_commands, m_prediction.State(), m_chase.Up(), m_maxBankDegrees, _ticksPerSecond);
+  command.aim = AimPoint();
   const ShipTickResult& result = m_prediction.Step(command, _ticksPerSecond);
   if (result.obstructed && command.wishes.cruise)
   {

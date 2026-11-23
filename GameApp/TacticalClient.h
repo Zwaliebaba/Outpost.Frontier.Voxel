@@ -12,6 +12,8 @@
 #include "HudBatch.h"
 #include "InputScript.h"
 #include "LoopbackTransport.h"
+#include "Messages.h"
+#include "ModuleRegion.h"
 #include "OrbitCamera.h"
 #include "PointerGesture.h"
 #include "Prediction.h"
@@ -58,6 +60,8 @@ public:
   // A go-to order on a ship stops this many of its bounding radii short of it.
   static constexpr float ORDER_STAND_OFF_RADII = 3.0f;
   static constexpr float ORDER_STAND_OFF_POINT_METRES = 10.0f;
+  // The guns converge this far out along the ray through the cursor (plan task 3.4): about their range.
+  static constexpr float AIM_DISTANCE_METRES = 500.0f;
 
   TacticalClient() = default;
   /// Waits for the GPU before any of the client's resources is released (see the .cpp).
@@ -202,11 +206,18 @@ private:
   void OrderAt(float _x, float _y);
   /// Sizes the chase camera for the own ship's archetype and points it along _orientation.
   void ResetChaseCamera(const DirectX::XMFLOAT4& _orientation);
+  /// The own ship's spec as the modules the server states leave it (plan task 3.6).
+  void ApplyOwnCondition();
+  /// Where the guns converge: the point under the cursor, AIM_DISTANCE_METRES out.
+  [[nodiscard]] UniversePosition AimPoint() const;
 
   Neuron::GraphicsDevice* m_device = nullptr;
   Neuron::Renderer m_renderer;
   SceneAssets m_assets;
   ShipContent m_ships;
+  HullContent m_hulls;                   // the hulls' regions and thresholds, for the own ship's condition
+  ShipFlightSpec m_baseSpec;             // the own ship's archetype spec, before its condition
+  std::optional<ItemKind> m_pendingItem; // asked by a key, sent with the next tick (plan task 3.11)
   TacticalScene m_scene;
   TacticalHud m_hud;
   FlightHud m_flightHud;

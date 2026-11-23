@@ -27,6 +27,8 @@ namespace Outpost
 ///   wheel notch. Throttling down, or reaching 0, drops cruise; engaging cruise sets full throttle.
 /// - **Orders:** a go-to from the tactical view is flown until it is cancelled, or until the player
 ///   steers or moves the throttle, which returns the ship to free flight.
+/// - **Fire:** while Fire is held the guns fire at the aim point, which the client sets from the
+///   cursor (plan task 3.4; GameDesign.md D22).
 class FlightInput
 {
 public:
@@ -120,6 +122,7 @@ private:
     Neuron::CommandId mouseFlight = Neuron::NO_COMMAND;
     Neuron::CommandId mouseFlightLock = Neuron::NO_COMMAND;
     Neuron::CommandId cancel = Neuron::NO_COMMAND;
+    Neuron::CommandId fire = Neuron::NO_COMMAND;
   };
 
   void SetThrottle(float _throttle) noexcept;

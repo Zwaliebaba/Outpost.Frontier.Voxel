@@ -171,7 +171,7 @@ public:
       flying += Outpost::FlyingArchetype(ships, objects.back()) != nullptr ? 1 : 0;
       blueprints += scene.instances[i].style == Outpost::InstanceStyle::Blueprint ? 1 : 0;
     }
-    Assert::AreEqual(std::size_t{2}, flying, L"the two escorts fly; the frigate and the tug have no archetype yet");
+    Assert::AreEqual(std::size_t{3}, flying, L"the two escorts and the raider fly; the frigate and the tug have no archetype yet");
     const std::vector<Outpost::CollisionBox> bodies = Outpost::StaticBodies(scene, ships, objects);
     Assert::AreEqual(objects.size() - flying - blueprints, bodies.size());
     for (const Outpost::CollisionBox& body : bodies)

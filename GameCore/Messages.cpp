@@ -149,7 +149,8 @@ constexpr std::uint8_t CONTROL_REVERSE = 1;
 constexpr std::uint8_t CONTROL_THRUSTER = 2;
 constexpr std::uint8_t CONTROL_ENGINE_ON = 4;
 constexpr std::uint8_t CONTROL_CRUISE = 8;
-constexpr std::uint8_t CONTROL_ALL = 15;
+constexpr std::uint8_t CONTROL_FIRE = 16;
+constexpr std::uint8_t CONTROL_ALL = 31;
 
 void WritePayload(Neuron::WireWriter& _writer, const FlightInputMessage& _message)
 {
@@ -164,7 +165,9 @@ void WritePayload(Neuron::WireWriter& _writer, const FlightInputMessage& _messag
   WriteFloat3(_writer, wishes.steering);
   _writer.Uint8(static_cast<std::uint8_t>(wishes.strafe));
   _writer.Uint8(static_cast<std::uint8_t>((wishes.reverse ? CONTROL_REVERSE : 0) | (wishes.thruster ? CONTROL_THRUSTER : 0) |
-                                          (wishes.engineOn ? CONTROL_ENGINE_ON : 0) | (wishes.cruise ? CONTROL_CRUISE : 0)));
+                                          (wishes.engineOn ? CONTROL_ENGINE_ON : 0) | (wishes.cruise ? CONTROL_CRUISE : 0) |
+                                          (wishes.fire ? CONTROL_FIRE : 0)));
+  WritePosition(_writer, command.aim);
 }
 
 void WritePayload(Neuron::WireWriter& _writer, const OwnShipMessage& _message)
@@ -185,6 +188,13 @@ void WritePayload(Neuron::WireWriter& _writer, const OwnShipMessage& _message)
   _writer.Uint8(static_cast<std::uint8_t>(state.cruise));
   _writer.Int32(state.cruiseTimerTicks);
   _writer.Float32(state.cruiseRamp);
+  _writer.Float32(state.shield);
+  _writer.Uint8(state.shieldUp ? 1 : 0);
+  _writer.Int32(state.shieldRebuildTicks);
+  for (const std::int32_t clock : state.launcherClockTicks)
+  {
+    _writer.Int32(clock);
+  }
 }
 
 void WritePayload(Neuron::WireWriter& _writer, const ShipMotionMessage& _message)
@@ -204,6 +214,19 @@ void WritePayload(Neuron::WireWriter& _writer, const DockCommandMessage& _messag
   _writer.Uint64(_message.tick);
   _writer.Uint32(_message.ship);
   _writer.Uint8(static_cast<std::uint8_t>(_message.command));
+}
+
+void WritePayload(Neuron::WireWriter& _writer, const ObjectRemovedMessage& _message)
+{
+  _writer.Uint64(_message.tick);
+  _writer.Uint32(_message.id);
+}
+
+void WritePayload(Neuron::WireWriter& _writer, const UseItemMessage& _message)
+{
+  _writer.Uint64(_message.tick);
+  _writer.Uint32(_message.ship);
+  _writer.Uint8(static_cast<std::uint8_t>(_message.item));
 }
 
 void WritePayload(Neuron::WireWriter& _writer, const DockStatusMessage& _message)
@@ -308,6 +331,8 @@ void WritePayload(Neuron::WireWriter& _writer, const DockStatusMessage& _message
     wishes.thruster = (switches & CONTROL_THRUSTER) != 0;
     wishes.engineOn = (switches & CONTROL_ENGINE_ON) != 0;
     wishes.cruise = (switches & CONTROL_CRUISE) != 0;
+    wishes.fire = (switches & CONTROL_FIRE) != 0;
+    input.command.aim = ReadPosition(_reader);
     message = input;
     break;
   }
@@ -330,6 +355,13 @@ void WritePayload(Neuron::WireWriter& _writer, const DockStatusMessage& _message
     wellFormed = ReadEnum(_reader, CruiseState::Cooldown, state.cruise) && wellFormed;
     state.cruiseTimerTicks = _reader.Int32();
     state.cruiseRamp = _reader.Float32();
+    state.shield = _reader.Float32();
+    wellFormed = ReadBool(_reader, state.shieldUp) && wellFormed;
+    state.shieldRebuildTicks = _reader.Int32();
+    for (std::int32_t& clock : state.launcherClockTicks)
+    {
+      clock = _reader.Int32();
+    }
     message = own;
     break;
   }
@@ -367,6 +399,23 @@ void WritePayload(Neuron::WireWriter& _writer, const DockStatusMessage& _message
     message = status;
     break;
   }
+  case MessageKind::ObjectRemoved:
+  {
+    ObjectRemovedMessage removed;
+    removed.tick = _reader.Uint64();
+    removed.id = _reader.Uint32();
+    message = removed;
+    break;
+  }
+  case MessageKind::UseItem:
+  {
+    UseItemMessage use;
+    use.tick = _reader.Uint64();
+    use.ship = _reader.Uint32();
+    wellFormed = ReadEnum(_reader, ItemKind::RepairKit, use.item);
+    message = use;
+    break;
+  }
   default:
     return std::unexpected(DecodeError::UnknownKind);
   }
@@ -379,7 +428,7 @@ void WritePayload(Neuron::WireWriter& _writer, const DockStatusMessage& _message
 
 [[nodiscard]] bool IsKnownKind(std::uint16_t _kind) noexcept
 {
-  return _kind >= static_cast<std::uint16_t>(MessageKind::Tick) && _kind <= static_cast<std::uint16_t>(MessageKind::DockStatus);
+  return _kind >= static_cast<std::uint16_t>(MessageKind::Tick) && _kind <= static_cast<std::uint16_t>(MessageKind::UseItem);
 }
 
 } // namespace
@@ -430,10 +479,18 @@ MessageKind KindOf(const Message& _message)
       {
         return MessageKind::DockCommand;
       }
+      else if constexpr (std::is_same_v<T, DockStatusMessage>)
+      {
+        return MessageKind::DockStatus;
+      }
+      else if constexpr (std::is_same_v<T, ObjectRemovedMessage>)
+      {
+        return MessageKind::ObjectRemoved;
+      }
       else
       {
-        static_assert(std::is_same_v<T, DockStatusMessage>);
-        return MessageKind::DockStatus;
+        static_assert(std::is_same_v<T, UseItemMessage>);
+        return MessageKind::UseItem;
       }
     },
     _message);
@@ -451,6 +508,7 @@ Route RouteOf(MessageKind _kind) noexcept
   case MessageKind::FlightInput:
     return Route{Neuron::Delivery::Datagram, STREAM_COMMANDS};
   case MessageKind::DockCommand:
+  case MessageKind::UseItem:
     return Route{Neuron::Delivery::Reliable, STREAM_COMMANDS};
   case MessageKind::Ship:
   case MessageKind::Objective:
@@ -603,10 +661,22 @@ void ApplyMessage(const Message& _message, UniverseSnapshot& _universe)
         _universe.ownDock = _value.status;
         ++_universe.ownDockRevision;
       }
+      else if constexpr (std::is_same_v<T, ObjectRemovedMessage>)
+      {
+        const auto object = std::ranges::find(_universe.objects, _value.id, &UniverseObject::id);
+        if (object == _universe.objects.end())
+        {
+          return;
+        }
+        _universe.objects.erase(object);
+        std::erase_if(_universe.ships, [&](const ShipState& _ship) { return _ship.object == _value.id; });
+        std::erase_if(_universe.motions, [&](const ShipMotionState& _motion) { return _motion.object == _value.id; });
+        ++_universe.objectsRevision;
+      }
       else
       {
         // A command is the server's to act on; a client's picture of the universe has no place for one.
-        static_assert(std::is_same_v<T, FlightInputMessage> || std::is_same_v<T, DockCommandMessage>);
+        static_assert(std::is_same_v<T, FlightInputMessage> || std::is_same_v<T, DockCommandMessage> || std::is_same_v<T, UseItemMessage>);
       }
     },
     _message);

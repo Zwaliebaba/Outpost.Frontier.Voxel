@@ -204,10 +204,13 @@ bool ParseSystemContent(std::string_view _text, std::string_view _fileName, cons
     }
     else if (record.keyword == "start")
     {
-      if (reader.AllowOnly({"station"}))
+      float kits = 0.0f;
+      if (reader.AllowOnly({"station", "repairkits"}))
       {
         reader.Reference("station", content.startStation);
+        reader.OptionalNumber("repairkits", 0.0f, 1000.0f, kits);
       }
+      content.startRepairKits = static_cast<std::int64_t>(kits);
       if (!reader.Ok())
       {
         return false;

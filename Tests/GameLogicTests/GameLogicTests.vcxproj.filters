@@ -13,6 +13,9 @@
     <Filter Include="Docking">
       <UniqueIdentifier>{60867459-796C-4F24-A0EA-2A6B3FFB180C}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Combat">
+      <UniqueIdentifier>{996AE7F5-E515-5914-B57C-9A26405F5D95}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ObserverTests.cpp">
@@ -32,6 +35,9 @@
     </ClCompile>
     <ClCompile Include="DockingTests.cpp">
       <Filter>Docking</Filter>
+    </ClCompile>
+    <ClCompile Include="CombatTests.cpp">
+      <Filter>Combat</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

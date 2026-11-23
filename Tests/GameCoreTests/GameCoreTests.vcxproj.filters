@@ -19,6 +19,9 @@
     <Filter Include="Content">
       <UniqueIdentifier>{158B90CE-8027-4D4D-A427-D814395194CB}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Combat">
+      <UniqueIdentifier>{FB342FE2-6474-5660-9D7B-4CC61A7859D4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TestSupport.h">
@@ -58,6 +61,9 @@
     </ClCompile>
     <ClCompile Include="DockingContentTests.cpp">
       <Filter>Content</Filter>
+    </ClCompile>
+    <ClCompile Include="CombatModelTests.cpp">
+      <Filter>Combat</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

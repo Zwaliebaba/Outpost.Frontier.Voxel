@@ -230,10 +230,10 @@ public:
 
   TEST_METHOD(AnOutOfRangeSwitchOrStateIsRefused)
   {
-    // The last byte of a flight input holds its switches: four bits.
+    // A flight input's switches, five bits, come just before its aim point, three doubles.
     std::vector<std::uint8_t> input = Outpost::Encode(SampleInput());
-    input.back() = 16;
-    AssertError(input, Outpost::DecodeError::Malformed, L"a fifth switch bit");
+    input[input.size() - 25] = 32;
+    AssertError(input, Outpost::DecodeError::Malformed, L"a sixth switch bit");
     // The last byte of a ship motion is its cruise state.
     std::vector<std::uint8_t> motion =
       Outpost::Encode(Outpost::ShipMotionMessage{{1, 1, 0.0f, 0.0f, false, true, Outpost::CruiseState::Off}});
@@ -243,6 +243,65 @@ public:
     std::vector<std::uint8_t> dock = Outpost::Encode(Outpost::DockCommandMessage{1, 7, Outpost::DockCommand::Dock});
     dock.back() = 3;
     AssertError(dock, Outpost::DecodeError::Malformed, L"dock command 3 is not in the catalogue");
+  }
+
+  TEST_METHOD(FireAndAimTravelWithTheFlightInput)
+  {
+    Outpost::FlightInputMessage input = SampleInput();
+    input.command.wishes.fire = true;
+    input.command.aim = Outpost::UniversePosition{1.0e5 / 3.0, -12.5, 7.0};
+    const auto decoded = Outpost::Decode(Outpost::Encode(input));
+    Assert::IsTrue(decoded.has_value());
+    Assert::IsTrue(std::get<Outpost::FlightInputMessage>(*decoded) == input, L"the fire switch and the aim point, exactly");
+  }
+
+  TEST_METHOD(TheOwnShipsShieldAndLauncherClocksTravelExactly)
+  {
+    Outpost::OwnShipMessage own;
+    own.tick = 40;
+    own.ship = 7;
+    own.state.shield = 512.25f;
+    own.state.shieldUp = false;
+    own.state.shieldRebuildTicks = 431;
+    own.state.launcherClockTicks = {0, 3, 17, Outpost::LAUNCHER_CLOCK_READY_TICKS};
+    const auto decoded = Outpost::Decode(Outpost::Encode(own));
+    Assert::IsTrue(decoded.has_value());
+    Assert::IsTrue(std::get<Outpost::OwnShipMessage>(*decoded) == own);
+  }
+
+  TEST_METHOD(ARemovedObjectLeavesTheClientWithItsShipAndMotion)
+  {
+    Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::ObjectRemoved) ==
+                   Outpost::Route{Neuron::Delivery::Reliable, Outpost::STREAM_UNIVERSE});
+    Outpost::UniverseSnapshot universe;
+    Outpost::UniverseObject raider;
+    raider.id = 54;
+    raider.name = "Raider";
+    Outpost::ApplyMessage(Outpost::ObjectSpawnMessage{raider}, universe);
+    Outpost::ShipState ship;
+    ship.object = 54;
+    ship.instance = "Raider";
+    Outpost::ApplyMessage(Outpost::ShipMessage{ship}, universe);
+    Outpost::ApplyMessage(Outpost::ShipMotionMessage{{54, 3, 0.5f, 10.0f, false, true, Outpost::CruiseState::Off}}, universe);
+    const std::uint64_t revision = universe.objectsRevision;
+    const auto decoded = Outpost::Decode(Outpost::Encode(Outpost::ObjectRemovedMessage{90, 54}));
+    Assert::IsTrue(decoded.has_value());
+    Outpost::ApplyMessage(*decoded, universe);
+    Assert::IsTrue(universe.objects.empty() && universe.ships.empty() && universe.motions.empty());
+    Assert::AreEqual(revision + 1, universe.objectsRevision, L"presentation rebuilds its instances");
+    Outpost::ApplyMessage(*decoded, universe);
+    Assert::AreEqual(revision + 1, universe.objectsRevision, L"a second removal of the same object changes nothing");
+  }
+
+  TEST_METHOD(UsingAnItemIsAReliableCommand)
+  {
+    Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::UseItem) == Outpost::Route{Neuron::Delivery::Reliable, Outpost::STREAM_COMMANDS});
+    const Outpost::UseItemMessage use{12, 7, Outpost::ItemKind::RepairKit};
+    std::vector<std::uint8_t> bytes = Outpost::Encode(use);
+    const auto decoded = Outpost::Decode(bytes);
+    Assert::IsTrue(decoded.has_value() && std::get<Outpost::UseItemMessage>(*decoded) == use);
+    bytes.back() = 1;
+    AssertError(bytes, Outpost::DecodeError::Malformed, L"item 1 is not in the catalogue");
   }
 
   TEST_METHOD(DockingTravelsReliablyAndTheClientKeepsItsStatus)

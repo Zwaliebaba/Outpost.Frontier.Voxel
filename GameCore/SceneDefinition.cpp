@@ -349,7 +349,10 @@ bool ParseScene(std::string_view _text, SceneDefinition& _outScene, std::string&
           !Optional(record, "parentsocket", instance.parentSocket, &Neuron::Record::GetString, error) ||
           !Optional(record, "socket", instance.socket, &Neuron::Record::GetString, error) ||
           !Optional(record, "style", style, &Neuron::Record::GetString, error) ||
-          !Optional(record, "owner", owner, &Neuron::Record::GetString, error))
+          !Optional(record, "owner", owner, &Neuron::Record::GetString, error) ||
+          !Optional(record, "pilot", instance.pilot, &Neuron::Record::GetString, error) ||
+          !Optional(record, "preset", instance.preset, &Neuron::Record::GetString, error) ||
+          !Optional(record, "indestructible", instance.indestructible, &Neuron::Record::GetBool, error))
       {
         return false;
       }

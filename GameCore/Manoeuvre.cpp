@@ -82,6 +82,11 @@ constexpr float APPROACH_GAIN = 0.5f;
 
 } // namespace
 
+XMFLOAT3 SteeringTowards(const XMFLOAT3& _direction, const ShipFlightSpec& _spec, const FlightState& _state, float& _outCosine) noexcept
+{
+  return SteerTowards(XMLoadFloat3(&_direction), _spec, _state, _outCosine);
+}
+
 FlightControls Arbitrate(const FlightControls& _wishes, bool _wayAheadObstructed) noexcept
 {
   FlightControls controls = _wishes;

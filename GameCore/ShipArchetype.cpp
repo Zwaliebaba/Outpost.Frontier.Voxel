@@ -1,6 +1,8 @@
 #include "ShipArchetype.h"
 
 #include "FileSys.h"
+#include "ModelAxes.h"
+#include "ModuleRegion.h"
 #include "RecordFile.h"
 #include "RecordReader.h"
 #include "SceneDefinition.h"
@@ -57,6 +59,29 @@ const ShipArchetype* ShipContent::FindShip(std::string_view _name) const noexcep
   return FindByName(ships, _name);
 }
 
+const ShieldArchetype* ShipContent::FindShield(std::string_view _name) const noexcept
+{
+  return FindByName(shields, _name);
+}
+
+const LauncherArchetype* ShipContent::FindLauncher(std::string_view _name) const noexcept
+{
+  return FindByName(launchers, _name);
+}
+
+std::vector<std::string> ShipContent::MountRegions(std::string_view _ship) const
+{
+  std::vector<std::string> regions;
+  for (const MountRecord& mount : mounts)
+  {
+    if (mount.ship == _ship)
+    {
+      regions.push_back(mount.region);
+    }
+  }
+  return regions;
+}
+
 const ChaseCameraRecord* ShipContent::FindChaseCamera(std::string_view _ship) const noexcept
 {
   const auto found = std::ranges::find(chaseCameras, _ship, &ChaseCameraRecord::ship);
@@ -74,6 +99,7 @@ bool ParseShipContent(std::string_view _text, std::string_view _fileName, ShipCo
   ShipContent content;
   std::vector<int> shipLines;
   std::vector<int> chaseLines;
+  std::vector<int> mountLines;
   for (const Neuron::Record& record : records)
   {
     RecordReader reader(record, _fileName, _outError);
@@ -128,7 +154,7 @@ bool ParseShipContent(std::string_view _text, std::string_view _fileName, ShipCo
     {
       ShipArchetype ship;
       if (reader.AllowOnly({"name", "model", "mass", "inertia", "drag", "torque", "angulardrag", "strafe", "strafedrain", "maxbank",
-                            "engine", "powerplant", "thruster", "docking"}))
+                            "engine", "powerplant", "thruster", "shield", "docking"}))
       {
         reader.Name(ship.name);
         reader.Reference("model", ship.model);
@@ -144,6 +170,7 @@ bool ParseShipContent(std::string_view _text, std::string_view _fileName, ShipCo
         reader.Reference("engine", ship.engine);
         reader.Reference("powerplant", ship.powerPlant);
         reader.Reference("thruster", ship.thruster);
+        reader.OptionalString("shield", ship.shield);
         std::string docking;
         reader.Reference("docking", docking);
         const std::optional<DockKind> dockingClass = ParseDockKind(docking);
@@ -158,6 +185,83 @@ bool ParseShipContent(std::string_view _text, std::string_view _fileName, ShipCo
         return false;
       }
       shipLines.push_back(record.line);
+    }
+    else if (record.keyword == "shield")
+    {
+      ShieldArchetype shield;
+      if (reader.AllowOnly({"name", "capacity", "regen", "draw", "offline", "rebuild"}))
+      {
+        reader.Name(shield.name);
+        reader.Number("capacity", 0.0f, MAX_LARGE_QUANTITY, shield.capacity);
+        reader.Number("regen", 0.0f, MAX_LARGE_QUANTITY, shield.regenerationPerSecond);
+        reader.Number("draw", 0.0f, MAX_LARGE_QUANTITY, shield.drawPerSecond);
+        reader.Number("offline", 0.0f, 1.0f, shield.offlineShare);
+        reader.Number("rebuild", 0.0f, 600.0f, shield.rebuildSeconds);
+      }
+      if (!reader.Ok() || !AddUnique(content.shields, std::move(shield), reader))
+      {
+        return false;
+      }
+    }
+    else if (record.keyword == "launcher")
+    {
+      LauncherArchetype launcher;
+      float energy = 0.0f;
+      float radius = 1.0f;
+      float length = 1.0f;
+      std::string shape = "sphere";
+      if (reader.AllowOnly(
+            {"name", "refire", "power", "speed", "lifetime", "damage", "energydamage", "carve", "shape", "radius", "length"}))
+      {
+        reader.Name(launcher.name);
+        reader.Number("refire", 0.01f, 60.0f, launcher.refireSeconds);
+        reader.Number("power", 0.0f, MAX_LARGE_QUANTITY, launcher.powerPerShot);
+        reader.Number("speed", 1.0f, 10000.0f, launcher.muzzleSpeedMetresPerSecond);
+        reader.Number("lifetime", 0.01f, 60.0f, launcher.lifetimeSeconds);
+        reader.Number("damage", 0.0f, MAX_LARGE_QUANTITY, launcher.hullDamage);
+        reader.OptionalNumber("energydamage", 0.0f, MAX_LARGE_QUANTITY, launcher.energyDamage);
+        reader.Number("carve", 0.0f, 1.0e6f, energy);
+        reader.OptionalString("shape", shape);
+        reader.OptionalNumber("radius", 0.0f, 16.0f, radius);
+        reader.OptionalNumber("length", 1.0f, 64.0f, length);
+      }
+      if (!reader.Ok())
+      {
+        return false;
+      }
+      if (shape != "sphere" && shape != "capsule")
+      {
+        return reader.Fail("'shape' must be sphere or capsule");
+      }
+      if (energy != static_cast<float>(static_cast<std::uint32_t>(energy)) || radius != static_cast<float>(static_cast<int>(radius)) ||
+          length != static_cast<float>(static_cast<int>(length)))
+      {
+        return reader.Fail("'carve', 'radius' and 'length' are whole numbers: the carve is integer arithmetic (ADR-012)");
+      }
+      launcher.carveEnergy = static_cast<std::uint32_t>(energy);
+      launcher.carveShape = shape == "capsule" ? Neuron::CarveShape::Capsule : Neuron::CarveShape::Sphere;
+      launcher.carveRadiusCells = static_cast<std::uint8_t>(radius);
+      launcher.carveLengthCells = static_cast<std::uint8_t>(length);
+      if (!AddUnique(content.launchers, std::move(launcher), reader))
+      {
+        return false;
+      }
+    }
+    else if (record.keyword == "mount")
+    {
+      MountRecord mount;
+      if (reader.AllowOnly({"ship", "launcher", "region"}))
+      {
+        reader.Reference("ship", mount.ship);
+        reader.Reference("launcher", mount.launcher);
+        reader.Reference("region", mount.region);
+      }
+      if (!reader.Ok())
+      {
+        return false;
+      }
+      content.mounts.push_back(std::move(mount));
+      mountLines.push_back(record.line);
     }
     else if (record.keyword == "chase")
     {
@@ -203,6 +307,27 @@ bool ParseShipContent(std::string_view _text, std::string_view _fileName, ShipCo
       return false;
     }
   }
+  for (std::size_t i = 0; i < content.ships.size(); ++i)
+  {
+    const ShipArchetype& ship = content.ships[i];
+    if (!ship.shield.empty() && content.FindShield(ship.shield) == nullptr)
+    {
+      _outError = std::string(_fileName) + " line " + std::to_string(shipLines[i]) + ": ship '" + ship.name + "' names no known shield";
+      return false;
+    }
+  }
+  for (std::size_t i = 0; i < content.mounts.size(); ++i)
+  {
+    const MountRecord& mount = content.mounts[i];
+    const char* dangling = content.FindShip(mount.ship) == nullptr           ? "ship"
+                           : content.FindLauncher(mount.launcher) == nullptr ? "launcher"
+                                                                             : nullptr;
+    if (dangling != nullptr)
+    {
+      _outError = std::string(_fileName) + " line " + std::to_string(mountLines[i]) + ": mount names no known " + dangling;
+      return false;
+    }
+  }
   for (std::size_t i = 0; i < content.chaseCameras.size(); ++i)
   {
     if (content.FindShip(content.chaseCameras[i].ship) == nullptr)
@@ -225,6 +350,36 @@ bool LoadShipContent(const std::filesystem::path& _path, ShipContent& _outConten
     return false;
   }
   return ParseShipContent(text, _path.filename().string(), _outContent, _outError);
+}
+
+std::vector<std::string> ResolveMounts(ShipContent& _content, const SceneDefinition& _scene, const HullContent& _hulls)
+{
+  std::vector<std::string> problems;
+  for (const ShipArchetype& ship : _content.ships)
+  {
+    if (_content.MountRegions(ship.name).size() > MAX_LAUNCHERS)
+    {
+      problems.push_back("ship '" + ship.name + "' has more than " + std::to_string(MAX_LAUNCHERS) + " mounts");
+    }
+  }
+  for (MountRecord& mount : _content.mounts)
+  {
+    const ShipArchetype* ship = _content.FindShip(mount.ship);
+    const ModelAsset* model = ship != nullptr ? _scene.FindModel(ship->model) : nullptr;
+    const HullRecord* hull = ship != nullptr ? _hulls.HullForModel(ship->model) : nullptr;
+    const ModuleRegion* region = hull != nullptr ? hull->FindRegion(mount.region) : nullptr;
+    if (model == nullptr || region == nullptr || region->function != ModuleFunction::Weapon)
+    {
+      problems.push_back("mount of '" + mount.launcher + "' on ship '" + mount.ship + "' names no weapon module '" + mount.region +
+                         "' of its hull");
+      continue;
+    }
+    // The muzzle: the middle of the region's forward face, VOX +Y being the ship's nose (ADR-002).
+    const DirectX::XMFLOAT3 face{0.5f * static_cast<float>(region->min.x + region->max.x), static_cast<float>(region->max.y),
+                                 0.5f * static_cast<float>(region->min.z + region->max.z)};
+    mount.muzzleModel = Neuron::VoxPointToModel(face, model->pivotVox, model->voxelSize);
+  }
+  return problems;
 }
 
 std::vector<std::string> ResolveShipModels(const ShipContent& _content, const SceneDefinition& _scene)

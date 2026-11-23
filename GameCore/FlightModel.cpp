@@ -96,6 +96,26 @@ ShipFlightSpec FlightSpecFor(const ShipContent& _content, const ShipArchetype& _
     spec.thrusterForceNewtons = thruster->forceNewtons;
     spec.thrusterDrainPerSecond = thruster->drainPerSecond;
   }
+  if (const ShieldArchetype* shield = _content.FindShield(_ship.shield))
+  {
+    spec.shield =
+      ShieldSpec{shield->capacity, shield->regenerationPerSecond, shield->drawPerSecond, shield->offlineShare, shield->rebuildSeconds};
+  }
+  std::size_t mount = 0;
+  for (const MountRecord& record : _content.mounts)
+  {
+    const auto launcher = std::ranges::find(_content.launchers, record.launcher, &LauncherArchetype::name);
+    if (record.ship != _ship.name || launcher == _content.launchers.end() || mount >= MAX_LAUNCHERS)
+    {
+      continue;
+    }
+    LauncherMount& fitted = spec.launchers[mount++];
+    fitted.fitted = true;
+    fitted.archetype = static_cast<std::uint8_t>(launcher - _content.launchers.begin());
+    fitted.refireSeconds = launcher->refireSeconds;
+    fitted.powerPerShot = launcher->powerPerShot;
+    fitted.muzzleModel = record.muzzleModel;
+  }
   return spec;
 }
 
@@ -107,7 +127,8 @@ bool operator==(const FlightState& _a, const FlightState& _b) noexcept
          same3(_a.velocityMetresPerSecond, _b.velocityMetresPerSecond) &&
          same3(_a.angularVelocityRadiansPerSecond, _b.angularVelocityRadiansPerSecond) && _a.powerPool == _b.powerPool &&
          _a.thrustPool == _b.thrustPool && _a.thrusterActive == _b.thrusterActive && _a.cruise == _b.cruise &&
-         _a.cruiseTimerTicks == _b.cruiseTimerTicks && _a.cruiseRamp == _b.cruiseRamp;
+         _a.cruiseTimerTicks == _b.cruiseTimerTicks && _a.cruiseRamp == _b.cruiseRamp && _a.shield == _b.shield &&
+         _a.shieldUp == _b.shieldUp && _a.shieldRebuildTicks == _b.shieldRebuildTicks && _a.launcherClockTicks == _b.launcherClockTicks;
 }
 
 float FlightState::SpeedMetresPerSecond() const noexcept
@@ -122,6 +143,7 @@ FlightState RestingFlightState(const ShipFlightSpec& _spec, const Pose& _pose) n
   state.orientation = _pose.orientation;
   state.powerPool = _spec.powerCapacity;
   state.thrustPool = _spec.thrustCapacity;
+  state.shield = _spec.shield.capacity;
   return state;
 }
 

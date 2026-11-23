@@ -1,6 +1,7 @@
 #include "Palette.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 namespace Outpost
@@ -100,7 +101,68 @@ void Ramp(Neuron::VoxPalette& _palette, int _first, int _count, const Color3& _d
   return table;
 }
 
+struct MaterialTables
+{
+  std::array<StructuralMaterial, 256> materials{};
+  Neuron::StrengthTable strengths{};
+};
+
+/// Strengths in carve units. Plating and the assemblies behind it are the base; armour is twice as
+/// strong; frames and rock are between; decks, glass and lamps go easily. Mass is per cubic metre
+/// of each, at one voxel a metre; nothing reads it until mass follows the mask.
+[[nodiscard]] MaterialTables BuildMaterials() noexcept
+{
+  using namespace PaletteIndex;
+  MaterialTables tables;
+  const auto set = [&](int _first, int _count, std::uint32_t _strength, float _mass, std::uint32_t _yield) noexcept
+  {
+    for (int i = 0; i < _count; ++i)
+    {
+      tables.materials[static_cast<std::size_t>(_first) + static_cast<std::size_t>(i)] = StructuralMaterial{_strength, _mass, _yield};
+    }
+  };
+  // Everything defaults to light fittings, so that an index no family claims is still removable.
+  set(1, 255, 10, 400.0f, 0);
+  set(HULL_CHARCOAL, FAMILY_SHADES, 20, 800.0f, 0);
+  set(ARMOR_GRAY, FAMILY_SHADES, 40, 1600.0f, 0);
+  set(ARMOR_WHITE, FAMILY_SHADES, 40, 1600.0f, 0);
+  set(SAFETY_ORANGE, FAMILY_SHADES, 20, 800.0f, 0);
+  set(HAZARD_YELLOW, 4, 20, 800.0f, 0);
+  set(HAZARD_DARK, 4, 20, 800.0f, 0);
+  set(ROCK, 16, 30, 2600.0f, 0);
+  set(STEEL, FAMILY_SHADES, 30, 1200.0f, 0);
+  set(DECK, FAMILY_SHADES, 10, 400.0f, 0);
+  set(GLASS, 4, 8, 250.0f, 0);
+  set(SCORCH, 4, 10, 600.0f, 0);
+  set(FRAME_DARK, FAMILY_SHADES, 15, 600.0f, 0);
+  set(INSIGNIA, FAMILY_SHADES, 15, 600.0f, 0);
+  set(ORE, FAMILY_SHADES, 30, 3000.0f, 1);
+  set(WINDOW_BLUE, 1, 8, 250.0f, 0);
+  tables.materials[0] = StructuralMaterial{};
+  for (std::size_t i = 0; i < tables.materials.size(); ++i)
+  {
+    tables.strengths[i] = tables.materials[i].strength;
+  }
+  return tables;
+}
+
+[[nodiscard]] const MaterialTables& Materials() noexcept
+{
+  static const MaterialTables TABLES = BuildMaterials();
+  return TABLES;
+}
+
 } // namespace
+
+const StructuralMaterial& MaterialOf(std::uint8_t _colorIndex) noexcept
+{
+  return Materials().materials[_colorIndex];
+}
+
+const Neuron::StrengthTable& MaterialStrengths() noexcept
+{
+  return Materials().strengths;
+}
 
 const Neuron::VoxPalette& CanonicalPalette() noexcept
 {

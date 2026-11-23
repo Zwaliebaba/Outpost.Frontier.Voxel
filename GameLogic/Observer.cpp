@@ -17,6 +17,20 @@ bool Observer::Publish(const Universe& _universe, Neuron::LoopbackTransport& _tr
     m_sentTick = state.tick;
   }
 
+  // What no longer exists goes first, so that nothing later names it.
+  for (std::size_t i = 0; i < m_knownObjects.size();)
+  {
+    const ObjectId id = m_knownObjects[i].id;
+    if (state.FindObject(id) != nullptr)
+    {
+      ++i;
+      continue;
+    }
+    ok = Send(ObjectRemovedMessage{state.tick, id}, _transport) && ok;
+    m_knownObjects.erase(m_knownObjects.begin() + static_cast<std::ptrdiff_t>(i));
+    std::erase_if(m_sentShips, [id](const ShipState& _ship) { return _ship.object == id; });
+    std::erase_if(m_sentMotions, [id](const ShipMotionState& _motion) { return _motion.object == id; });
+  }
   for (const UniverseObject& object : state.objects)
   {
     UniverseObject* known = nullptr;
@@ -79,13 +93,21 @@ bool Observer::Publish(const Universe& _universe, Neuron::LoopbackTransport& _tr
       }
     }
   }
-  for (std::size_t i = 0; i < state.ships.size(); ++i)
+  for (const ShipState& ship : state.ships)
   {
-    if (i >= m_sentShips.size() || !(m_sentShips[i] == state.ships[i]))
+    // Ships by their object, so that one removed does not make every ship after it look changed.
+    const auto sent = std::ranges::find(m_sentShips, ship.object, &ShipState::object);
+    if (sent == m_sentShips.end() || !(*sent == ship))
     {
-      ok = Send(ShipMessage{state.ships[i]}, _transport) && ok;
-      m_sentShips.resize(std::max(m_sentShips.size(), i + 1));
-      m_sentShips[i] = state.ships[i];
+      ok = Send(ShipMessage{ship}, _transport) && ok;
+      if (sent == m_sentShips.end())
+      {
+        m_sentShips.push_back(ship);
+      }
+      else
+      {
+        *sent = ship;
+      }
     }
   }
   for (std::size_t i = 0; i < state.objectives.size(); ++i)

@@ -19,7 +19,7 @@ namespace Outpost
 // kind has a fixed route: reliable on a named stream, or a datagram whose newest copy wins.
 
 /// Raised whenever a message is added, removed or changes its encoding.
-inline constexpr std::uint16_t CATALOGUE_VERSION = 4;
+inline constexpr std::uint16_t CATALOGUE_VERSION = 5;
 
 /// Every encoded message begins with: catalogue version (16 bits), kind (16 bits), payload length
 /// in bytes (32 bits).
@@ -42,7 +42,9 @@ enum class MessageKind : std::uint16_t
   OwnShip = 8,
   ShipMotion = 9,
   DockCommand = 10,
-  DockStatus = 11
+  DockStatus = 11,
+  ObjectRemoved = 12,
+  UseItem = 13
 };
 
 /// The server's tick, so the client knows how current its picture is. Newest wins.
@@ -155,8 +157,36 @@ struct DockStatusMessage
   friend bool operator==(const DockStatusMessage&, const DockStatusMessage&) = default;
 };
 
-using Message = std::variant<TickMessage, ShipMessage, ObjectiveMessage, ResourceMessage, ObjectSpawnMessage, ObjectStateMessage,
-                             FlightInputMessage, OwnShipMessage, ShipMotionMessage, DockCommandMessage, DockStatusMessage>;
+/// Server to client: an object the client was told of no longer exists: destroyed, or gone (plan
+/// task 3.7). Its ship and motion go with it. A fact: reliable, on the universe stream.
+struct ObjectRemovedMessage
+{
+  std::uint64_t tick = 0;
+  ObjectId id = NO_OBJECT;
+
+  friend bool operator==(const ObjectRemovedMessage&, const ObjectRemovedMessage&) = default;
+};
+
+/// What a ship carries that can be used in flight (plan task 3.11).
+enum class ItemKind : std::uint8_t
+{
+  RepairKit // patches structure in the field, and leaves modules for a hangar
+};
+
+/// Client to server: use one of an item the ship carries. Reliable, on the commands stream: each one
+/// is acted on once, in order.
+struct UseItemMessage
+{
+  std::uint64_t tick = 0; // the client's tick when it asked
+  ObjectId ship = NO_OBJECT;
+  ItemKind item = ItemKind::RepairKit;
+
+  friend bool operator==(const UseItemMessage&, const UseItemMessage&) = default;
+};
+
+using Message =
+  std::variant<TickMessage, ShipMessage, ObjectiveMessage, ResourceMessage, ObjectSpawnMessage, ObjectStateMessage, FlightInputMessage,
+               OwnShipMessage, ShipMotionMessage, DockCommandMessage, DockStatusMessage, ObjectRemovedMessage, UseItemMessage>;
 
 /// How a kind of message travels.
 struct Route

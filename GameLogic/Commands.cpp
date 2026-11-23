@@ -23,6 +23,11 @@ bool ReceiveCommands(Neuron::LoopbackTransport& _transport, Universe& _universe,
       static_cast<void>(_universe.Command(*dock));
       continue;
     }
+    if (const auto* use = std::get_if<UseItemMessage>(&*message))
+    {
+      static_cast<void>(_universe.UseItem(*use));
+      continue;
+    }
     const auto* input = std::get_if<FlightInputMessage>(&*message);
     if (input == nullptr)
     {

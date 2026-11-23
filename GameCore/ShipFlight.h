@@ -3,6 +3,7 @@
 #include "Collision.h"
 #include "FlightModel.h"
 #include "Manoeuvre.h"
+#include "ModuleRegion.h"
 
 #include <cstdint>
 #include <span>
@@ -22,6 +23,7 @@ struct ShipCommand
 {
   Manoeuvre manoeuvre;
   FlightControls wishes;
+  UniversePosition aim; // where the guns converge while wishes.fire is set (plan task 3.4)
 
   friend bool operator==(const ShipCommand&, const ShipCommand&) = default;
 };
@@ -44,7 +46,13 @@ struct ShipTickResult
   ObjectId contactObject = NO_OBJECT;
   bool contactMoves = false;                // the body met moves, which the client's prediction cannot know
   float contactSpeedMetresPerSecond = 0.0f; // relative speed at the moment of contact
+  FireResult fire;                          // what each launcher did; the server makes the shots into bolts
 };
+
+/// A spec as its modules leave it (plan task 3.6): thrust, the power pool's charge and the shield's
+/// regeneration at their modules' rates, and each mount's launcher working or not. Both halves read
+/// the condition from the module health the server states, so both fly the same ship.
+[[nodiscard]] ShipFlightSpec ApplyCondition(const ShipFlightSpec& _spec, const ShipCondition& _condition) noexcept;
 
 /// One tick of one ship, the same on both halves (plan tasks 1.4, 1.7 and 1.11). The manoeuvre layer
 /// turns the command into controls, refusing cruise when an immovable body lies within
