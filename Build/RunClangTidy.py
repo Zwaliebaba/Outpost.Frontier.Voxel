@@ -169,6 +169,10 @@ def lint(root: Path, binary: str, unit: Unit) -> tuple[Unit, int, str]:
 
 
 def main() -> int:
+    # A Windows console codes in cp1252, which has no box-drawing character: a report of findings must
+    # not crash on its own heading and hide the findings it was about to print.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(errors="replace")
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("files", nargs="*", help="limit to these .cpp files, relative to the root")
     parser.add_argument("--root", type=Path, default=BuildTree.repository_root())
