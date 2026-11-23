@@ -69,6 +69,19 @@ Catalogue version 5 (ADR-008):
 
 **The damage event itself is not on the wire yet.** The client cannot draw a mask until slice 3's client work (plan tasks 3.9 and 3.10, with ADR-013). Until then the server keeps a log of every event it issued (`Combat::Events`, at most 65,536), the client is told the measured health of each ship's modules, and wrecks are not published. The event's wire form is the table above, and it lands with task 3.9: reliable, ordered per object, on the universe stream (ADR-008's delivery class for damage).
 
+### Amended with task 3.9: catalogue version 6
+
+The event is on the wire, and a client holds masks (ADR-013).
+
+- **`DamageEvent`** is the table above, reliable on the universe stream. A carve carries its cell, direction, shape, radius, length, energy and seed; a patch its sequence and cell limit. The client applies each with `ApplyMaskEvent` and ignores one whose sequence its mask already includes.
+- **`MaskSnapshot`** is a whole mask and its last event, as spans of the cells that differ from a reference: the archetype's full mask, or the empty one, whichever takes fewer spans. The observer sends one when it first tells a client of an object whose mask is no longer its instance's initial mask, and whenever a mask changed by anything but an event: a save restored, a return to base (D1), a wreck cut loose. An object with no scene instance starts empty on the client. After a snapshot, events follow from the one after its last.
+- **The observer sends events in the order the log holds them, each only when it is the next on its object's mask** (`Observer::PublishMasks`). The log counts every event it has held (`Combat::EventsLogged`); an event the log has dropped, or one from before a mask's snapshot, is covered by a snapshot instead. Each body's mask has a revision, raised by everything that is not an event, which is what tells the observer to send it whole.
+- **Wrecks are universe objects.** The universe makes each part combat cuts loose an object of its own, past every authored identity, with its parent's model, no owner and a body whose initial mask is empty, so that it reaches the client as a spawn and then a snapshot. It drifts at its parent's velocity plus the kick and turns about its middle, at a rate seeded from its cells, and is removed after 90 s. Wrecks are not saved, and a wreck that goes is not counted among the authored objects that are gone.
+- **`BoltFired` and `BoltHit`**, reliable on the universe stream, are presentation: tracers and sparks. A hit's mask change is its own `DamageEvent`.
+- **`ShipMotion`** gains each ship's shield as a share of its capacity, and **`DockCommand`** the station the player has targeted (GameDesign.md D26).
+
+**Evidence:** `CombatTests.AClientThatHearsTheObserverHoldsTheServersMasks` runs a duel through the observer and applies what it sends as a client would: every mask ends equal to the server's, its last event included. `CombatTests.AWreckIsAnObjectThatDriftsAndIsGone` follows a wreck from the player's death to its removal.
+
 ## Evidence
 
 - `VoxelCarveTests` (NeuronCoreTests): the same event on two masks gives the same cells in the same order and equal hashes; energy is never overspent; a capsule bores along the shot; an unbreakable layer stops the carve behind it; a patch restores only allowed cells that touch the structure.
