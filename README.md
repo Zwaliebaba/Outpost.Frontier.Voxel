@@ -253,7 +253,15 @@ Exit codes:
 
 ### What was run for this version
 
-On 2026-11-23, on branch `claude/mvp-phase-2-rm5qve` (slice 3's server half: tasks 3.1 to 3.8 and 3.11). **Nothing was run on a Windows machine with a GPU, and nobody has played a fight.** The work was done in a Linux container.
+On 2026-11-23, on branch `claude/mvp-phase-2-rm5qve` (slice 3's client half: tasks 3.9 and 3.10, ADR-013 and D26). **Nothing was run on a Windows machine with a GPU, nobody has seen damage drawn or played a fight, and the GPU frame while carving is not measured.** The work was done in a Linux container.
+
+- **On Linux, with g++ 13** against a stand-in for the unit-test framework: every test of NeuronCoreTests, NeuronClientTests' bindings, GameCoreTests, GameLogicTests and GameAppTests that does not need a GPU passed (290). A scratch probe ran the 130-second passive duel through the observer, `ClientCombat` and `MaskedSurfaces`: every damaged surface equalled a whole extraction of its mask, every client mask the server's, and the four shipped hulls' undamaged appearance their shared models (ADR-013 has its timings, at `-O1`). `TacticalClient.cpp`, `TacticalScene.cpp` and `SceneAssets.cpp` were syntax-checked and run through clang-tidy against stand-in D3D12 headers.
+- **The checkers:** `CheckProjectFiles.py`, `CheckFormat.py` with clang-format 18.1.3, and `TestCheckers.py` clean.
+- **GitHub Actions, run 39 of the Build workflow, at `141b655`, started by hand on the branch:** Debug x64 built with MSVC, warnings as errors; 342 of 342 tests passed over all six suites; the material and hazard smoke views on WARP passed with 0 debug-layer errors, the hazard report reading `hazard warning: FrigateBreach, immersion 0.30, scanner -18 %, danger to hull`; `RunClangTidy.py` clean over 126 translation units. Run 37 failed and was fixed: a defaulted equality on a message holding an `XMFLOAT3`, which the Windows SDK's DirectXMath cannot compare.
+
+Not run: Release, anything on hardware, the smoke references under `--expect` (SmokeBaseline.md says what is expected to differ), `--benchmark` while carving.
+
+The record before, for slice 3's server half (tasks 3.1 to 3.8 and 3.11), on the same day and branch. **Nothing was run on a Windows machine with a GPU, and nobody has played a fight.** The work was done in a Linux container.
 
 - **On Linux, with g++ 13** against a stand-in for the unit-test framework: the portable libraries built, and every test of NeuronCoreTests, GameCoreTests, GameLogicTests and GameAppTests that does not need a GPU passed (263). A replica of the smoke loop flew `FlightSmoke.txt` to the same end as before, and a run that fired for five seconds kept the prediction exact on every tick.
 - **The checkers:** `CheckProjectFiles.py` and `CheckFormat.py` clean with clang-format 18.1.3; the pinned clang-tidy 22.1.8 on every changed translation unit except `TacticalClient.cpp`, which needs the Windows SDK; `TestCheckers.py` 42 passed.
