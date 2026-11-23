@@ -28,7 +28,7 @@ namespace
 
 } // namespace
 
-Ai::Ai(const PilotRecord& _pilot, std::uint64_t _seed) noexcept
+Ai::Ai(const PilotRecord& _pilot, std::uint64_t _seed)
   : m_pilot(_pilot),
     m_random(_seed)
 {

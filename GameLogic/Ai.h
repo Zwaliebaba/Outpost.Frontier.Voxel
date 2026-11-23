@@ -68,7 +68,7 @@ public:
   static constexpr float TRAIL_SPEED_METRES_PER_SECOND = 20.0f;
 
   Ai() = default;
-  Ai(const PilotRecord& _pilot, std::uint64_t _seed) noexcept;
+  Ai(const PilotRecord& _pilot, std::uint64_t _seed);
 
   [[nodiscard]] ShipCommand Think(const AiView& _view);
 
