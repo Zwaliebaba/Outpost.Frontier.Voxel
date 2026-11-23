@@ -84,6 +84,17 @@ Since slice 2's docking work, a new game starts docked at the shipyard (task 2.7
 - **Hardware:** the RTX 3070 Ti Laptop GPU matches each WARP report under `--expect`: 788 colours against 786 (default) and 673 against 671 (scripted).
 - **The flight reference was not stored again.** `FlightSmoke.txt` assumed the game starts in flight and pressed F9. The script has since been rewritten to launch first (see *The flight reference* below); its capture is still due, and until then `FlightSmokeWarp.*` are the slice 1 capture and do not describe the game.
 
+## Expected to change with slice 3's server half
+
+Not measured: nothing was run on Windows for it. On 2026-11-23 slice 3 changed the content every reference is taken from, and each is expected to fail `--expect` until stored again on Windows:
+
+- **A raider is in the scene**, four kilometres behind the docked view's camera: 54 instances where there were 53. The tactical HUD gives a ship behind the camera an edge arrow, so the default and scripted frames gain one.
+- **The tactical HUD's percentages are measured.** The selected frigate's panel showed `Scene.txt`'s authored hull and modules. It now shows its share of structure cells present and its hull's regions (ADR-014), the damaged ones first.
+- **The flight HUD's help line is longer**, with the fire button and the repair kit.
+- **The first publish** carries one more object, ship and motion.
+
+The flight reference is still due from slice 2 and is unaffected otherwise: the raider never comes within its 2.5 km detection range of the scripted flight. The hazard reference resumes `HazardSmokeSave.txt`, which predates shields. It resumes with a full shield, and CI's check of its report line is unaffected.
+
 ## How to check against it
 
 ```powershell
