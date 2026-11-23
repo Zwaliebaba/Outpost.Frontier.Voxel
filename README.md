@@ -252,8 +252,8 @@ Exit codes:
 On 2026-11-23, on branch `claude/mvp-phase-2-rm5qve` (slice 3's server half: tasks 3.1 to 3.8 and 3.11). **Nothing was run on a Windows machine with a GPU, and nobody has played a fight.** The work was done in a Linux container.
 
 - **On Linux, with g++ 13** against a stand-in for the unit-test framework: the portable libraries built, and every test of NeuronCoreTests, GameCoreTests, GameLogicTests and GameAppTests that does not need a GPU passed (263). A replica of the smoke loop flew `FlightSmoke.txt` to the same end as before, and a run that fired for five seconds kept the prediction exact on every tick.
-- **The checkers:** `CheckProjectFiles.py` and `CheckFormat.py` clean with clang-format 18.1.3; the pinned clang-tidy 22.1.8 clean on every changed translation unit except `TacticalClient.cpp`, which needs the Windows SDK.
-- **GitHub Actions:** see the commit's run. Debug only, as always.
+- **The checkers:** `CheckProjectFiles.py` and `CheckFormat.py` clean with clang-format 18.1.3; the pinned clang-tidy 22.1.8 on every changed translation unit except `TacticalClient.cpp`, which needs the Windows SDK; `TestCheckers.py` 42 passed.
+- **GitHub Actions, run 35 of the Build workflow, at `19d02ce`, started by hand on the branch:** Debug x64 built with MSVC, warnings as errors; 325 of 325 tests passed over all six suites, the duel and the replay of its events included; the material and hazard smoke views on WARP passed; `RunClangTidy.py` clean over 121 translation units with the pinned clang-tidy 22.1.8. Two earlier runs failed and were fixed: MSVC's C4456 on shadowed locals, and a clang-tidy finding on a `noexcept` that could throw, which the runner had at first hidden by crashing on the Windows console (fixed in `Build/RunClangTidy.py`, with a self-test).
 
 Not run: Release, anything on hardware, the smoke references under `--expect`. Those references are now expected to differ: the raider adds a ship and a HUD marker, and the selected frigate's panel shows measured percentages (SmokeBaseline.md).
 
