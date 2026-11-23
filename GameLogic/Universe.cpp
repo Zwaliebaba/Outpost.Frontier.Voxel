@@ -948,8 +948,8 @@ bool Universe::Restore(const SaveGame& _save, std::string& _outError)
   }
   for (const MaskSave& saved : _save.universe.masks)
   {
-    const ObjectId object = FindByName(saved.instance);
-    if (object == NO_OBJECT || object == m_playerShip || !maskFrom(object, saved.absent, "'" + saved.instance + "'"))
+    const ObjectId named = FindByName(saved.instance);
+    if (named == NO_OBJECT || named == m_playerShip || !maskFrom(named, saved.absent, "'" + saved.instance + "'"))
     {
       _outError = _outError.empty() ? "the save names unknown object '" + saved.instance + "'" : _outError;
       return false;
@@ -957,8 +957,8 @@ bool Universe::Restore(const SaveGame& _save, std::string& _outError)
   }
   for (const std::string& name : _save.universe.gone)
   {
-    const ObjectId object = FindByName(name);
-    if (object == NO_OBJECT || object == m_playerShip)
+    const ObjectId named = FindByName(name);
+    if (named == NO_OBJECT || named == m_playerShip)
     {
       _outError = "the save has '" + name + "' gone, which this content does not place or which the player flies";
       return false;
@@ -1006,10 +1006,10 @@ bool Universe::Restore(const SaveGame& _save, std::string& _outError)
   {
     RemoveObject(FindByName(name));
   }
-  for (const auto& [object, mask] : masks)
+  for (const auto& [id, mask] : masks)
   {
-    static_cast<void>(m_combat.SetMask(object, mask));
-    Measure(object);
+    static_cast<void>(m_combat.SetMask(id, mask));
+    Measure(id);
   }
   if (ShipState* ship = ShipStateOf(m_playerShip); ship != nullptr && !m_combat.Active())
   {
