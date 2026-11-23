@@ -177,6 +177,45 @@ public:
     Assert::IsTrue(events[1] == Event(map, "ThrottleStepUp", Neuron::CommandPhase::Pressed));
   }
 
+  TEST_METHOD(AChordBeatsItsKeyAloneWhileItsModifierIsHeld)
+  {
+    constexpr std::string_view CHORDS = R"(context name=Flying priority=10
+context name=Always priority=0
+command name=Target
+command name=ClearTarget
+command name=Status
+bind command=Target context=Flying key=T
+bind command=ClearTarget context=Always key=Control+T
+bind command=Status context=Flying key=Shift+BracketLeft
+)";
+    Neuron::CommandMap map;
+    std::string error;
+    Assert::IsTrue(Neuron::CommandMap::Parse(CHORDS, "Bindings.txt", map, error), std::wstring(error.begin(), error.end()).c_str());
+    map.SetContextActive(map.FindContext("Flying"), true);
+    map.SetContextActive(map.FindContext("Always"), true);
+    const Neuron::InputKey t = Neuron::KeyFromName("T");
+    const Neuron::InputKey control = Neuron::KeyFromName("Control");
+    map.KeyDown(t, false);
+    map.KeyUp(t);
+    map.KeyDown(control, false);
+    map.KeyDown(t, false);
+    map.KeyUp(t);
+    map.KeyUp(control);
+    // Without its modifier a chord is not pressed, whatever key it ends in.
+    map.KeyDown(Neuron::KeyFromName("BracketLeft"), false);
+    const std::vector<Neuron::CommandEvent> events = map.TakeEvents();
+    Assert::AreEqual(std::size_t{2}, events.size());
+    Assert::IsTrue(events[0] == Event(map, "Target", Neuron::CommandPhase::Pressed));
+    Assert::IsTrue(events[1] == Event(map, "ClearTarget", Neuron::CommandPhase::Pressed), L"the chord, from a context of lower priority");
+    Assert::AreEqual(Neuron::InputKey{0xDB}, Neuron::KeyFromName("BracketLeft"));
+    Assert::IsTrue(Neuron::KeyName(0xDD) == "BracketRight");
+
+    AssertError("context name=A priority=0\ncommand name=X\nbind command=X context=A key=T+Control\n", "begins with Shift, Control or Alt");
+    AssertError(
+      "context name=A priority=0\ncommand name=X\nbind command=X context=A key=Control+T\nbind command=X context=A key=Control+T\n",
+      "bound twice");
+  }
+
   TEST_METHOD(BrokenBindingsNameTheLine)
   {
     AssertError("context name=A priority=0\ncommand name=X\nbind command=X context=A key=Nope\n", "line 3: unknown key 'Nope'");
@@ -201,7 +240,8 @@ public:
       loaded = loaded || Neuron::CommandMap::Load(root, map, error);
     }
     Assert::IsTrue(loaded, std::wstring(error.begin(), error.end()).c_str());
-    for (const std::string_view command : {"MouseFlight", "MouseFlightLock", "Thruster", "Cruise", "EngineKill", "Dock", "Launch", "Quit"})
+    for (const std::string_view command : {"MouseFlight", "MouseFlightLock", "Thruster", "Cruise", "EngineKill", "Dock", "Launch", "Quit",
+                                           "Target", "ClearTarget", "TargetPick", "TargetModuleNext", "TargetModulePrevious"})
     {
       Assert::IsTrue(map.FindCommand(command) != Neuron::NO_COMMAND, L"the game's commands are bound");
       Assert::IsTrue(map.KeyFor(map.FindCommand(command)) != Neuron::NO_KEY);

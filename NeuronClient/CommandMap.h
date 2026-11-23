@@ -54,6 +54,7 @@ struct CommandEvent
 ///   command name=Thruster hold=true      # hold: Pressed on the key's down and Released on its up
 ///   command name=ThrottleUp hold=true repeat=false
 ///   bind command=Thruster context=Flying key=Tab
+///   bind command=ClearTarget context=Flying key=Control+T   # a chord: beats T alone while Control is held
 ///
 /// A key's down is resolved once, against the contexts live at that moment, and its up releases
 /// whatever that down pressed. So a key held across a context switch releases the command it
@@ -110,6 +111,7 @@ private:
     InputKey key = NO_KEY;
     CommandId command = NO_COMMAND;
     ContextId context = NO_CONTEXT;
+    InputKey modifier = NO_KEY; // a chord's Shift, Control or Alt, held when the key goes down
   };
 
   struct DownKey
