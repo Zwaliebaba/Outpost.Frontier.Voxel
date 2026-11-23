@@ -1,11 +1,15 @@
 #include "TacticalClient.h"
 
 #include "Collision.h"
+#include "Launcher.h"
+#include "MaskEvent.h"
 #include "Messages.h"
 #include "ModelAxes.h"
 #include "ScreenProjection.h"
+#include "VoxelCarve.h"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cmath>
 #include <cstdio>
@@ -108,11 +112,22 @@ bool TacticalClient::Initialize(Neuron::GraphicsDevice& _device, const std::file
     _outError = problems.front();
     return false;
   }
-  // The hulls, so that the own ship's muzzles and condition are the server's (plan tasks 3.4, 3.6).
-  if (!LoadHullContent(_assetRoot, m_hulls, _outError))
+  // The hulls, so that the own ship's muzzles and condition are the server's (plan tasks 3.4, 3.6),
+  // and every archetype's voxels, so that the masks the server sends apply here as there (R22).
+  auto combat = std::make_shared<CombatContent>();
+  if (!LoadCombatContent(_assetRoot, m_assets.Scene(), *combat, _outError))
   {
     return false;
   }
+  m_hulls = combat->hulls;
+  std::vector<const Neuron::VoxModel*> sceneModels;
+  for (const VoxelArchetype& archetype : combat->archetypes)
+  {
+    const LoadedModel* model = m_assets.FindModel(archetype.model);
+    sceneModels.push_back(model != nullptr ? &model->voxels : nullptr);
+  }
+  m_combat.Load(combat, m_assets.Scene());
+  m_surfaces.Load(combat, std::move(sceneModels));
   problems = ResolveMounts(m_ships, m_assets.Scene(), m_hulls);
   if (!problems.empty())
   {
@@ -378,6 +393,29 @@ void TacticalClient::ProcessCommands()
       {
         m_pendingItem = ItemKind::RepairKit;
       }
+      else if (name == "Target" && m_prediction.Active())
+      {
+        XMFLOAT3 forward{};
+        XMStoreFloat3(&forward, XMVector3Rotate(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), XMLoadFloat4(&m_prediction.State().orientation)));
+        m_targeting.Next(TargetCandidates(), m_prediction.State().position, forward);
+      }
+      else if (name == "ClearTarget")
+      {
+        m_targeting.Clear();
+      }
+      else if (name == "TargetPick")
+      {
+        TargetAtCursor();
+      }
+      else if (name == "TargetModuleNext" || name == "TargetModulePrevious")
+      {
+        const ShipState* ship = nullptr;
+        for (const ShipState& candidate : m_universe.ships)
+        {
+          ship = candidate.object == m_targeting.Target() ? &candidate : ship;
+        }
+        m_targeting.CycleModule(name == "TargetModuleNext" ? 1 : -1, ship != nullptr ? ship->modules.size() : 0);
+      }
       else if (name == "Cancel" && m_universe.ownDock.phase != DockPhase::None)
       {
         RequestDock(DockCommand::Cancel);
@@ -606,7 +644,11 @@ bool TacticalClient::SendTick(Neuron::LoopbackTransport& _transport, std::uint32
   }
   if (m_pendingDock.has_value() && m_universe.ownShip != NO_OBJECT)
   {
-    const Message message = DockCommandMessage{m_universe.tick, m_universe.ownShip, *m_pendingDock};
+    // A station targeted is where Dock goes (D26); a ship targeted is not a station, so the nearest.
+    const ObjectId target = m_targeting.Target();
+    const bool station = target != NO_OBJECT && m_universe.FindMotion(target) == nullptr && m_universe.FindObject(target) != nullptr;
+    const Message message = DockCommandMessage{m_universe.tick, m_universe.ownShip, *m_pendingDock,
+                                               *m_pendingDock == DockCommand::Dock && station ? target : NO_OBJECT};
     const Route route = RouteOf(KindOf(message));
     m_pendingDock.reset();
     if (!_transport.Send(Neuron::Peer::Client, route.delivery, route.stream, Encode(message)))
@@ -700,7 +742,7 @@ void TacticalClient::BuildSilhouette()
     XMFLOAT4 color;
     float widthPixels;
   };
-  const Neuron::SideProfile& profile = view->model->sideProfile;
+  const Neuron::SideProfile& profile = view->sharedModel->sideProfile;
   const Pass passes[] = {{&profile.outline, XMFLOAT4{0.10f, 0.55f, 1.0f, 0.12f}, 4.0f},
                          {&profile.detail, XMFLOAT4{0.15f, 0.65f, 1.0f, 0.30f}, 1.0f},
                          {&profile.outline, XMFLOAT4{0.30f, 0.90f, 1.0f, 0.90f}, 1.3f}};
@@ -773,6 +815,7 @@ bool TacticalClient::Receive(Neuron::LoopbackTransport& _transport)
       return false;
     }
     ApplyMessage(*message, m_universe);
+    static_cast<void>(m_combat.Apply(*message, m_universe));
   }
   return true;
 }
@@ -849,6 +892,7 @@ HudInput TacticalClient::MakeHudInput(const ViewSetup& _view, float _timeSeconds
       blip.kind = RadarBlip::Kind::Blueprint;
       break;
     case InstanceView::Kind::Debris:
+    case InstanceView::Kind::Wreck:
       continue;
     default:
       blip.kind = RadarBlip::Kind::Station;
@@ -884,6 +928,12 @@ FlightHudInput TacticalClient::MakeFlightHudInput(float _timeSeconds, float _fra
   input.throttle = m_flightInput.Throttle();
   input.powerShare = spec.powerCapacity > 0.0f ? state.powerPool / spec.powerCapacity : 0.0f;
   input.thrustShare = spec.thrustCapacity > 0.0f ? state.thrustPool / spec.thrustCapacity : 0.0f;
+  if (spec.shield.capacity > 0.0f)
+  {
+    input.shieldShare = state.shield / spec.shield.capacity;
+    input.shieldUp = state.shieldUp;
+  }
+  input.target = m_targetReadout;
   if (m_universe.ownDock.phase != DockPhase::None)
   {
     // Carried by the station: the speed the client sees, and the phase in place of an order.
@@ -996,6 +1046,320 @@ void TacticalClient::RenderSilhouette(const HudLayout& _layout, float _timeSecon
   m_renderer.DrawLines(m_silhouette);
 }
 
+void TacticalClient::UpdateMaskedModels(const UniversePosition& _camera)
+{
+  m_combat.Prune(m_universe);
+  // Nearest the camera first: what is close is where a stale surface would show (ADR-013).
+  std::vector<std::pair<double, ObjectId>> byDistance;
+  for (const ClientMask& mask : m_combat.Masks())
+  {
+    const auto found = std::ranges::find(m_universe.objects, mask.object, &UniverseObject::id);
+    if (found == m_universe.objects.end())
+    {
+      continue;
+    }
+    const auto index = static_cast<std::size_t>(found - m_universe.objects.begin());
+    const UniversePosition& at = index < m_poses.size() ? m_poses[index].position : found->pose.position;
+    const double dx = at.x - _camera.x;
+    const double dy = at.y - _camera.y;
+    const double dz = at.z - _camera.z;
+    byDistance.emplace_back(dx * dx + dy * dy + dz * dz, mask.object);
+  }
+  std::ranges::sort(byDistance);
+  std::vector<ObjectId> order;
+  order.reserve(byDistance.size());
+  for (const auto& entry : byDistance)
+  {
+    order.push_back(entry.second);
+  }
+  static_cast<void>(m_surfaces.Update(m_combat, order));
+
+  for (std::size_t i = 0; i < m_maskedModels.size();)
+  {
+    if (m_combat.Find(m_maskedModels[i].object) == nullptr)
+    {
+      Retire(std::move(m_maskedModels[i].model->gpu));
+      m_maskedModels.erase(m_maskedModels.begin() + static_cast<std::ptrdiff_t>(i));
+      continue;
+    }
+    ++i;
+  }
+  std::vector<ModelOverride> overrides;
+  for (const ClientMask& mask : m_combat.Masks())
+  {
+    const auto held = std::ranges::find(m_maskedModels, mask.object, &MaskedModel::object);
+    const MaskedSurface* surface = m_surfaces.Find(mask.object);
+    MaskedModel* model = held != m_maskedModels.end() ? &*held : nullptr;
+    if (surface != nullptr && surface->ready && (model == nullptr || model->generation != surface->generation))
+    {
+      // Uploaded before the frame begins: the upload waits for the GPU, and the buffer it replaces
+      // is released only once no frame in flight can still read it.
+      auto loaded = std::make_unique<LoadedModel>();
+      const UniverseObject* object = m_universe.FindObject(mask.object);
+      loaded->name = object != nullptr ? object->model : std::string();
+      loaded->surface = surface->surface;
+      if (!loaded->surface.voxels.empty())
+      {
+        loaded->gpu = m_renderer.UploadModel(loaded->surface);
+        if (loaded->gpu.voxelCount != loaded->surface.voxels.size())
+        {
+          loaded->gpu = Neuron::GpuVoxelModel{}; // a failed upload draws nothing rather than half
+        }
+      }
+      loaded->glows = BuildGlows(loaded->surface);
+      if (model == nullptr)
+      {
+        m_maskedModels.push_back(MaskedModel{mask.object, surface->generation, std::move(loaded)});
+        model = &m_maskedModels.back();
+      }
+      else
+      {
+        Retire(std::move(model->model->gpu));
+        model->model = std::move(loaded);
+        model->generation = surface->generation;
+      }
+    }
+    const UniverseObject* object = m_universe.FindObject(mask.object);
+    if (model != nullptr)
+    {
+      overrides.push_back(ModelOverride{mask.object, model->model.get()});
+    }
+    else if (object == nullptr || m_assets.Scene().FindInstance(object->name) == nullptr)
+    {
+      // A wreck has no shared model of its own to show meanwhile.
+      overrides.push_back(ModelOverride{mask.object, nullptr});
+    }
+  }
+  m_scene.SetOverrides(std::move(overrides));
+}
+
+void TacticalClient::Retire(Neuron::GpuVoxelModel _gpu)
+{
+  if (_gpu.voxels != nullptr)
+  {
+    m_retired.push_back(RetiredModel{m_frameCount, std::move(_gpu)});
+  }
+}
+
+void TacticalClient::ReleaseRetired()
+{
+  // Each back buffer's frame is waited on before the buffer is used again, so after that many more
+  // frames none that read a retired buffer is still in flight.
+  std::erase_if(m_retired, [this](const RetiredModel& _retired)
+                { return _retired.frame + Neuron::GraphicsDevice::BACK_BUFFER_COUNT + 1 <= m_frameCount; });
+}
+
+std::vector<TargetCandidate> TacticalClient::TargetCandidates() const
+{
+  std::vector<TargetCandidate> candidates;
+  for (const InstanceView& view : m_scene.Instances())
+  {
+    if (view.hidden || view.object == m_universe.ownShip ||
+        (view.kind != InstanceView::Kind::Ship && view.kind != InstanceView::Kind::Station))
+    {
+      continue;
+    }
+    const UniverseObject* object = m_universe.FindObject(view.object);
+    candidates.push_back(TargetCandidate{view.object, object != nullptr ? object->owner : Owner::Neutral, view.pose.position,
+                                         view.kind == InstanceView::Kind::Ship});
+  }
+  return candidates;
+}
+
+void TacticalClient::TargetAtCursor()
+{
+  if (m_lastView.viewportSize.x <= 0.0f)
+  {
+    return;
+  }
+  const XMMATRIX viewProjection = XMLoadFloat4x4(&m_lastView.view) * XMLoadFloat4x4(&m_lastView.projection);
+  const XMFLOAT2 cursor = m_flightInput.Cursor();
+  const Neuron::Ray ray =
+    Neuron::PickRay(cursor.x, cursor.y, XMMatrixInverse(nullptr, viewProjection), m_lastView.viewportSize.x, m_lastView.viewportSize.y);
+  if (const InstanceView* picked = m_scene.PickTarget(ray); picked != nullptr && picked->object != m_universe.ownShip)
+  {
+    m_targeting.Set(picked->object);
+  }
+}
+
+TargetReadout TacticalClient::MakeTargetReadout(const ViewSetup& _view, double _renderTick) const
+{
+  TargetReadout readout;
+  const ObjectId target = m_targeting.Target();
+  const InstanceView* view = nullptr;
+  for (const InstanceView& candidate : m_scene.Instances())
+  {
+    view = candidate.object == target ? &candidate : view;
+  }
+  const UniverseObject* object = m_universe.FindObject(target);
+  if (view == nullptr || object == nullptr || !m_prediction.Active())
+  {
+    return readout;
+  }
+  readout.active = true;
+  readout.hostile = object->owner == Owner::Hostile;
+  readout.ship = view->kind == InstanceView::Kind::Ship;
+  readout.callsign = object->name;
+  for (const ShipState& ship : m_universe.ships)
+  {
+    if (ship.object != target)
+    {
+      continue;
+    }
+    readout.callsign = ship.callsign;
+    readout.hullPercent = ship.hullPercent;
+    const int module = m_targeting.Module();
+    if (module >= 0 && static_cast<std::size_t>(module) < ship.modules.size())
+    {
+      readout.module = ship.modules[static_cast<std::size_t>(module)].name;
+      readout.modulePercent = ship.modules[static_cast<std::size_t>(module)].healthPercent;
+    }
+  }
+  if (const ShipMotionState* motion = m_universe.FindMotion(target))
+  {
+    readout.shieldPercent = motion->shieldPercent;
+  }
+
+  // The box bracketed: the module sub-targeted, or the whole target.
+  std::array<XMFLOAT3, 8> corners = Neuron::BoxCorners(view->bounds);
+  const HullRecord* hull = m_hulls.HullForModel(object->model);
+  const ModuleRegion* region = hull != nullptr && !readout.module.empty() ? hull->FindRegion(readout.module) : nullptr;
+  if (region != nullptr)
+  {
+    const XMMATRIX voxToWorld = XMLoadFloat4x4(&view->voxToWorld);
+    for (std::size_t i = 0; i < corners.size(); ++i)
+    {
+      const XMFLOAT3 vox{static_cast<float>((i & 1u) != 0 ? region->max.x : region->min.x),
+                         static_cast<float>((i & 2u) != 0 ? region->max.y : region->min.y),
+                         static_cast<float>((i & 4u) != 0 ? region->max.z : region->min.z)};
+      XMStoreFloat3(&corners[i], XMVector3TransformCoord(XMLoadFloat3(&vox), voxToWorld));
+    }
+  }
+  XMVECTOR middle = XMVectorZero();
+  for (const XMFLOAT3& corner : corners)
+  {
+    middle = XMVectorAdd(middle, XMLoadFloat3(&corner));
+  }
+  middle = XMVectorScale(middle, 1.0f / static_cast<float>(corners.size()));
+  const XMMATRIX viewProjection = XMLoadFloat4x4(&_view.view) * XMLoadFloat4x4(&_view.projection);
+  const Neuron::ProjectedBounds projected = Neuron::ProjectBox(corners, viewProjection, _view.viewportSize.x, _view.viewportSize.y);
+  readout.onScreen = projected.visibility == Neuron::ScreenVisibility::OnScreen;
+  readout.bracket = projected.rect;
+
+  const XMFLOAT3 own = m_scene.ToRender(m_prediction.State().position);
+  readout.distanceMetres = XMVectorGetX(XMVector3Length(XMVectorSubtract(middle, XMLoadFloat3(&own))));
+
+  // The lead (ch. 03 §3.2): where a bolt at the first gun's muzzle speed meets the target, given the
+  // target's velocity as drawn and the ship's own, which the bolt carries.
+  const ShipFlightSpec& spec = m_prediction.Body().spec;
+  float muzzleSpeed = 0.0f;
+  for (const LauncherMount& mount : spec.launchers)
+  {
+    if (mount.fitted && muzzleSpeed == 0.0f && mount.archetype < m_ships.launchers.size())
+    {
+      muzzleSpeed = m_ships.launchers[mount.archetype].muzzleSpeedMetresPerSecond;
+    }
+  }
+  if (!readout.ship || muzzleSpeed <= 0.0f)
+  {
+    return readout;
+  }
+  const Pose now = m_interpolation.At(*object, _renderTick);
+  const Pose before = m_interpolation.At(*object, _renderTick - 1.0);
+  const auto tps = static_cast<float>(m_ticksPerSecond);
+  const XMFLOAT3 targetVelocity{static_cast<float>(now.position.x - before.position.x) * tps,
+                                static_cast<float>(now.position.y - before.position.y) * tps,
+                                static_cast<float>(now.position.z - before.position.z) * tps};
+  XMFLOAT3 offset{};
+  XMStoreFloat3(&offset, XMVectorSubtract(middle, XMLoadFloat3(&own)));
+  XMFLOAT3 relative{};
+  XMStoreFloat3(&relative, XMVectorSubtract(XMLoadFloat3(&targetVelocity), XMLoadFloat3(&m_prediction.State().velocityMetresPerSecond)));
+  const std::optional<float> seconds = LeadSeconds(offset, relative, muzzleSpeed);
+  if (!seconds.has_value())
+  {
+    return readout;
+  }
+  const XMVECTOR lead = XMVectorAdd(middle, XMVectorScale(XMLoadFloat3(&relative), *seconds));
+  const XMVECTOR clip = XMVector4Transform(XMVectorSetW(lead, 1.0f), viewProjection);
+  const float w = XMVectorGetW(clip);
+  if (w > 1.0e-3f)
+  {
+    readout.lead = XMFLOAT2{(XMVectorGetX(clip) / w * 0.5f + 0.5f) * _view.viewportSize.x,
+                            (0.5f - XMVectorGetY(clip) / w * 0.5f) * _view.viewportSize.y};
+    readout.leadOnScreen =
+      readout.lead.x >= 0.0f && readout.lead.y >= 0.0f && readout.lead.x <= _view.viewportSize.x && readout.lead.y <= _view.viewportSize.y;
+  }
+  return readout;
+}
+
+void TacticalClient::BuildCombatEffects(double _renderTick, float _timeSeconds)
+{
+  std::vector<Neuron::GpuEffect> effects;
+  const auto tps = m_ticksPerSecond;
+  // Tracers: a bright head and a beam behind it, the shooter's colour.
+  for (const ClientBolt& bolt : m_combat.Bolts())
+  {
+    const UniverseObject* shooter = m_universe.FindObject(bolt.shooter);
+    const bool hostile = shooter != nullptr && shooter->owner == Owner::Hostile;
+    const XMFLOAT4 color = hostile ? XMFLOAT4{1.0f, 0.35f, 0.18f, 1.0f} : XMFLOAT4{0.35f, 1.0f, 0.75f, 1.0f};
+    const XMFLOAT3 head = m_scene.ToRender(bolt.At(_renderTick, tps));
+    const XMFLOAT3 tail{head.x - bolt.velocityMetresPerSecond.x * TRACER_SECONDS, head.y - bolt.velocityMetresPerSecond.y * TRACER_SECONDS,
+                        head.z - bolt.velocityMetresPerSecond.z * TRACER_SECONDS};
+    effects.push_back(Neuron::GpuEffect{head, 0.5f, tail, 0.15f, color, XMFLOAT4{color.x, color.y, color.z, 0.0f}, 0u, {0.0f, 0.0f, 0.0f}});
+    effects.push_back(Neuron::GpuEffect{head,
+                                        3.0f,
+                                        head,
+                                        3.0f,
+                                        XMFLOAT4{color.x, color.y, color.z, 0.8f},
+                                        XMFLOAT4{1.0f, 1.0f, 1.0f, 0.9f},
+                                        Neuron::EFFECT_GLOW | Neuron::EFFECT_WIDTH_IN_PIXELS,
+                                        {0.0f, 0.0f, 0.0f}});
+  }
+  for (const BoltHitMessage& hit : m_combat.TakeHits())
+  {
+    m_sparks.push_back(Spark{hit.position, _timeSeconds, hit.shield, hit.harmful, hit.bolt});
+  }
+  std::erase_if(m_sparks, [&](const Spark& _spark) { return _timeSeconds - _spark.startSeconds > EMBER_SECONDS; });
+  for (const Spark& spark : m_sparks)
+  {
+    const float age = _timeSeconds - spark.startSeconds;
+    const XMFLOAT3 at = m_scene.ToRender(spark.position);
+    if (age < SPARK_SECONDS)
+    {
+      const float fade = 1.0f - age / SPARK_SECONDS;
+      // A shield flashes blue and wide; a hull hit is a hot spark; a hit that does nothing, a dim one.
+      const XMFLOAT4 halo = spark.shield ? XMFLOAT4{0.25f, 0.55f, 1.0f, fade} : XMFLOAT4{1.0f, 0.55f, 0.15f, fade};
+      const float radius = spark.shield ? 7.0f + 6.0f * (1.0f - fade) : (spark.harmful ? 3.5f : 1.5f);
+      effects.push_back(
+        Neuron::GpuEffect{at, radius, at, radius, halo, XMFLOAT4{1.0f, 0.95f, 0.85f, fade}, Neuron::EFFECT_GLOW, {0.0f, 0.0f, 0.0f}});
+    }
+    if (spark.shield || !spark.harmful)
+    {
+      continue;
+    }
+    // Embers off a hull hit: a few hot points thrown outward, each its own way from the bolt's number.
+    const float fade = 1.0f - age / EMBER_SECONDS;
+    for (std::uint32_t i = 0; i < 5; ++i)
+    {
+      const std::uint32_t hash = Neuron::HashCell(spark.seed, i);
+      const float yaw = static_cast<float>(hash & 0xFFFFu) / 65535.0f * XM_2PI;
+      const float rise = static_cast<float>(hash >> 16) / 65535.0f * 2.0f - 1.0f;
+      const float ring = std::sqrt(std::max(0.0f, 1.0f - rise * rise));
+      const float travel = 14.0f * age;
+      const XMFLOAT3 ember{at.x + std::cos(yaw) * ring * travel, at.y + rise * travel, at.z + std::sin(yaw) * ring * travel};
+      effects.push_back(Neuron::GpuEffect{ember,
+                                          2.5f,
+                                          ember,
+                                          2.5f,
+                                          XMFLOAT4{1.0f, 0.45f, 0.1f, fade},
+                                          XMFLOAT4{1.0f, 0.85f, 0.5f, fade},
+                                          Neuron::EFFECT_GLOW | Neuron::EFFECT_WIDTH_IN_PIXELS,
+                                          {0.0f, 0.0f, 0.0f}});
+    }
+  }
+  m_scene.SetCombatEffects(std::move(effects));
+}
+
 bool TacticalClient::Render(float _timeSeconds, float _interpolation, bool _capture, bool _vsync, float _framesPerSecond)
 {
   const float frameSeconds = m_lastFrameTime < 0.0f ? 0.0f : std::clamp(_timeSeconds - m_lastFrameTime, 0.0f, MAX_FRAME_SECONDS);
@@ -1071,9 +1435,15 @@ bool TacticalClient::Render(float _timeSeconds, float _interpolation, bool _capt
     const XMFLOAT3 position = m_camera.Position();
     camera = UniversePosition{position.x, position.y, position.z};
   }
+  UpdateMaskedModels(camera);
   m_scene.Update(m_universe, m_poses, camera);
   const ViewSetup view = flying ? FlightView(ship) : TacticalView();
   m_lastView = view;
+  BuildCombatEffects(renderTick, _timeSeconds);
+  m_targeting.Keep(TargetCandidates());
+  m_targetReadout = flying ? MakeTargetReadout(view, renderTick) : TargetReadout{};
+  ReleaseRetired();
+  ++m_frameCount;
 
   if (m_device->BeginFrame() == nullptr)
   {

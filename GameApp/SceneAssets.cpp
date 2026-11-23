@@ -37,6 +37,23 @@ namespace
 
 } // namespace
 
+std::vector<GlowPoint> BuildGlows(const Neuron::VoxelSurface& _surface)
+{
+  const Neuron::VoxelMaterialTable& materials = MaterialTable();
+  std::vector<GlowPoint> glows;
+  for (const Neuron::SurfaceVoxel& voxel : _surface.voxels)
+  {
+    const Neuron::VoxelMaterial& material = materials[voxel.colorIndex];
+    if (material.glowRadius > 0.0f)
+    {
+      glows.push_back(GlowPoint{
+        DirectX::XMFLOAT3{static_cast<float>(voxel.x) + 0.5f, static_cast<float>(voxel.y) + 0.5f, static_cast<float>(voxel.z) + 0.5f},
+        DirectX::XMFLOAT3{material.emissionR, material.emissionG, material.emissionB}, material.glowRadius, material.strobePeriodSeconds});
+    }
+  }
+  return glows;
+}
+
 bool SceneAssets::Load(const std::filesystem::path& _assetRoot, Neuron::Renderer& _renderer, std::string& _outError)
 {
   m_models.clear();
@@ -64,7 +81,6 @@ bool SceneAssets::Load(const std::filesystem::path& _assetRoot, Neuron::Renderer
   }
 
   const Neuron::VoxPalette& canonical = CanonicalPalette();
-  const Neuron::VoxelMaterialTable& materials = MaterialTable();
   for (ModelAsset& asset : m_scene.models)
   {
     Neuron::VoxDocument document;
@@ -93,17 +109,8 @@ bool SceneAssets::Load(const std::filesystem::path& _assetRoot, Neuron::Renderer
     model.blueprintEdges =
       Neuron::BuildCoarseWireframe(document.model, BLUEPRINT_BLOCK_VOXELS, BLUEPRINT_FILL_PERCENT, BLUEPRINT_GRID_BLOCKS);
     model.sideProfile = Neuron::BuildSideProfile(model.surface, PROFILE_DETAIL_DEPTH_VOXELS);
-    for (const Neuron::SurfaceVoxel& voxel : model.surface.voxels)
-    {
-      const Neuron::VoxelMaterial& material = materials[voxel.colorIndex];
-      if (material.glowRadius > 0.0f)
-      {
-        model.glows.push_back(GlowPoint{
-          DirectX::XMFLOAT3{static_cast<float>(voxel.x) + 0.5f, static_cast<float>(voxel.y) + 0.5f, static_cast<float>(voxel.z) + 0.5f},
-          DirectX::XMFLOAT3{material.emissionR, material.emissionG, material.emissionB}, material.glowRadius,
-          material.strobePeriodSeconds});
-      }
-    }
+    model.glows = BuildGlows(model.surface);
+    model.voxels = std::move(document.model);
     m_models.push_back(std::move(model));
   }
   return true;

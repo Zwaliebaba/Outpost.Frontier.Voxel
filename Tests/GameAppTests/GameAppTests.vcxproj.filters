@@ -13,6 +13,9 @@
     <Filter Include="Flight">
       <UniqueIdentifier>{D49E4FD4-2325-4759-BBE3-D11943AB6A9E}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Combat">
+      <UniqueIdentifier>{186C354F-8E27-5647-822C-03E42E20C396}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="InputScriptTests.cpp">
@@ -38,6 +41,12 @@
     </ClCompile>
     <ClCompile Include="HazardWarningTests.cpp">
       <Filter>Hud</Filter>
+    </ClCompile>
+    <ClCompile Include="ClientCombatTests.cpp">
+      <Filter>Combat</Filter>
+    </ClCompile>
+    <ClCompile Include="TargetingTests.cpp">
+      <Filter>Combat</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

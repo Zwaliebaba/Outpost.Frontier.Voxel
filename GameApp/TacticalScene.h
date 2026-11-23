@@ -10,6 +10,7 @@
 #include <array>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace Outpost
@@ -26,7 +27,8 @@ struct InstanceView
     Station,
     Rock,
     Debris,
-    Blueprint
+    Blueprint,
+    Wreck // cut loose in a fight (plan task 3.9): drawn only from its own mask
   };
 
   ObjectId object = NO_OBJECT;
@@ -34,13 +36,23 @@ struct InstanceView
   std::string name;                        // the object's placement name
   const SceneInstance* instance = nullptr; // its placement record, when it has one
   const ModelAsset* asset = nullptr;
-  const LoadedModel* model = nullptr;
+  const LoadedModel* model = nullptr;       // what draws it this frame: its own surface, or the shared model
+  const LoadedModel* sharedModel = nullptr; // the scene model every undamaged instance shares
+  bool hidden = false;                      // nothing to draw yet: a wreck whose surface is still being built
   Kind kind = Kind::Station;
   Pose pose;                        // where it is drawn this frame, in the universe
   DirectX::XMFLOAT4X4 voxToWorld{}; // to render space
   DirectX::XMFLOAT4X4 worldToVox{};
   float voxelWorldSize = 1.0f;
   Neuron::OrientedBox bounds{}; // render space, around the occupied voxels
+};
+
+/// What draws an object in place of its shared model (ADR-013): the surface of its own mask, or,
+/// with no model, nothing until that surface is ready.
+struct ModelOverride
+{
+  ObjectId object = NO_OBJECT;
+  const LoadedModel* model = nullptr;
 };
 
 /// The camera a frame is drawn from, in the form every pass needs.
@@ -80,6 +92,15 @@ public:
   /// snapshot's own poses. The render origin follows _camera.
   void Update(const UniverseSnapshot& _universe, std::span<const Pose> _poses, const UniversePosition& _camera);
 
+  /// The objects drawn from their own masks, sorted by object; applied by the next Update.
+  void SetOverrides(std::vector<ModelOverride> _overrides);
+  /// Bolts, sparks and embers for this frame, in render space (plan task 3.9); drawn with the scene's
+  /// light effects.
+  void SetCombatEffects(std::vector<Neuron::GpuEffect> _effects)
+  {
+    m_combatEffects = std::move(_effects);
+  }
+
   [[nodiscard]] static UniversePosition RenderOriginFor(const UniversePosition& _camera) noexcept;
   [[nodiscard]] const UniversePosition& RenderOrigin() const noexcept
   {
@@ -96,6 +117,8 @@ public:
 
   /// The nearest ship whose bounds the ray hits, or nullptr.
   [[nodiscard]] const InstanceView* PickShip(const Neuron::Ray& _ray) const noexcept;
+  /// The nearest ship or station whose bounds the ray hits, or nullptr: what a middle click targets.
+  [[nodiscard]] const InstanceView* PickTarget(const Neuron::Ray& _ray) const noexcept;
 
   /// Frame constants for the scene camera: lights, shadow camera and exposure included.
   [[nodiscard]] Neuron::FrameConstants MakeFrame(const ViewSetup& _view, float _timeSeconds, bool _withPointLights) const;
@@ -129,6 +152,8 @@ private:
   std::vector<InstanceView> m_instances;
   std::vector<Neuron::GpuLineSegment> m_blueprintLines;
   std::vector<Neuron::GpuEffect> m_staticGlows;
+  std::vector<ModelOverride> m_overrides;
+  std::vector<Neuron::GpuEffect> m_combatEffects;
   struct Plume
   {
     DirectX::XMFLOAT3 nozzle;

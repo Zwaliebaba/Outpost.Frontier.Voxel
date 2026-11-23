@@ -31,7 +31,8 @@ constexpr float EDGE_TOLERANCE_PIXELS = 2.0f;
 }
 
 /// Every part of the HUD at once: steering by the locked cursor at a corner, the thruster, cruise
-/// charging, the engine killed, an order, and a hazard that damages and blinds.
+/// charging, the engine killed, an order, a hazard that damages and blinds, the shield down, and a
+/// hostile target with a module sub-targeted, its brackets past a corner of the screen.
 [[nodiscard]] Outpost::FlightHudInput Busy(float _width, float _height, float _scale)
 {
   Outpost::FlightHudInput input;
@@ -56,6 +57,20 @@ constexpr float EDGE_TOLERANCE_PIXELS = 2.0f;
   input.hazard.immersion = 1.0f;
   input.hazard.damaging = true;
   input.hazard.scannerLossPercent = 100;
+  input.shieldShare = 0.05f;
+  input.shieldUp = false;
+  input.target.active = true;
+  input.target.callsign = "R-1";
+  input.target.hostile = true;
+  input.target.distanceMetres = 412.0f;
+  input.target.shieldPercent = 0;
+  input.target.hullPercent = 41;
+  input.target.module = "Engineering";
+  input.target.modulePercent = 18;
+  input.target.onScreen = true;
+  input.target.bracket = Neuron::ScreenRect{_width * 0.7f, _height * 0.6f, _width * 0.8f, _height * 0.7f};
+  input.target.leadOnScreen = true;
+  input.target.lead = DirectX::XMFLOAT2{_width * 0.72f, _height * 0.62f};
   return input;
 }
 
@@ -74,13 +89,15 @@ public:
       Neuron::HudBatch batch;
       batch.Begin(&atlas);
       const Outpost::FlightHudLayout layout = Outpost::FlightHud{}.Build(batch, Busy(width, height, scale));
-      for (const Neuron::ScreenRect& rect :
-           {layout.panel, layout.throttleBar, layout.powerBar, layout.thrustBar, layout.help, layout.warning})
+      for (const Neuron::ScreenRect& rect : {layout.panel, layout.throttleBar, layout.powerBar, layout.thrustBar, layout.shieldBar,
+                                             layout.help, layout.warning, layout.targetPanel})
       {
         Assert::IsTrue(Inside(rect, width, height), (L"a part leaves the screen at " + std::to_wstring(width)).c_str());
       }
       Assert::IsFalse(Overlap(layout.panel, layout.help), L"the help line is clear of the panel");
       Assert::IsFalse(Overlap(layout.powerBar, layout.thrustBar));
+      Assert::IsFalse(Overlap(layout.throttleBar, layout.shieldBar), L"the shield shares the throttle's row");
+      Assert::IsFalse(Overlap(layout.targetPanel, layout.warning), L"the target panel is clear of the hazard warning");
       Assert::IsFalse(Overlap(layout.warning, layout.panel), L"the hazard warning is clear of the panel");
       // The reticle's arms reach 1.8 of its 14-pixel radius from the centre of the screen.
       const float reticle = 14.0f * scale * 1.8f;

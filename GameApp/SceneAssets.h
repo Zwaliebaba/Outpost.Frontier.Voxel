@@ -27,12 +27,16 @@ struct GlowPoint
 struct LoadedModel
 {
   std::string name;
+  Neuron::VoxModel voxels; // as loaded: a damaged instance's appearance is taken from it (ADR-013)
   Neuron::VoxelSurface surface;
   Neuron::GpuVoxelModel gpu;
   std::vector<Neuron::LatticeSegment> blueprintEdges; // coarse wireframe, for blueprint instances
   Neuron::SideProfile sideProfile;                    // side elevation, for the selected-ship panel
   std::vector<GlowPoint> glows;
 };
+
+/// The glow sprites of a surface's emissive voxels.
+[[nodiscard]] std::vector<GlowPoint> BuildGlows(const Neuron::VoxelSurface& _surface);
 
 /// Everything the client loads from Assets: the scene definition, every model it names, the GPU
 /// buffers and wireframes built from them, and the renderer's material table.

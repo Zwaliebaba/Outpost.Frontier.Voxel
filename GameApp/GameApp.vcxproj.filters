@@ -13,6 +13,9 @@
     <Filter Include="Flight">
       <UniqueIdentifier>{6B8001F5-A138-4C35-A0AD-FB7354F6626A}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Combat">
+      <UniqueIdentifier>{06469D91-7DBA-5A1B-BD3E-90A1E7BB1BF5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="InputScript.h">
@@ -48,6 +51,15 @@
     <ClInclude Include="HazardWarning.h">
       <Filter>Hud</Filter>
     </ClInclude>
+    <ClInclude Include="ClientCombat.h">
+      <Filter>Combat</Filter>
+    </ClInclude>
+    <ClInclude Include="MaskedSurfaces.h">
+      <Filter>Combat</Filter>
+    </ClInclude>
+    <ClInclude Include="Targeting.h">
+      <Filter>Combat</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="InputScript.cpp">
@@ -79,6 +91,15 @@
     </ClCompile>
     <ClCompile Include="HazardWarning.cpp">
       <Filter>Hud</Filter>
+    </ClCompile>
+    <ClCompile Include="ClientCombat.cpp">
+      <Filter>Combat</Filter>
+    </ClCompile>
+    <ClCompile Include="MaskedSurfaces.cpp">
+      <Filter>Combat</Filter>
+    </ClCompile>
+    <ClCompile Include="Targeting.cpp">
+      <Filter>Combat</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

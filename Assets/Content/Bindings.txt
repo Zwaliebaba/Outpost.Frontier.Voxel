@@ -4,8 +4,9 @@
 #                                  bound in two live contexts
 #   command name= hold= repeat=    hold: released when its key goes up. repeat: takes auto-repeat
 #   bind command= context= key=    key: a letter or digit, F1..F24, Tab, Space, Escape, Home, Up,
-#                                  Down, Left, Right, MouseLeft, MouseRight, MouseMiddle, WheelUp,
-#                                  WheelDown (NeuronClient/CommandMap.cpp has the full list)
+#                                  Down, Left, Right, BracketLeft, BracketRight, MouseLeft, MouseRight,
+#                                  MouseMiddle, WheelUp, WheelDown (NeuronClient/CommandMap.cpp has the
+#                                  full list); a chord names Shift, Control or Alt first: Control+T
 #
 # Always is live in every view; Flying in the chase view; Tactical in the tactical view. A key held
 # while the view changes releases what it pressed, so a held thruster cannot stick on.
@@ -48,6 +49,15 @@ command name=MouseFlightLock
 command name=Fire hold=true
 command name=RepairKit
 
+# Flight: targeting (plan task 3.10; GameDesign.md D26). Target takes the nearest hostile in front, then
+# the next; TargetPick takes what the cursor points at; the module commands step through the target's
+# modules. Dock with a station targeted docks there.
+command name=Target
+command name=ClearTarget
+command name=TargetPick
+command name=TargetModuleNext
+command name=TargetModulePrevious
+
 # Tactical.
 command name=ResetView
 
@@ -86,6 +96,11 @@ bind command=MouseFlight context=Flying key=MouseLeft
 bind command=MouseFlightLock context=Flying key=Space
 bind command=Fire context=Flying key=MouseRight
 bind command=RepairKit context=Flying key=K
+bind command=Target context=Flying key=T
+bind command=ClearTarget context=Flying key=Control+T
+bind command=TargetPick context=Flying key=MouseMiddle
+bind command=TargetModulePrevious context=Flying key=BracketLeft
+bind command=TargetModuleNext context=Flying key=BracketRight
 
 bind command=ResetView context=Tactical key=Home
 bind command=ResetView context=Tactical key=R
