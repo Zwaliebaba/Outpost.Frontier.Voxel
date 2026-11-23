@@ -234,7 +234,13 @@ struct BoltFiredMessage
   DirectX::XMFLOAT3 velocityMetresPerSecond{};
   std::int32_t lifetimeTicks = 0;
 
-  friend bool operator==(const BoltFiredMessage&, const BoltFiredMessage&) = default;
+  // Written out: DirectX::XMFLOAT3 has no equality of its own.
+  friend bool operator==(const BoltFiredMessage& _a, const BoltFiredMessage& _b) noexcept
+  {
+    return _a.tick == _b.tick && _a.bolt == _b.bolt && _a.shooter == _b.shooter && _a.origin == _b.origin &&
+           _a.velocityMetresPerSecond.x == _b.velocityMetresPerSecond.x && _a.velocityMetresPerSecond.y == _b.velocityMetresPerSecond.y &&
+           _a.velocityMetresPerSecond.z == _b.velocityMetresPerSecond.z && _a.lifetimeTicks == _b.lifetimeTicks;
+  }
 };
 
 /// Server to client: a bolt met something, where, and what it did, for sparks and embers. The mask
