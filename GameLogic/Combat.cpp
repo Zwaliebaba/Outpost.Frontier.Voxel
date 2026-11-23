@@ -153,6 +153,12 @@ void Combat::Load(std::shared_ptr<const CombatContent> _content, const SceneDefi
   m_bolts.clear();
   m_wrecks.clear();
   m_events.clear();
+  m_eventsLogged = 0;
+  m_fired.clear();
+  m_firedLogged = 0;
+  m_hits.clear();
+  m_hitsLogged = 0;
+  m_nextBolt = 1;
   if (m_content == nullptr)
   {
     return;
@@ -198,13 +204,19 @@ void Combat::Fire(ObjectId _shooter, Owner _owner, const Shot& _shot, std::uint8
   bolt.ticksLeft = std::max(1, static_cast<std::int32_t>(std::lround(launcher.lifetimeSeconds * static_cast<float>(_ticksPerSecond))));
   // The seed is the event's own (ADR-012): from the tick, the shooter and the mount, nothing else.
   bolt.seed = Neuron::HashCell(static_cast<std::uint32_t>(_tick), _shooter * 8u + _shot.mount);
+  bolt.id = m_nextBolt++;
   m_bolts.push_back(bolt);
+  if (m_fired.size() >= MAX_LOGGED_BOLTS)
+  {
+    m_fired.erase(m_fired.begin());
+  }
+  m_fired.push_back(BoltFiredMessage{_tick, bolt.id, _shooter, bolt.position, bolt.velocityMetresPerSecond, bolt.ticksLeft});
+  ++m_firedLogged;
 }
 
 std::vector<BoltHit> Combat::StepBolts(std::span<const CombatTarget> _targets, const ShipContent& _ships, std::uint32_t _ticksPerSecond,
                                        std::uint64_t _tick)
 {
-  static_cast<void>(_tick);
   std::vector<BoltHit> hits;
   const float dt = 1.0f / static_cast<float>(_ticksPerSecond);
   std::size_t kept = 0;
@@ -288,10 +300,20 @@ std::vector<BoltHit> Combat::StepBolts(std::span<const CombatTarget> _targets, c
     }
 
     BoltHit hit;
+    hit.bolt = bolt.id;
+    hit.position =
+      UniversePosition{bolt.position.x + static_cast<double>(direction.x * best), bolt.position.y + static_cast<double>(direction.y * best),
+                       bolt.position.z + static_cast<double>(direction.z * best)};
     hit.shooter = bolt.shooter;
     hit.target = met->object;
     hit.shield = shieldMet;
     hit.harmful = !met->isProtected && Harms(bolt.owner, met->owner) && (bodyMet == nullptr || !bodyMet->indestructible);
+    if (m_hits.size() >= MAX_LOGGED_BOLTS)
+    {
+      m_hits.erase(m_hits.begin());
+    }
+    m_hits.push_back(BoltHitMessage{_tick, hit.bolt, hit.target, hit.position, hit.shield, hit.harmful});
+    ++m_hitsLogged;
     if (hit.harmful && shieldMet)
     {
       hit.shieldDamage = ShieldDamage(launcher.hullDamage, launcher.energyDamage);
@@ -330,15 +352,24 @@ std::vector<BoltHit> Combat::StepBolts(std::span<const CombatTarget> _targets, c
   return hits;
 }
 
-void Combat::StepWrecks(std::uint32_t _ticksPerSecond)
+void Combat::AdoptWreck(ObjectId _object, const Wreck& _wreck)
 {
-  const double dt = 1.0 / static_cast<double>(_ticksPerSecond);
-  for (Wreck& wreck : m_wrecks)
-  {
-    wreck.pose.position.x += static_cast<double>(wreck.velocityMetresPerSecond.x) * dt;
-    wreck.pose.position.y += static_cast<double>(wreck.velocityMetresPerSecond.y) * dt;
-    wreck.pose.position.z += static_cast<double>(wreck.velocityMetresPerSecond.z) * dt;
-  }
+  Body body;
+  body.object = _object;
+  body.archetype = _wreck.archetype;
+  body.mask = _wreck.mask;
+  body.initial = Neuron::VoxelMask(_wreck.mask.Size());
+  body.owner = Owner::Neutral;
+  body.pivotVox = _wreck.pivotVox;
+  body.voxelSize = _wreck.voxelSize;
+  body.revision = 1; // not the empty mask a client starts it with
+  m_bodies.push_back(std::move(body));
+}
+
+std::uint32_t Combat::MaskRevision(ObjectId _object) const noexcept
+{
+  const Body* body = FindBody(_object);
+  return body != nullptr ? body->revision : 0;
 }
 
 Combat::Body* Combat::FindBody(ObjectId _object) noexcept
@@ -462,6 +493,7 @@ bool Combat::SetMask(ObjectId _object, const Neuron::VoxelMask& _mask)
   const std::uint64_t last = body->mask.LastEvent();
   body->mask = _mask;
   body->mask.SetLastEvent(last);
+  ++body->revision;
   return true;
 }
 
@@ -487,6 +519,7 @@ void Combat::Shatter(ObjectId _object, const Pose& _pose, float _scale, const XM
   const std::uint64_t last = body->mask.LastEvent();
   body->mask = Neuron::VoxelMask(body->mask.Size());
   body->mask.SetLastEvent(last);
+  ++body->revision;
 }
 
 void Combat::Remove(ObjectId _object)
@@ -520,6 +553,7 @@ void Combat::Log(const MaskEvent& _event)
     m_events.erase(m_events.begin());
   }
   m_events.push_back(_event);
+  ++m_eventsLogged;
 }
 
 void Combat::SpawnWrecks(const Body& _body, const std::vector<std::vector<std::uint32_t>>& _parts, const Pose& _pose, float _scale,
@@ -549,6 +583,14 @@ void Combat::SpawnWrecks(const Body& _body, const std::vector<std::vector<std::u
     XMStoreFloat3(&wreck.velocityMetresPerSecond, XMVectorAdd(XMLoadFloat3(&_velocity), kick));
     wreck.pose = _pose;
     wreck.scale = _scale;
+    XMStoreFloat3(&wreck.centroidMetres, XMVectorScale(XMLoadFloat3(&model), _scale));
+    // A turn of its own, from the cells it is made of, so that a run repeats exactly.
+    const std::uint32_t seed = Neuron::HashCell(static_cast<std::uint32_t>(_body.object), part.empty() ? 0u : part.front());
+    const auto share = [seed](std::uint32_t _salt) { return static_cast<float>(Neuron::HashCell(seed, _salt) % 2001u) / 1000.0f - 1.0f; };
+    wreck.spinRadiansPerSecond = XMFLOAT3{share(1) * WRECK_SPIN_RADIANS_PER_SECOND, share(2) * WRECK_SPIN_RADIANS_PER_SECOND,
+                                          share(3) * WRECK_SPIN_RADIANS_PER_SECOND};
+    wreck.pivotVox = _body.pivotVox;
+    wreck.voxelSize = _body.voxelSize;
     m_wrecks.push_back(std::move(wreck));
   }
 }

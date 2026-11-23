@@ -3,6 +3,7 @@
 #include "FlightModel.h"
 #include "Launcher.h"
 #include "MaskEvent.h"
+#include "Messages.h"
 #include "SceneDefinition.h"
 #include "ShipArchetype.h"
 #include "UniverseObject.h"
@@ -13,6 +14,7 @@
 #include <memory>
 #include <optional>
 #include <span>
+#include <utility>
 #include <vector>
 
 namespace Outpost
@@ -34,6 +36,8 @@ struct CombatTarget
 /// What a bolt did when it met something (plan task 3.6).
 struct BoltHit
 {
+  std::uint32_t bolt = 0;
+  UniversePosition position; // where it met the bubble or the cell
   ObjectId shooter = NO_OBJECT;
   ObjectId target = NO_OBJECT;
   bool shield = false;  // it met the bubble, and only the shield is touched
@@ -43,8 +47,9 @@ struct BoltHit
   MaskEventResult carved;    // what the carve took, when it met voxels and was harmful
 };
 
-/// Voxels cut loose from a ship, drifting (plan task 3.7). Server-side only until the client can draw
-/// a mask (plan task 3.9): until then the observer does not publish them.
+/// Voxels cut loose from a ship (plan task 3.7), as combat hands them to the universe, which makes
+/// each an object that drifts and tumbles about its own middle and is published like any other
+/// (plan task 3.9). Its mask is in its parent's grid, so it is drawn with its parent's model.
 struct Wreck
 {
   ObjectId parent = NO_OBJECT;
@@ -53,6 +58,10 @@ struct Wreck
   Pose pose;
   float scale = 1.0f;
   DirectX::XMFLOAT3 velocityMetresPerSecond{};
+  DirectX::XMFLOAT3 centroidMetres{};       // its middle, from the pose's position, in the object's axes and scale
+  DirectX::XMFLOAT3 spinRadiansPerSecond{}; // about its middle, in world axes
+  DirectX::XMFLOAT3 pivotVox{0.0f, 0.0f, 0.0f};
+  float voxelSize = 1.0f;
 };
 
 /// Whether a bolt from _shooter harms what it meets, owned by _target (GameDesign.md D24): a player's
@@ -73,6 +82,9 @@ public:
   static constexpr float WRECK_KICK_METRES_PER_SECOND = 2.0f;
   /// The log keeps at most this many events, dropping the oldest.
   static constexpr std::size_t MAX_LOGGED_EVENTS = std::size_t{1} << 16;
+  static constexpr std::size_t MAX_LOGGED_BOLTS = 4096;
+  /// A wreck turns at up to this about its middle, from the seed of the cells it is made of.
+  static constexpr float WRECK_SPIN_RADIANS_PER_SECOND = 0.4f;
 
   /// One body per object whose model the content has an archetype for, each at its initial mask.
   /// Without content the universe has no combat: no bodies, and bolts meet only shields.
@@ -94,12 +106,22 @@ public:
   /// Hits on voxels are applied here; hits on shields and pools are the caller's, from the result.
   [[nodiscard]] std::vector<BoltHit> StepBolts(std::span<const CombatTarget> _targets, const ShipContent& _ships,
                                                std::uint32_t _ticksPerSecond, std::uint64_t _tick);
-  void StepWrecks(std::uint32_t _ticksPerSecond);
+  /// The wrecks cut loose since the last call, for the universe to make objects of.
+  [[nodiscard]] std::vector<Wreck> TakeWrecks() noexcept
+  {
+    return std::exchange(m_wrecks, {});
+  }
+  /// A wreck the universe has made an object: it gets a body with no owner, and its mask is told to
+  /// clients by snapshot, against an initial mask that is empty.
+  void AdoptWreck(ObjectId _object, const Wreck& _wreck);
 
   [[nodiscard]] const Neuron::VoxelMask* Mask(ObjectId _object) const noexcept;
   /// The mask the object started with.
   [[nodiscard]] const Neuron::VoxelMask* Initial(ObjectId _object) const noexcept;
   [[nodiscard]] const VoxelArchetype* ArchetypeOf(ObjectId _object) const noexcept;
+  /// Raised whenever the object's mask changes by anything but an event: what tells an observer to
+  /// send it whole.
+  [[nodiscard]] std::uint32_t MaskRevision(ObjectId _object) const noexcept;
   /// Each module region's health, measured from the mask, in the hull's order; empty without a hull.
   [[nodiscard]] std::vector<ShipModuleState> Modules(ObjectId _object) const;
   /// The share of the hull's structure cells present, in whole percent (GameDesign.md §7.1).
@@ -125,9 +147,29 @@ public:
   {
     return m_events;
   }
-  [[nodiscard]] const std::vector<Wreck>& Wrecks() const noexcept
+  /// Every event ever logged, counting those the log has dropped: Events()[0] is number
+  /// EventsLogged() - Events().size().
+  [[nodiscard]] std::uint64_t EventsLogged() const noexcept
   {
-    return m_wrecks;
+    return m_eventsLogged;
+  }
+  /// Bolts fired and bolts that met something, newest last, for an observer's tracers and sparks;
+  /// each log keeps at most MAX_LOGGED_BOLTS, and counts every one.
+  [[nodiscard]] const std::vector<BoltFiredMessage>& Fired() const noexcept
+  {
+    return m_fired;
+  }
+  [[nodiscard]] std::uint64_t FiredLogged() const noexcept
+  {
+    return m_firedLogged;
+  }
+  [[nodiscard]] const std::vector<BoltHitMessage>& Hits() const noexcept
+  {
+    return m_hits;
+  }
+  [[nodiscard]] std::uint64_t HitsLogged() const noexcept
+  {
+    return m_hitsLogged;
   }
   [[nodiscard]] std::size_t BoltCount() const noexcept
   {
@@ -144,12 +186,14 @@ private:
     Owner owner = Owner::Neutral;
     bool indestructible = false;
     std::uint64_t nextEvent = 1;
+    std::uint32_t revision = 0;
     DirectX::XMFLOAT3 pivotVox{0.0f, 0.0f, 0.0f};
     float voxelSize = 1.0f;
   };
 
   struct Bolt
   {
+    std::uint32_t id = 0;
     ObjectId shooter = NO_OBJECT;
     Owner owner = Owner::Neutral;
     std::uint8_t launcher = 0;
@@ -171,6 +215,12 @@ private:
   std::vector<Bolt> m_bolts;
   std::vector<Wreck> m_wrecks;
   std::vector<MaskEvent> m_events;
+  std::uint64_t m_eventsLogged = 0;
+  std::vector<BoltFiredMessage> m_fired;
+  std::uint64_t m_firedLogged = 0;
+  std::vector<BoltHitMessage> m_hits;
+  std::uint64_t m_hitsLogged = 0;
+  std::uint32_t m_nextBolt = 1;
 };
 
 /// Where a segment, from _start along _direction (unit) for _lengthMetres, first meets a present cell

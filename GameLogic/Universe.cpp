@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <string>
 #include <utility>
 
 using namespace DirectX;
@@ -130,6 +131,8 @@ void Universe::Load(const SceneDefinition& _scene, const ShipContent& _ships, co
   m_scene = _scene;
   m_ships = _ships;
   m_gone.clear();
+  m_wrecks.clear();
+  m_nextObject = static_cast<ObjectId>(_scene.instances.size() + 1);
   m_system = _system;
   m_character = Character{};
   m_saveRequested = false;
@@ -243,7 +246,8 @@ void Universe::Tick()
   std::vector<PendingShots> shots;
   FlyShips(shots);
   Fight(shots);
-  m_combat.StepWrecks(TICKS_PER_SECOND);
+  SpawnWrecks();
+  DriftWrecks();
   // A pilot that has fled far enough is gone (ch. 05 §3.9), and does not come back to this save.
   std::vector<ObjectId> fled;
   for (const Flyer& flyer : m_flyers)
@@ -467,6 +471,11 @@ void Universe::FlyShips(std::vector<PendingShots>& _outShots)
                            flyer.state.thrusterActive,
                            result.controls.engineOn,
                            flyer.state.cruise};
+    if (flyer.body.spec.shield.capacity > 0.0f)
+    {
+      motion.shieldPercent =
+        flyer.state.shieldUp ? std::clamp(static_cast<int>(100.0f * flyer.state.shield / flyer.body.spec.shield.capacity), 0, 100) : 0;
+    }
     m_state.motions[i] = motion;
   }
 }
@@ -733,11 +742,26 @@ bool Universe::Command(const DockCommandMessage& _command)
       return false;
     }
     // The nearest station in range that has a point for the ship's class (D20), measured to the
-    // nearest fitting entry.
+    // nearest fitting entry; with a station targeted, that station only (D26).
+    std::size_t targeted = SpaceSupport::NO_POINT;
+    if (const UniverseObject* object = m_state.FindObject(_command.station))
+    {
+      for (const StationDefinition& station : m_system.stations)
+      {
+        if (std::ranges::find(station.instances, object->name) != station.instances.end())
+        {
+          targeted = m_support.FindStation(station.name);
+        }
+      }
+    }
     std::size_t nearestStation = SpaceSupport::NO_POINT;
     double nearest = static_cast<double>(DOCK_RANGE_METRES);
     for (std::size_t station = 0; station < m_support.StationCount(); ++station)
     {
+      if (targeted != SpaceSupport::NO_POINT && station != targeted)
+      {
+        continue;
+      }
       for (const SpaceSupport::Point& point : m_support.Points(station))
       {
         const double distance = Distance(point.path.entry, flyer->state.position);
@@ -1095,7 +1119,7 @@ SaveGame Universe::MakeSave() const
   {
     const Neuron::VoxelMask* mask = m_combat.Mask(object.id);
     const Neuron::VoxelMask* initial = m_combat.Initial(object.id);
-    if (object.id != m_playerShip && mask != nullptr && initial != nullptr && !(*mask == *initial))
+    if (object.id != m_playerShip && !IsWreck(object.id) && mask != nullptr && initial != nullptr && !(*mask == *initial))
     {
       save.universe.masks.push_back(MaskSave{object.name, Neuron::AbsentSpans(*mask, m_combat.ArchetypeOf(object.id)->full)});
     }
@@ -1225,6 +1249,79 @@ void Universe::Destroy(ObjectId _ship)
   RemoveObject(_ship);
 }
 
+bool Universe::IsWreck(ObjectId _object) const noexcept
+{
+  return std::ranges::find(m_wrecks, _object, &WreckMotion::object) != m_wrecks.end();
+}
+
+void Universe::SpawnWrecks()
+{
+  for (const Wreck& wreck : m_combat.TakeWrecks())
+  {
+    const UniverseObject* parent = m_state.FindObject(wreck.parent);
+    const VoxelArchetype* archetype = m_combat.Content() != nullptr && wreck.archetype < m_combat.Content()->archetypes.size()
+                                        ? &m_combat.Content()->archetypes[wreck.archetype]
+                                        : nullptr;
+    if (archetype == nullptr)
+    {
+      continue;
+    }
+    UniverseObject object;
+    object.id = m_nextObject++;
+    object.name = "Wreck-" + std::to_string(object.id);
+    // The parent's model, so that the wreck's cells, in the parent's grid, draw where they were.
+    object.model = parent != nullptr ? parent->model : archetype->model;
+    object.owner = Owner::Neutral;
+    object.scale = wreck.scale;
+    object.pose = wreck.pose;
+    object.poseTick = m_state.tick;
+    m_state.objects.push_back(object);
+    m_combat.AdoptWreck(object.id, wreck);
+    m_wrecks.push_back(WreckMotion{object.id, wreck.velocityMetresPerSecond, wreck.centroidMetres, wreck.spinRadiansPerSecond,
+                                   static_cast<std::int32_t>(WRECK_LIFETIME_SECONDS * static_cast<float>(TICKS_PER_SECOND))});
+    ++m_state.objectsRevision;
+  }
+}
+
+void Universe::DriftWrecks()
+{
+  const float dt = 1.0f / static_cast<float>(TICKS_PER_SECOND);
+  std::vector<ObjectId> expired;
+  for (WreckMotion& wreck : m_wrecks)
+  {
+    UniverseObject* object = m_state.FindObject(wreck.object);
+    if (object == nullptr || --wreck.ticksLeft <= 0)
+    {
+      expired.push_back(wreck.object);
+      continue;
+    }
+    // It turns about its middle: the middle moves with the velocity, the pose turns about it.
+    const XMVECTOR orientation = XMLoadFloat4(&object->pose.orientation);
+    const XMVECTOR centroid = XMLoadFloat3(&wreck.centroidMetres);
+    const XMVECTOR before = XMVector3Rotate(centroid, orientation);
+    const XMVECTOR spin = XMLoadFloat3(&wreck.spinRadiansPerSecond);
+    const float angle = XMVectorGetX(XMVector3Length(spin)) * dt;
+    XMVECTOR turned = orientation;
+    if (angle > 0.0f)
+    {
+      turned = XMQuaternionNormalize(XMQuaternionMultiply(orientation, XMQuaternionRotationNormal(XMVector3Normalize(spin), angle)));
+    }
+    XMFLOAT3 shift{};
+    XMStoreFloat3(&shift, XMVectorSubtract(XMVectorAdd(before, XMVectorScale(XMLoadFloat3(&wreck.velocityMetresPerSecond), dt)),
+                                           XMVector3Rotate(centroid, turned)));
+    object->pose.position.x += static_cast<double>(shift.x);
+    object->pose.position.y += static_cast<double>(shift.y);
+    object->pose.position.z += static_cast<double>(shift.z);
+    XMStoreFloat4(&object->pose.orientation, turned);
+    object->poseTick = m_state.tick;
+    ++m_state.posesRevision;
+  }
+  for (const ObjectId object : expired)
+  {
+    RemoveObject(object);
+  }
+}
+
 void Universe::RemoveObject(ObjectId _object)
 {
   const auto found = std::ranges::find(m_state.objects, _object, &UniverseObject::id);
@@ -1233,7 +1330,14 @@ void Universe::RemoveObject(ObjectId _object)
     return;
   }
   const auto index = static_cast<std::size_t>(found - m_state.objects.begin());
-  m_gone.push_back(found->name);
+  if (IsWreck(_object))
+  {
+    std::erase_if(m_wrecks, [_object](const WreckMotion& _wreck) { return _wreck.object == _object; });
+  }
+  else
+  {
+    m_gone.push_back(found->name);
+  }
   m_state.objects.erase(found);
   std::erase_if(m_state.ships, [_object](const ShipState& _ship) { return _ship.object == _object; });
   for (std::size_t f = 0; f < m_flyers.size();)

@@ -1,8 +1,10 @@
 #include "Ai.h"
 #include "Combat.h"
 #include "FileSys.h"
+#include "LoopbackTransport.h"
 #include "MaskEvent.h"
 #include "Messages.h"
+#include "Observer.h"
 #include "SaveGame.h"
 #include "ShipArchetype.h"
 #include "TickClock.h"
@@ -247,7 +249,7 @@ public:
     Assert::AreEqual(100, ship->hullPercent, L"as fitted at the base: the new game's ship");
     Assert::IsTrue(*universe.Battle().Mask(player) == universe.Battle().ArchetypeOf(player)->full);
     Assert::IsTrue(universe.Flight(player)->shieldUp && universe.Flight(player)->shield > 0.0f);
-    Assert::IsFalse(universe.Battle().Wrecks().empty(), L"what died is left as wrecks");
+    Assert::IsFalse(universe.WreckCount() == 0, L"what died is left as wrecks");
     Assert::IsTrue(saved, L"saved once back in the berth (D17)");
     Assert::IsTrue(universe.Protected(player));
   }
@@ -336,6 +338,139 @@ public:
     Assert::IsTrue(*combat.Mask(command) == block, L"D2: the command block cannot be destroyed");
   }
 
+  TEST_METHOD(AClientThatHearsTheObserverHoldsTheServersMasks)
+  {
+    Outpost::Universe universe;
+    Duel(universe, 1500.0);
+    ScriptedPlayer player(universe, 7);
+    const Outpost::CombatContent& content = *universe.Battle().Content();
+    Outpost::SceneDefinition scene;
+    std::string error;
+    Assert::IsTrue(Outpost::LoadScene(Assets() / "Scene.txt", scene, error), Wide(error).c_str());
+
+    // A client's half, as plan task 3.9 gives it: the snapshot from messages, and each object's
+    // mask from its instance's initial mask, snapshots and events.
+    Outpost::Observer observer;
+    Neuron::LoopbackTransport transport;
+    Outpost::UniverseSnapshot client;
+    std::vector<std::pair<Outpost::ObjectId, Neuron::VoxelMask>> masks;
+    const auto maskOf = [&](Outpost::ObjectId _object) -> Neuron::VoxelMask*
+    {
+      for (auto& [id, mask] : masks)
+      {
+        if (id == _object)
+        {
+          return &mask;
+        }
+      }
+      const Outpost::UniverseObject* object = client.FindObject(_object);
+      const Outpost::VoxelArchetype* archetype = object != nullptr ? content.FindArchetype(object->model) : nullptr;
+      if (archetype == nullptr)
+      {
+        return nullptr;
+      }
+      const Outpost::SceneInstance* instance = scene.FindInstance(object->name);
+      masks.emplace_back(_object, instance != nullptr ? Outpost::InitialMask(content, *archetype, instance->preset)
+                                                      : Neuron::VoxelMask(archetype->full.Size()));
+      return &masks.back().second;
+    };
+    std::size_t events = 0;
+    std::size_t snapshots = 0;
+    std::size_t bolts = 0;
+    std::size_t hits = 0;
+    const Outpost::ObjectId raider = universe.FindByName("Raider");
+    for (std::uint64_t tick = 0; tick < 150ull * TICKS_PER_SECOND && universe.Flight(raider) != nullptr; ++tick)
+    {
+      player.Fly(universe);
+      universe.Tick();
+      Assert::IsTrue(observer.Publish(universe, transport));
+      while (std::optional<Neuron::Packet> packet = transport.Receive(Neuron::Peer::Client))
+      {
+        const auto message = Outpost::Decode(packet->bytes);
+        Assert::IsTrue(message.has_value(), L"every message the observer sends decodes");
+        Outpost::ApplyMessage(*message, client);
+        if (const auto* damage = std::get_if<Outpost::DamageEventMessage>(&*message))
+        {
+          Neuron::VoxelMask* mask = maskOf(damage->event.target);
+          Assert::IsNotNull(mask, L"an event names an object the client was told of");
+          const Outpost::VoxelArchetype* archetype = content.FindArchetype(client.FindObject(damage->event.target)->model);
+          static_cast<void>(Outpost::ApplyMaskEvent(*archetype, damage->event, *mask));
+          ++events;
+        }
+        else if (const auto* snapshot = std::get_if<Outpost::MaskSnapshotMessage>(&*message))
+        {
+          Neuron::VoxelMask* mask = maskOf(snapshot->object);
+          Assert::IsNotNull(mask, L"a snapshot names an object the client was told of");
+          const Outpost::VoxelArchetype* archetype = content.FindArchetype(client.FindObject(snapshot->object)->model);
+          if (snapshot->reference == Outpost::MaskReference::Full)
+          {
+            Assert::IsTrue(Neuron::MaskFromAbsentSpans(archetype->full, snapshot->spans, *mask));
+          }
+          else
+          {
+            *mask = Neuron::VoxelMask(archetype->full.Size());
+            for (const Neuron::CellSpan& span : snapshot->spans)
+            {
+              for (std::uint32_t i = span.start; i < span.start + span.count; ++i)
+              {
+                mask->SetAt(i, true);
+              }
+            }
+          }
+          mask->SetLastEvent(snapshot->lastEvent);
+          ++snapshots;
+        }
+        bolts += std::holds_alternative<Outpost::BoltFiredMessage>(*message) ? 1 : 0;
+        hits += std::holds_alternative<Outpost::BoltHitMessage>(*message) ? 1 : 0;
+      }
+    }
+    Assert::IsTrue(events > 0 && bolts > 0 && hits > 0, L"the duel carved, fired and hit");
+    for (const Outpost::UniverseObject& object : universe.State().objects)
+    {
+      const Neuron::VoxelMask* server = universe.Battle().Mask(object.id);
+      if (server == nullptr)
+      {
+        continue;
+      }
+      const Neuron::VoxelMask* held = maskOf(object.id);
+      Assert::IsNotNull(held, Wide(object.name).c_str());
+      Assert::AreEqual(server->Hash(), held->Hash(), Wide(object.name).c_str());
+      Assert::AreEqual(server->LastEvent(), held->LastEvent(), Wide(object.name).c_str());
+    }
+    Assert::IsTrue(universe.WreckCount() == 0 || snapshots > 0, L"a wreck reaches the client as a snapshot");
+  }
+
+  TEST_METHOD(AWreckIsAnObjectThatDriftsAndIsGone)
+  {
+    // A player that does nothing is shot to pieces (ADR-014's second duel), and leaves wrecks.
+    Outpost::Universe universe;
+    Duel(universe, 1500.0);
+    const std::size_t authored = universe.State().objects.size();
+    for (std::uint64_t tick = 0; tick < 180ull * TICKS_PER_SECOND && universe.WreckCount() == 0; ++tick)
+    {
+      universe.Tick();
+    }
+    Assert::IsTrue(universe.WreckCount() > 0, L"what died is left as wrecks");
+    Assert::AreEqual(authored + universe.WreckCount(), universe.State().objects.size(), L"each wreck is an object");
+    const Outpost::UniverseObject wreck = universe.State().objects.back();
+    Assert::IsTrue(universe.IsWreck(wreck.id));
+    Assert::IsTrue(wreck.owner == Outpost::Owner::Neutral);
+    Assert::IsTrue(wreck.id > authored, L"a wreck takes an identity past every authored object");
+    const Neuron::VoxelMask* mask = universe.Battle().Mask(wreck.id);
+    Assert::IsNotNull(mask, L"a wreck is a body with its own mask");
+    Assert::IsTrue(mask->PresentCount() > 0);
+    universe.Tick();
+    Assert::IsFalse(universe.State().FindObject(wreck.id)->pose == wreck.pose, L"it drifts");
+    const auto lifetime = static_cast<std::uint64_t>(Outpost::Universe::WRECK_LIFETIME_SECONDS * static_cast<float>(TICKS_PER_SECOND));
+    for (std::uint64_t tick = 0; tick < lifetime; ++tick)
+    {
+      universe.Tick();
+    }
+    Assert::IsNull(universe.State().FindObject(wreck.id), L"and is gone");
+    Assert::IsTrue(std::ranges::none_of(universe.Gone(), [](const std::string& _name) { return _name.starts_with("Wreck"); }),
+                   L"a wreck is not an authored object that is gone");
+  }
+
   TEST_METHOD(ABattleSurvivesASaveAndAResume)
   {
     Outpost::Universe universe;
@@ -361,6 +496,10 @@ public:
     Assert::AreEqual(Outpost::NO_OBJECT, resumed.FindByName("Raider"), L"a raider that is gone stays gone for that save");
     for (const Outpost::UniverseObject& object : universe.State().objects)
     {
+      if (universe.IsWreck(object.id))
+      {
+        continue; // wrecks are not saved
+      }
       const Neuron::VoxelMask* mask = universe.Battle().Mask(object.id);
       const Neuron::VoxelMask* again = resumed.Battle().Mask(resumed.FindByName(object.name));
       Assert::IsTrue((mask == nullptr) == (again == nullptr));

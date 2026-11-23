@@ -77,6 +77,8 @@ public:
 
   /// A repair kit restores at most this many structure cells (plan task 3.11).
   static constexpr std::uint32_t REPAIR_KIT_CELLS = 120;
+  /// A wreck drifts for this long and is then gone. Wrecks are not saved.
+  static constexpr float WRECK_LIFETIME_SECONDS = 90.0f;
 
   /// The scripted mover's speeds: the approach peaks at this (ch. 04 §3.3's 18 m/s cap) ...
   static constexpr float DOCKING_PEAK_METRES_PER_SECOND = 18.0f;
@@ -127,6 +129,12 @@ public:
   {
     return m_combat;
   }
+  /// The wrecks drifting now, each an object of its own (plan task 3.9).
+  [[nodiscard]] std::size_t WreckCount() const noexcept
+  {
+    return m_wrecks.size();
+  }
+  [[nodiscard]] bool IsWreck(ObjectId _object) const noexcept;
   /// The authored objects that are gone, destroyed or fled, by name.
   [[nodiscard]] const std::vector<std::string>& Gone() const noexcept
   {
@@ -240,6 +248,15 @@ private:
     std::optional<Ai> ai;                  // its pilot, for an NPC that has one
   };
 
+  struct WreckMotion
+  {
+    ObjectId object = NO_OBJECT;
+    DirectX::XMFLOAT3 velocityMetresPerSecond{};
+    DirectX::XMFLOAT3 centroidMetres{}; // in the object's axes and scale
+    DirectX::XMFLOAT3 spinRadiansPerSecond{};
+    std::int32_t ticksLeft = 0;
+  };
+
   struct PendingShots
   {
     ObjectId shooter = NO_OBJECT;
@@ -255,6 +272,10 @@ private:
   /// A ship's health again, from its mask, and a flying ship's condition with it.
   void Measure(ObjectId _ship);
   void Destroy(ObjectId _ship);
+  /// Makes an object of every wreck combat cut loose this tick.
+  void SpawnWrecks();
+  /// Every wreck drifts and turns a tick; one whose time is up is removed.
+  void DriftWrecks();
   void RemoveObject(ObjectId _object);
   void ReturnToBase(Flyer& _flyer);
   [[nodiscard]] std::vector<AiContact> PilotContacts() const;
@@ -281,6 +302,8 @@ private:
   ShipContent m_ships;
   Combat m_combat;
   std::vector<std::string> m_gone;
+  std::vector<WreckMotion> m_wrecks;
+  ObjectId m_nextObject = 1; // past every authored object: what a wreck takes
   SystemContent m_system;
   SpaceSupport m_support;
   Character m_character; // the player's record; location and ship are read from the universe when saved

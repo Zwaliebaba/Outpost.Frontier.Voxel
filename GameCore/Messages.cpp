@@ -207,6 +207,7 @@ void WritePayload(Neuron::WireWriter& _writer, const ShipMotionMessage& _message
   _writer.Uint8(motion.thruster ? 1 : 0);
   _writer.Uint8(motion.engineOn ? 1 : 0);
   _writer.Uint8(static_cast<std::uint8_t>(motion.cruise));
+  _writer.Int32(motion.shieldPercent);
 }
 
 void WritePayload(Neuron::WireWriter& _writer, const DockCommandMessage& _message)
@@ -214,6 +215,7 @@ void WritePayload(Neuron::WireWriter& _writer, const DockCommandMessage& _messag
   _writer.Uint64(_message.tick);
   _writer.Uint32(_message.ship);
   _writer.Uint8(static_cast<std::uint8_t>(_message.command));
+  _writer.Uint32(_message.station);
 }
 
 void WritePayload(Neuron::WireWriter& _writer, const ObjectRemovedMessage& _message)
@@ -227,6 +229,85 @@ void WritePayload(Neuron::WireWriter& _writer, const UseItemMessage& _message)
   _writer.Uint64(_message.tick);
   _writer.Uint32(_message.ship);
   _writer.Uint8(static_cast<std::uint8_t>(_message.item));
+}
+
+void WritePayload(Neuron::WireWriter& _writer, const MaskSnapshotMessage& _message)
+{
+  _writer.Uint32(_message.object);
+  _writer.Uint64(_message.lastEvent);
+  _writer.Uint8(static_cast<std::uint8_t>(_message.reference));
+  if (_message.spans.size() > std::numeric_limits<std::uint32_t>::max())
+  {
+    _writer.MarkFailed();
+    return;
+  }
+  _writer.Uint32(static_cast<std::uint32_t>(_message.spans.size()));
+  for (const Neuron::CellSpan& span : _message.spans)
+  {
+    _writer.Uint32(span.start);
+    _writer.Uint32(span.count);
+  }
+}
+
+void WriteInt3(Neuron::WireWriter& _writer, const Neuron::Int3& _value)
+{
+  _writer.Int32(_value.x);
+  _writer.Int32(_value.y);
+  _writer.Int32(_value.z);
+}
+
+[[nodiscard]] Neuron::Int3 ReadInt3(Neuron::WireReader& _reader) noexcept
+{
+  Neuron::Int3 value{0, 0, 0};
+  value.x = _reader.Int32();
+  value.y = _reader.Int32();
+  value.z = _reader.Int32();
+  return value;
+}
+
+void WritePayload(Neuron::WireWriter& _writer, const DamageEventMessage& _message)
+{
+  const MaskEvent& event = _message.event;
+  _writer.Uint32(event.target);
+  _writer.Uint8(static_cast<std::uint8_t>(event.kind));
+  _writer.Uint8(event.toughened ? 1 : 0);
+  _writer.Uint8(static_cast<std::uint8_t>(event.cause));
+  _writer.Uint32(event.inflictor);
+  if (event.kind == MaskEventKind::Patch)
+  {
+    _writer.Uint64(event.patch.sequence);
+    _writer.Uint32(event.patch.maxCells);
+    return;
+  }
+  const Neuron::CarveSpec& carve = event.carve;
+  _writer.Uint64(carve.sequence);
+  WriteInt3(_writer, carve.cell);
+  WriteInt3(_writer, carve.direction);
+  _writer.Uint8(static_cast<std::uint8_t>(carve.shape));
+  _writer.Uint8(carve.radiusCells);
+  _writer.Uint8(carve.lengthCells);
+  _writer.Uint32(carve.energy);
+  _writer.Uint32(carve.seed);
+}
+
+void WritePayload(Neuron::WireWriter& _writer, const BoltFiredMessage& _message)
+{
+  _writer.Uint64(_message.tick);
+  _writer.Uint32(_message.bolt);
+  _writer.Uint32(_message.shooter);
+  WritePosition(_writer, _message.origin);
+  WriteFloat3(_writer, _message.velocityMetresPerSecond);
+  _writer.Int32(_message.lifetimeTicks);
+}
+
+void WritePayload(Neuron::WireWriter& _writer, const BoltHitMessage& _message)
+{
+  _writer.Uint64(_message.tick);
+  _writer.Uint32(_message.bolt);
+  _writer.Uint32(_message.target);
+  WritePosition(_writer, _message.position);
+  _writer.Uint8(_message.shield ? 1 : 0);
+  _writer.Uint8(_message.harmful ? 1 : 0);
 }
 
 void WritePayload(Neuron::WireWriter& _writer, const DockStatusMessage& _message)
@@ -375,6 +456,7 @@ void WritePayload(Neuron::WireWriter& _writer, const DockStatusMessage& _message
     wellFormed = ReadBool(_reader, motion.motion.thruster);
     wellFormed = ReadBool(_reader, motion.motion.engineOn) && wellFormed;
     wellFormed = ReadEnum(_reader, CruiseState::Cooldown, motion.motion.cruise) && wellFormed;
+    motion.motion.shieldPercent = _reader.Int32();
     message = motion;
     break;
   }
@@ -384,6 +466,7 @@ void WritePayload(Neuron::WireWriter& _writer, const DockStatusMessage& _message
     command.tick = _reader.Uint64();
     command.ship = _reader.Uint32();
     wellFormed = ReadEnum(_reader, DockCommand::Launch, command.command);
+    command.station = _reader.Uint32();
     message = command;
     break;
   }
@@ -416,6 +499,78 @@ void WritePayload(Neuron::WireWriter& _writer, const DockStatusMessage& _message
     message = use;
     break;
   }
+  case MessageKind::MaskSnapshot:
+  {
+    MaskSnapshotMessage snapshot;
+    snapshot.object = _reader.Uint32();
+    snapshot.lastEvent = _reader.Uint64();
+    wellFormed = ReadEnum(_reader, MaskReference::Empty, snapshot.reference);
+    const std::uint32_t count = _reader.Uint32();
+    // Each span is eight bytes, so a count the payload cannot hold is refused before it is reserved.
+    wellFormed = wellFormed && _reader.Remaining() / 8 >= count;
+    for (std::uint32_t i = 0; i < count && wellFormed && _reader.Ok(); ++i)
+    {
+      Neuron::CellSpan span;
+      span.start = _reader.Uint32();
+      span.count = _reader.Uint32();
+      snapshot.spans.push_back(span);
+    }
+    message = std::move(snapshot);
+    break;
+  }
+  case MessageKind::DamageEvent:
+  {
+    DamageEventMessage damage;
+    MaskEvent& event = damage.event;
+    event.target = _reader.Uint32();
+    wellFormed = ReadEnum(_reader, MaskEventKind::Patch, event.kind);
+    wellFormed = ReadBool(_reader, event.toughened) && wellFormed;
+    wellFormed = ReadEnum(_reader, DamageCause::Repair, event.cause) && wellFormed;
+    event.inflictor = _reader.Uint32();
+    if (wellFormed && event.kind == MaskEventKind::Patch)
+    {
+      event.patch.sequence = _reader.Uint64();
+      event.patch.maxCells = _reader.Uint32();
+    }
+    else if (wellFormed)
+    {
+      Neuron::CarveSpec& carve = event.carve;
+      carve.sequence = _reader.Uint64();
+      carve.cell = ReadInt3(_reader);
+      carve.direction = ReadInt3(_reader);
+      wellFormed = ReadEnum(_reader, Neuron::CarveShape::Capsule, carve.shape);
+      carve.radiusCells = _reader.Uint8();
+      carve.lengthCells = _reader.Uint8();
+      carve.energy = _reader.Uint32();
+      carve.seed = _reader.Uint32();
+    }
+    message = damage;
+    break;
+  }
+  case MessageKind::BoltFired:
+  {
+    BoltFiredMessage fired;
+    fired.tick = _reader.Uint64();
+    fired.bolt = _reader.Uint32();
+    fired.shooter = _reader.Uint32();
+    fired.origin = ReadPosition(_reader);
+    fired.velocityMetresPerSecond = ReadFloat3(_reader);
+    fired.lifetimeTicks = _reader.Int32();
+    message = fired;
+    break;
+  }
+  case MessageKind::BoltHit:
+  {
+    BoltHitMessage hit;
+    hit.tick = _reader.Uint64();
+    hit.bolt = _reader.Uint32();
+    hit.target = _reader.Uint32();
+    hit.position = ReadPosition(_reader);
+    wellFormed = ReadBool(_reader, hit.shield);
+    wellFormed = ReadBool(_reader, hit.harmful) && wellFormed;
+    message = hit;
+    break;
+  }
   default:
     return std::unexpected(DecodeError::UnknownKind);
   }
@@ -428,7 +583,7 @@ void WritePayload(Neuron::WireWriter& _writer, const DockStatusMessage& _message
 
 [[nodiscard]] bool IsKnownKind(std::uint16_t _kind) noexcept
 {
-  return _kind >= static_cast<std::uint16_t>(MessageKind::Tick) && _kind <= static_cast<std::uint16_t>(MessageKind::UseItem);
+  return _kind >= static_cast<std::uint16_t>(MessageKind::Tick) && _kind <= static_cast<std::uint16_t>(MessageKind::BoltHit);
 }
 
 } // namespace
@@ -487,10 +642,26 @@ MessageKind KindOf(const Message& _message)
       {
         return MessageKind::ObjectRemoved;
       }
+      else if constexpr (std::is_same_v<T, UseItemMessage>)
+      {
+        return MessageKind::UseItem;
+      }
+      else if constexpr (std::is_same_v<T, MaskSnapshotMessage>)
+      {
+        return MessageKind::MaskSnapshot;
+      }
+      else if constexpr (std::is_same_v<T, DamageEventMessage>)
+      {
+        return MessageKind::DamageEvent;
+      }
+      else if constexpr (std::is_same_v<T, BoltFiredMessage>)
+      {
+        return MessageKind::BoltFired;
+      }
       else
       {
-        static_assert(std::is_same_v<T, UseItemMessage>);
-        return MessageKind::UseItem;
+        static_assert(std::is_same_v<T, BoltHitMessage>);
+        return MessageKind::BoltHit;
       }
     },
     _message);
@@ -676,7 +847,11 @@ void ApplyMessage(const Message& _message, UniverseSnapshot& _universe)
       else
       {
         // A command is the server's to act on; a client's picture of the universe has no place for one.
-        static_assert(std::is_same_v<T, FlightInputMessage> || std::is_same_v<T, DockCommandMessage> || std::is_same_v<T, UseItemMessage>);
+        // Masks, their events and bolts need the combat content to apply, which the snapshot does not
+        // hold: the client's combat picture takes them (GameApp's ClientCombat).
+        static_assert(std::is_same_v<T, FlightInputMessage> || std::is_same_v<T, DockCommandMessage> || std::is_same_v<T, UseItemMessage> ||
+                      std::is_same_v<T, MaskSnapshotMessage> || std::is_same_v<T, DamageEventMessage> ||
+                      std::is_same_v<T, BoltFiredMessage> || std::is_same_v<T, BoltHitMessage>);
       }
     },
     _message);

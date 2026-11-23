@@ -66,6 +66,7 @@ struct ShipMotionState
   bool thruster = false;
   bool engineOn = true;
   CruiseState cruise = CruiseState::Off;
+  int shieldPercent = -1; // the shield's share of its capacity, rounded down; 0 while down; -1 with none
 
   friend bool operator==(const ShipMotionState&, const ShipMotionState&) = default;
 };
