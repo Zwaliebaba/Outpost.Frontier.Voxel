@@ -700,8 +700,7 @@ DockStatusState Universe::DockStatus(ObjectId _ship) const
 bool Universe::Protected(ObjectId _ship) const noexcept
 {
   const Flyer* flyer = FindFlyer(_ship);
-  const DockPhase phase = flyer != nullptr ? flyer->dock.phase : DockPhase::None;
-  return phase == DockPhase::Final || phase == DockPhase::Docked || phase == DockPhase::Launching;
+  return flyer != nullptr && Protects(flyer->dock.phase);
 }
 
 bool Universe::TakeSaveRequest() noexcept

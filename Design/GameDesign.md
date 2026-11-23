@@ -342,7 +342,7 @@ The first six slices are the MVP; [ImplementationPlan.md](ImplementationPlan.md)
 
 ## 13. Open decisions
 
-*D1 to D12 were decided by the owner on 2026-11-22: D1, D2, D5, D6 and D12 for the MVP plan ([ImplementationPlan.md](ImplementationPlan.md)), the rest the same day. Eleven follow the recommendation; D10 does not, and the rest of this document follows the decision. D13 came out of the scale review (§8.2) and was decided the same day, as recommended. D14 to D20 were decided on 2026-11-22: D14 and D15 confirm choices made while building slice 1, and D16 to D20 answer the questions slice 2 raised before it started. D17 overrides the blueprint's single-player save rule, and D19 its pause menu.*
+*D1 to D12 were decided by the owner on 2026-11-22: D1, D2, D5, D6 and D12 for the MVP plan ([ImplementationPlan.md](ImplementationPlan.md)), the rest the same day. Eleven follow the recommendation; D10 does not, and the rest of this document follows the decision. D13 came out of the scale review (§8.2) and was decided the same day, as recommended. D14 to D20 were decided on 2026-11-22: D14 and D15 confirm choices made while building slice 1, and D16 to D20 answer the questions slice 2 raised before it started. D17 overrides the blueprint's single-player save rule, and D19 its pause menu. D21 was decided on 2026-11-22, when slice 2's hazard warning asked what scanner interference is before a ship carries a scanner.*
 
 | # | Question | Decision |
 |---|---|---|
@@ -366,6 +366,7 @@ The first six slices are the MVP; [ImplementationPlan.md](ImplementationPlan.md)
 | D18 | What happens at start-up — *decided* | No menu. The save is loaded if there is one; otherwise a new game starts docked in the shipyard's hangar, in the tactical view, so that the first thing the player does is launch |
 | D19 | Pause — *decided* | It does not exist, in either mode. Time never stops (pillar 2). Nothing replaces the blueprint's pause menu: quitting is a key (D15), and saving is automatic (D17) |
 | D20 | How the player starts a docking — *decided* | A Dock key asks the nearest station within 10 km that has a docking point for the ship's class (ch. 04 §3.2's range). Once ships can be targeted (slice 3), the key docks at the target when there is one |
+| D21 | Scanner interference before there is a scanner — *decided* | A read-out, nothing more. Inside a hazard zone the flight HUD warns and states the share of scanner range the zone takes (interference times immersion, ch. 01 §3.5), worked out by the client from the zones both halves load and its own ship's position (ch. 01 §3.11). No ship carries a scanner yet, so nothing is hidden. The scanner record, its range and the rule that a cloud hides what is inside it (ch. 09 §3.6) arrive with slice 3's contacts. Zone damage is the server's and arrives with slice 3 too |
 
 ## 14. Basis
 

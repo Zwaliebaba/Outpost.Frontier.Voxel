@@ -525,6 +525,13 @@ void ReportSurfaceExtraction(const Outpost::SceneDefinition& _scene, const std::
     std::snprintf(flight, sizeof(flight), "own ship: at %.2f, %.2f, %.2f, %.2f m/s, %zu contact(s)", own->position.x, own->position.y,
                   own->position.z, static_cast<double>(own->SpeedMetresPerSecond()), _session.universe.Contacts().size());
     _report.Line(flight);
+    // What the client warns of where it drew the ship in the last frame (plan task 2.8).
+    if (const Outpost::HazardWarning& hazard = _session.client.Hazard(); hazard.Active())
+    {
+      std::snprintf(flight, sizeof(flight), "  hazard warning: %s, immersion %.2f, scanner -%d %%%s", hazard.zone.c_str(),
+                    static_cast<double>(hazard.immersion), hazard.scannerLossPercent, hazard.damaging ? ", danger to hull" : "");
+      _report.Line(flight);
+    }
     const Outpost::Manoeuvre& order = _session.client.Input().Order();
     if (order.kind == Outpost::ManoeuvreKind::GoTo)
     {

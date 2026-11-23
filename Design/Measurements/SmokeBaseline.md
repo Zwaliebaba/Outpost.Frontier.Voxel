@@ -1,6 +1,6 @@
 # Smoke-test baseline
 
-**Taken:** 2026-11-22, first at commit `381bbc5` (F1 to F3 done), and stored again after F4, after the new station, after slice 1, after the signal and glazing materials and for slice 2's docked start, for the reasons given below. **Purpose:** the reference that every change that must not alter the picture is checked against.
+**Taken:** 2026-11-22, first at commit `381bbc5` (F1 to F3 done), and stored again after F4, after the new station, after slice 1, after the signal and glazing materials and for slice 2's docked start, for the reasons given below. The hazard reference and the rewritten flight script were added for slice 2's task 2.8. **Purpose:** the reference that every change that must not alter the picture is checked against.
 
 ## How it was taken
 
@@ -82,7 +82,7 @@ Since slice 2's docking work, a new game starts docked at the shipyard (task 2.7
 - **Scripted:** `ScriptedSmoke.txt` no longer presses F9, which task 2.5 removed; its click still selects the Tug. The statistics are 0.141, 25.8 %, 2.58 % and 0.73 %, with 671 colours. Against the default report it fails with exit code 9, as it should.
 - **WARP:** two runs of each wrote byte-identical PNGs.
 - **Hardware:** the RTX 3070 Ti Laptop GPU matches each WARP report under `--expect`: 788 colours against 786 (default) and 673 against 671 (scripted).
-- **The flight reference was not stored again.** `FlightSmoke.txt` assumes the game starts in flight and presses F9. It now has to launch first, which adds about 700 ticks to a run that already takes ten minutes on WARP. It is due with slice 2's close-out; until then `FlightSmokeWarp.*` are the slice 1 capture and do not describe the game.
+- **The flight reference was not stored again.** `FlightSmoke.txt` assumed the game starts in flight and pressed F9. The script has since been rewritten to launch first (see *The flight reference* below); its capture is still due, and until then `FlightSmokeWarp.*` are the slice 1 capture and do not describe the game.
 
 ## How to check against it
 
@@ -128,34 +128,85 @@ What was checked when it was stored again, on the current station:
 - A `--frames` shorter than the script was refused with exit code 1, when it was first stored.
 - The RTX 3070 Ti Laptop GPU run matches the WARP report within the tolerance: 649 distinct colours against WARP's 650, the rest identical. So the WARP report also serves as the hardware reference.
 
-## The flight reference (slice 1)
+## The hazard reference (task 2.8)
 
-*Out of date since slice 2's docked start: the script presses F9 and assumes a start in flight. See above.*
-
-`FlightSmoke.txt` flies the player's escort by its commands, then orders it from the tactical view. Over 480 ticks it:
-
-1. raises the throttle to full;
-2. turns hard by the cursor, held at the right edge, away from the Frigate parked ahead;
-3. fires the thruster for a second;
-4. throttles back to nothing;
-5. presses F9 and gives a go-to order by right-clicking a point.
-
-The run lasts 481 frames, so on WARP it takes about ten minutes in Debug.
+`HazardSmokeSave.txt` is a save with the player's ship at rest in space under the Frigate, inside the `FrigateBreach` zone: the pose `FlightSmoke.txt` ends in. Resuming it shows the flight HUD with the hazard warning after three frames, so the warning can be drawn and checked without the flight that leads to it. The game saves when it quits, so resume a copy:
 
 ```powershell
-.\x64\Debug\Outpost.exe --smoke-test --warp --script Design\Measurements\FlightSmoke.txt --expect Design\Measurements\FlightSmokeWarp.txt
+Copy-Item Design\Measurements\HazardSmokeSave.txt Save.txt
+.\x64\Debug\Outpost.exe --smoke-test --warp --save Save.txt --capture HazardWarning.png --report HazardWarning.txt
 ```
+
+CI's Windows job does this on every run, at 1280 x 720, fails unless the report names the warning, and uploads the capture and the report as the `hazard-review` artifact.
+
+**Where the save came from.** The game's own save code wrote it (`Universe::MakeSave` and `FormatSaveGame`), in the headless replica described under the flight reference, with the flight script's inputs and 390 more ticks at rest. It was not written on Windows.
+
+**What CI's run showed**, on 2026-11-22 at commit `76154d8`, Debug on WARP, run 29 of the Build workflow:
+
+- `save: resumed HazardReview\Save.txt at tick 1501, in space`, and `view: flight`.
+- `own ship: at 55.65, -98.50, 3.14, 0.00 m/s, 0 contact(s)`.
+- `hazard warning: FrigateBreach, immersion 0.30, scanner -18 %, danger to hull`.
+- The prediction matched the server on all 3 ticks.
+- `image 1280x720: mean luminance 0.084, lit 6.4%, cyan 0.94%, warm 0.26%, 407 distinct colours`, and `debug layer: on, 0 error(s), 0 warning(s)`.
+
+**Nobody has looked at the frame.** The report proves the warning was computed and that the HUD drew without a debug-layer error. Whether it reads well is for a person to judge from the artifact, or from a run by hand. No capture is stored here: one at 1920 x 1080 from a Windows machine can be, as `HazardSmokeWarp.png` and `.txt`.
+
+`GameLogicTests` keeps the save fitting the content: it restores in space, inside the zone, and a second of ticks neither moves the ship nor touches anything.
+
+| File | What it is |
+|---|---|
+| `HazardSmokeSave.txt` | The save, a text record (ADR-011) |
+
+## The flight reference (slice 1, rewritten for slice 2)
+
+**The script is new and its capture is not stored yet.** `FlightSmoke.txt` was rewritten on 2026-11-22 for the docked start and for task 2.8's hazard warning. `FlightSmokeWarp.png` and `FlightSmokeWarp.txt` are still the slice 1 capture: they show a run the script no longer makes, and they stay only until one WARP run of the new script replaces them. That run needs Windows; it is the open item of slice 2's close-out.
+
+Over 1,110 ticks the script:
+
+1. clicks Launch in the Services inspector at tick 5, and the station carries the ship out of the hangar;
+2. from tick 720, raises the throttle to four fifths and turns hard right by the cursor, held at the right edge, which clears the Frigate's stern;
+3. holds the cursor below the centre, so the ship flies half a loop downwards and comes back level under the Frigate;
+4. throttles back to nothing and stops below the breach, inside the `FrigateBreach` zone, with the hazard warning on the HUD.
+
+The run lasts 1,111 frames. The slice 1 run took about ten minutes for 481 frames on WARP in Debug, so expect about 25 minutes.
+
+```powershell
+.\x64\Debug\Outpost.exe --smoke-test --warp --script Design\Measurements\FlightSmoke.txt --capture Design\Measurements\FlightSmokeWarp.png --report Design\Measurements\FlightSmokeWarp.txt
+```
+
+Remove the machine-specific lines (`assets:`, `captured:`) from the report before storing it, as for the others.
+
+**What the run should show.** The script was not run on Windows. It was written against a headless replica of the smoke loop, built on Linux with g++ from this tree's own sources: the server's `Universe` and `Observer`, the loopback transport, and the client's `CommandMap`, `FlightInput`, `Prediction`, `ChaseCamera`, `ControlFocus` and `DockedView`, wired as `TacticalClient` and `Main.cpp` wire them, without the renderer. In that replica:
+
+- The click at tick 5 is taken by Launch, and the ship is released at tick 700 at 0, 16, -44, flying at 30 m/s.
+- **The prediction matched the server on all 411 ticks it predicted**, with no corrections and no contacts.
+- **The ship ends at rest at 55.65, -98.50, 3.14**, which is 50.9 m from the zone's centre. The report line should read `hazard warning: FrigateBreach, immersion 0.30, scanner -18 %, danger to hull`.
+- The ship's collision sphere, 30.9 m in radius, never comes closer than 6.6 m to a body. At the end it is 6.6 m clear of the Frigate's box above it and 9.1 m inside the zone's surface.
+- **The run does not depend on the exact tick of the release.** With every flight input moved 19 ticks earlier, and 120 ticks later, the ship ends at the same position to the centimetre. So a release anywhere from 120 ticks before tick 700 to 19 after it flies the same path.
+
+MSVC's floating-point results differ from g++'s in the last place (AGENTS.md R16), so the run on Windows may not end at exactly those figures. If it ends outside the zone or records a contact, the script needs adjusting: that is a finding about the script, not about the game.
+
+**Its last frame has been drawn on Windows.** The hazard reference below resumes a save of the pose the script ends in, and CI drew it on WARP. There the ship sits at 55.65, -98.50, 3.14 and the report reads the warning line above, word for word, so MSVC and the replica agree on where the run ends. In the replica, the ship's orientation and the chase camera's forward and up at the script's last frame equal the saved pose's to four decimals; the camera's offset differs by 0.2 m. So that frame is a rehearsal of this run's capture, at 1280 x 720. Two things about it are worth knowing before spending 25 minutes on the run:
+
+- **The lit share is 6.4 %, against the image check's floor of 5 %.** The view from under the Frigate is mostly open space. The run should pass the check, with 1.4 points to spare.
+- **The ship ends upside down.** Half a loop downwards leaves it inverted, and with no turn demanded nothing rolls it upright.
+
+**Why under the Frigate.** The breach vents a trail of debris, each piece a collision body, on the side of the hull the zone is centred on, and the Lancer's sphere cannot pass between them. Above the hull, the part of the zone the sphere can reach without touching the Frigate's box is a band about 4 m deep. Below the hull that band is about 16 m deep, so that is where the run ends.
+
+`GameAppTests` checks that both stored scripts parse, and that the flight script's first click lands on the docked view's Launch button at 1920 x 1080.
 
 | File | What it is |
 |---|---|
 | `FlightSmoke.txt` | The script |
-| `FlightSmokeWarp.png` | The WARP capture of its last frame, in the tactical view |
-| `FlightSmokeWarp.txt` | Its WARP report, with the machine-specific lines removed |
+| `FlightSmokeWarp.png` | *Out of date:* the slice 1 capture, in the tactical view |
+| `FlightSmokeWarp.txt` | *Out of date:* the slice 1 report |
 
-What was checked when it was stored:
+### The slice 1 run, for the record
+
+Until slice 2, the script flew from a start in flight, pressed F9 for the tactical view and gave a go-to order. What was checked when that capture was stored:
 
 - **The prediction matched the server on all 481 ticks**, with no corrections.
-- **The ship flies its order.** The report gives the order and the distance left. Shorter runs of the same script showed the distance falling as the ship turned to its point: 707 m at tick 311, 703 m at 400, and 611 m at 480, by then at 80 m/s.
+- **The ship flew its order.** Shorter runs of the same script showed the distance falling as the ship turned to its point: 707 m at tick 311, 703 m at 400, and 611 m at 480, by then at 80 m/s.
 - **No contacts.** Before the script turned away from the Frigate, the same run met the Frigate's collision box three times and was recorded doing so.
-- **The flight is the same on every adapter.** The WARP and RTX 3070 Ti Laptop GPU runs ended with the ship at the same position, −87.98, −212.91, −234.63. The hardware frame matches the WARP report under `--expect`: 715 distinct colours against 714, the rest identical.
-- **Only one WARP run was made.** It lasts ten minutes, so this capture has not been shown byte-deterministic the way the short ones have; use `--expect` against it rather than `--compare`.
+- **The flight was the same on every adapter.** The WARP and RTX 3070 Ti Laptop GPU runs ended with the ship at the same position, −87.98, −212.91, −234.63. The hardware frame matched the WARP report under `--expect`: 715 distinct colours against 714, the rest identical.
+- **Only one WARP run was made**, so that capture was never shown byte-deterministic the way the short ones have.

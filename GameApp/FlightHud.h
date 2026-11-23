@@ -1,6 +1,7 @@
 #pragma once
 
 #include "FlightModel.h"
+#include "HazardWarning.h"
 #include "HudBatch.h"
 #include "ScreenProjection.h"
 
@@ -33,7 +34,8 @@ struct FlightHudInput
   bool mouseLocked = false;
   DirectX::XMFLOAT2 cursor{960.0f, 540.0f};
   float clickRadiusPixels = 120.0f;
-  std::string order; // the order being flown, or empty in free flight
+  std::string order;    // the order being flown, or empty in free flight
+  HazardWarning hazard; // the hazard where the ship is, or none (plan task 2.8)
   bool showHelp = true;
   std::string statusLine;
 };
@@ -46,11 +48,13 @@ struct FlightHudLayout
   Neuron::ScreenRect powerBar{};
   Neuron::ScreenRect thrustBar{};
   Neuron::ScreenRect help{};
+  Neuron::ScreenRect warning{}; // empty when there is no hazard to warn of
 };
 
 /// The chase view's HUD (plan task 1.9): a reticle at the centre and a line to the cursor while it
 /// steers; a panel at the bottom centre with the speed, the throttle, both pools and the engine's
-/// state; and the key help. It uses the tactical HUD's fonts and palette.
+/// state; the key help; and, inside a hazard zone, a warning under the status line saying what the
+/// zone does (plan task 2.8). It uses the tactical HUD's fonts and palette.
 class FlightHud
 {
 public:

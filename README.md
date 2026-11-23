@@ -103,6 +103,8 @@ A control that cannot be used says why. While the station carries the ship, dock
 
 The cursor is confined to the window while flying.
 
+**Hazards.** Inside a hazard zone the flight HUD shows a warning under the status line: *DANGER TO HULL* where the zone damages, and the share of scanner range its interference takes, for example *SCANNER -60 %* at the heart of the frigate's breach. The warning weakens across the zone's outer half. It is a warning only for now: zone damage and the scanner itself arrive with slice 3 (GameDesign.md D21).
+
 **The tactical view**, only while docked (GameDesign.md D10). A click on the docked view's rail or inspector goes to that control; elsewhere:
 
 | Input | Action |
@@ -143,6 +145,7 @@ A save that cannot be read, or that does not fit the content, stops the game wit
 | The MVP implementation plan: the design's first six slices as tasks, tests, ADRs and exit criteria, with what is done so far | [`Design/ImplementationPlan.md`](Design/ImplementationPlan.md) |
 | The checkers CI runs, and their self-test | [`Build/`](Build/) — see *Tests and checks* |
 | The message catalogue and the in-process transport the executable runs on; the observer that publishes world state | [`GameCore/Messages.h`](GameCore/Messages.h), [`NeuronCore/LoopbackTransport.h`](NeuronCore/LoopbackTransport.h), [`GameLogic/Observer.h`](GameLogic/Observer.h), ADR-008 |
+| The hazard warning and its scanner read-out (task 2.8) | [`GameApp/HazardWarning.h`](GameApp/HazardWarning.h), [`GameApp/FlightHud.h`](GameApp/FlightHud.h), GameDesign.md D21 |
 | Zones, the system's stations and their docking points (slice 2, tasks 2.1 and 2.2) | [`Assets/Content/System.txt`](Assets/Content/System.txt), [`GameCore/Zone.h`](GameCore/Zone.h), [`GameCore/DockingPoint.h`](GameCore/DockingPoint.h), [`GameCore/SystemContent.h`](GameCore/SystemContent.h) |
 | Docking and launching on the server: space support's checks and waiting list, the approach and the carry in and out (tasks 2.3 and 2.4) | [`GameLogic/SpaceSupport.h`](GameLogic/SpaceSupport.h), [`GameLogic/Universe.h`](GameLogic/Universe.h) |
 | The docked view and the UI foundation it is built on (tasks 2.5a and 2.5) | [`GameApp/DockedView.h`](GameApp/DockedView.h), [`NeuronClient/HudBatch.h`](NeuronClient/HudBatch.h), [`NeuronClient/ControlFocus.h`](NeuronClient/ControlFocus.h), [`Assets/Ui/`](Assets/Ui/), ADR-023 |
@@ -209,18 +212,18 @@ Every library has its own test project under `Tests\`. In Visual Studio, *Test �
 | `Tests\NeuronClientTests` | 46 | Selection maths: ships ahead, beside the view, straddling the near plane and behind the camera; pick rays; click versus drag; orbit-camera limits; pixel differences between captures, the report's image line, and the `--expect` tolerance. Bindings: key names, contexts and their precedence, holds and repeats, a key held across a context switch. The chase camera: its offset at rest, lag, look-ahead, levelling and shake. The UI foundation: sprites and nine-slice panels in the HUD batch, the sprite manifest and its errors by line, button skins, and control focus with pointer, keyboard and disabled controls |
 | `Tests\NeuronServerTests` | 12 | The tick clock at 60 Hz (ADR-007): whole ticks, carried remainders, ten minutes exactly 36,000 ticks, stall catch-up, interpolation. The save file: sections round trip as readable records, a file cut short or miscounted is refused, and writing replaces the file whole |
 | `Tests\GameCoreTests` | 93 | The canonical palette, including byte equality across every model; scene parsing and validation; the shipped blueprint landing on its dock; the message catalogue: round trips, header, refusals, routes, the datagram budget, and applying messages to the client's world; world objects and poses; ship records; the flight model against chapter 02's worked example; the manoeuvre layer; swept collisions at every speed, bounce and collision damage. Zones: chapter 01's immersion, edges, boxes and cylinders, the smallest zone winning, hazards. Docking points, stations and the system file, with mistakes named by file and line |
-| `Tests\GameLogicTests` | 44 | The universe: its objects, the first state, exact income per minute, fractional income, capacity, reloading; the observer: one message per object, nothing sent twice, only what changed. Flight: an input timeline flown the same at 30, 60 and 144 fps, a go-to directive, a missing command, walls met at every speed regime, cruise refused near a wall, contacts recorded once, commands across the loopback. Space support: the checks in the chapter's order, the nearest free point, the waiting list and the 90 s abandonment. Docking from four start poses, launch clear and protected, commands set aside while carried, the Dock key out of range, cancel, a refused launch. The save: every field round trips, an unknown section is kept, a launch-fly-dock-quit-restart loop and a save that does not fit the content |
-| `Tests\GameAppTests` | 37 | The HUD: every vertex on screen at 720p, 1080p and 4K with ships off screen and behind the camera; build slots; scaling; fonts. The flight HUD on screen at the same sizes. The draw constants the voxel shader unprojects through, and the render origin. Input scripts: parsing, drags, clicks and keys expanded per tick, mistakes reported with the line. Mouse flight: demand from the cursor, the hold, the lock, throttle, cruise, banking. The prediction against the server's step, corrections, and interpolation. The docked view: rail and inspector on screen and clear of the HUD at three resolutions, Launch and Repair with their reasons, clicks, and the rail's sections |
+| `Tests\GameLogicTests` | 45 | The universe: its objects, the first state, exact income per minute, fractional income, capacity, reloading; the observer: one message per object, nothing sent twice, only what changed. Flight: an input timeline flown the same at 30, 60 and 144 fps, a go-to directive, a missing command, walls met at every speed regime, cruise refused near a wall, contacts recorded once, commands across the loopback. Space support: the checks in the chapter's order, the nearest free point, the waiting list and the 90 s abandonment. Docking from four start poses, launch clear and protected, commands set aside while carried, the Dock key out of range, cancel, a refused launch. The save: every field round trips, an unknown section is kept, a launch-fly-dock-quit-restart loop, a save that does not fit the content, and the stored hazard save resuming at rest inside the breach |
+| `Tests\GameAppTests` | 45 | The HUD: every vertex on screen at 720p, 1080p and 4K with ships off screen and behind the camera; build slots; scaling; fonts. The flight HUD on screen at the same sizes. The draw constants the voxel shader unprojects through, and the render origin. Input scripts: parsing, drags, clicks and keys expanded per tick, mistakes reported with the line. Mouse flight: demand from the cursor, the hold, the lock, throttle, cruise, banking. The prediction against the server's step, corrections, and interpolation. The docked view: rail and inspector on screen and clear of the HUD at three resolutions, Launch and Repair with their reasons, clicks, and the rail's sections. The hazard warning: on inside the shipped breach and off outside it, weaker across the zone's edge, interference without damage for a protected ship; its place on the flight HUD at three resolutions. The stored smoke scripts: both parse, and the flight script's first click lands on Launch |
 
 Smoke-test options:
 
 - `--frames N`, `--size WxH`, `--no-vsync`, `--debug-layer` / `--no-debug-layer` and `--assets <dir>`.
-- `--script <file>` plays input commands at fixed server ticks: `drag`, `click`, `move`, `wheel`, `key` (held for a number of ticks), `press`, `reset`, `help` and `status`. Keys are named as in `Bindings.txt`. The examples are `Design\Measurements\ScriptedSmoke.txt` (the tactical view) and `FlightSmoke.txt` (flying, then an order). `FlightSmoke.txt` predates the docked start and is due to be rewritten; see SmokeBaseline.md.
+- `--script <file>` plays input commands at fixed server ticks: `drag`, `click`, `move`, `wheel`, `key` (held for a number of ticks), `press`, `reset`, `help` and `status`. Keys are named as in `Bindings.txt`. The examples are `Design\Measurements\ScriptedSmoke.txt` (the tactical view) and `FlightSmoke.txt` (a launch, then a flight under the frigate into the breach's hazard zone). The stored capture for `FlightSmoke.txt` predates the script and is due from one WARP run; see SmokeBaseline.md.
 - `--expect <report>` fails the run when the image statistics leave a stored report's tolerance.
 
 `--benchmark` times every frame on the GPU. The F6 crowd scenes it was measured on came from a generator that left the tree with `AssetGenerator` ([F6-RendererBaseline.md](Design/Measurements/F6-RendererBaseline.md)).
 
-Checking against the stored references is described in [SmokeBaseline.md](Design/Measurements/SmokeBaseline.md). The smoke test always renders in a window of exactly `--size`, never fullscreen, so its captures do not depend on the monitor.
+Checking against the stored references is described in [SmokeBaseline.md](Design/Measurements/SmokeBaseline.md). It also describes `HazardSmokeSave.txt`, a save that resumes inside the breach's hazard zone; CI resumes it on WARP to draw the hazard warning. The smoke test always renders in a window of exactly `--size`, never fullscreen, so its captures do not depend on the monitor.
 
 Exit codes:
 
@@ -241,7 +244,20 @@ Exit codes:
 
 ### What was run for this version
 
-On 2026-11-22, on branch `slice-2-dock` (slice 2, tasks 2.1 to 2.7 and 2.5a; 2.8 is not done), Windows 11 with an RTX 3070 Ti Laptop GPU:
+On 2026-11-22, on branch `claude/mvp-phase-2-rm5qve` (slice 2, task 2.8 and the flight script). **Nothing was run on a Windows machine with a GPU, and nobody has seen the hazard warning on a screen.** The work was done in a Linux container; what ran on Windows ran in GitHub Actions.
+
+- **GitHub Actions, run 29 of the Build workflow, at `76154d8`, started by hand on the branch:**
+  - Debug x64 built through the solution with MSVC, warnings as errors.
+  - Unit tests: 286 of 286 passed over all six suites.
+  - The material smoke views on WARP passed, as before.
+  - The new hazard smoke run on WARP, 3 frames at 1280×720: the save resumed in space, the flight HUD drew with 0 debug-layer errors, and the report reads `hazard warning: FrigateBreach, immersion 0.30, scanner -18 %, danger to hull` (SmokeBaseline.md). Its capture is the run's `hazard-review` artifact.
+  - `RunClangTidy.py` clean over 109 translation units with the pinned clang-tidy 22.1.8.
+  - `CheckProjectFiles.py`, `TestCheckers.py` and `CheckFormat.py` with the pinned clang-format clean.
+- **On Linux, not a substitute for the above:** the portable libraries built with g++ 13 against a stand-in for the unit-test framework, and 179 of the tests ran and passed there. `FlightSmoke.txt` was flown in a headless replica of the smoke loop built from the same sources (SmokeBaseline.md).
+
+Not run: Release, any build on hardware, `FlightSmoke.txt` in the executable (its stored capture is still slice 1's), the default and scripted references under `--expect`, and an interactive session played by hand.
+
+The record before, for slice 2's docking work. On 2026-11-22, on branch `slice-2-dock` (slice 2, tasks 2.1 to 2.7 and 2.5a; 2.8 is not done), Windows 11 with an RTX 3070 Ti Laptop GPU:
 
 - **Builds:** Debug and Release x64 through the solution, with no warnings. The post-build copy deployed `Assets\` in both (ADR-024).
 - **Unit tests:** `vstest.console.exe` over all six suites, Debug: 277 of 277 passed.

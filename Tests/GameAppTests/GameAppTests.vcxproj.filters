@@ -36,5 +36,8 @@
     <ClCompile Include="DockedViewTests.cpp">
       <Filter>Hud</Filter>
     </ClCompile>
+    <ClCompile Include="HazardWarningTests.cpp">
+      <Filter>Hud</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

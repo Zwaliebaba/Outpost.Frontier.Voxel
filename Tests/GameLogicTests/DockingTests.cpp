@@ -10,8 +10,10 @@
 #include "CppUnitTest.h"
 
 #include <cmath>
+#include <filesystem>
 #include <optional>
 #include <string>
+#include <system_error>
 #include <vector>
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
@@ -332,6 +334,54 @@ public:
       resumed.Tick();
     }
     Assert::IsTrue(*resumed.Flight(ship) == *universe.Flight(ship), L"and it flies on the same");
+  }
+
+  TEST_METHOD(TheStoredHazardSaveResumesInSpaceInsideTheBreach)
+  {
+    // Design/Measurements/HazardSmokeSave.txt is the save CI's smoke run resumes to draw the hazard
+    // warning (plan task 2.8). It has to keep fitting the content, and keep lying in the zone.
+    std::filesystem::path directory = Neuron::ModuleDirectory(&g_moduleAnchor);
+    std::filesystem::path file;
+    for (int parents = 0; parents <= 4 && file.empty(); ++parents)
+    {
+      const std::filesystem::path candidate = directory / "Design" / "Measurements" / "HazardSmokeSave.txt";
+      std::error_code ignored;
+      if (std::filesystem::is_regular_file(candidate, ignored))
+      {
+        file = candidate;
+      }
+      directory = directory.parent_path();
+    }
+    Assert::IsFalse(file.empty(), L"the save is found in Design/Measurements above the test DLL");
+    std::string text;
+    Assert::IsTrue(Neuron::ReadTextFile(file, text));
+
+    Outpost::Universe universe;
+    LoadShipped(universe);
+    Outpost::SaveGame save;
+    std::string error;
+    Assert::IsTrue(Outpost::ParseSaveGame(text, save, error), Wide(error).c_str());
+    Assert::IsTrue(universe.Restore(save, error), Wide(error).c_str());
+    const Outpost::ObjectId ship = universe.PlayerShip();
+    Assert::IsTrue(universe.DockStatus(ship).phase == Outpost::DockPhase::None, L"in space, flying free");
+    Assert::IsFalse(universe.Protected(ship));
+
+    const Outpost::FlightState* flight = universe.Flight(ship);
+    Assert::IsNotNull(flight);
+    const Outpost::HazardExposure exposure = Outpost::HazardAt(universe.System().zones, flight->position);
+    Assert::IsNotNull(exposure.zone, L"inside a physical zone");
+    Assert::AreEqual(std::string("FrigateBreach"), exposure.zone->name);
+    Assert::IsTrue(exposure.immersion > 0.2f, L"well inside its edge");
+    Assert::IsTrue(exposure.damagePerSecond > 0.0f && exposure.interference > 0.0f);
+
+    // At rest there, clear of the frigate above: a second of ticks moves nothing and touches nothing.
+    const Outpost::UniversePosition before = flight->position;
+    for (std::uint32_t tick = 0; tick < TICKS_PER_SECOND; ++tick)
+    {
+      universe.Tick();
+    }
+    Assert::IsTrue(Distance(before, universe.Flight(ship)->position) < 0.01);
+    Assert::IsTrue(universe.Contacts().empty());
   }
 
   TEST_METHOD(ASaveThatDoesNotFitTheContentIsRefusedAndChangesNothing)

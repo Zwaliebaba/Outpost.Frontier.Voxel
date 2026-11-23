@@ -209,6 +209,33 @@ jobs:
           path: MaterialReview
           if-no-files-found: ignore
 
+      # The hazard warning of plan task 2.8, drawn on a real device: a stored save resumes the game
+      # in space inside the frigate's breach, so three frames show the flight HUD with the warning.
+      # The run saves when it quits, so it resumes a copy and the stored save stays as it is. The
+      # report has to name the warning; the capture is uploaded for a person to look at.
+      - name: Render the hazard warning on WARP
+        if: steps.solution.outputs.path != ''
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force HazardReview | Out-Null
+          Copy-Item Design\Measurements\HazardSmokeSave.txt HazardReview\Save.txt
+          $process = Start-Process -FilePath "x64\$env:CONFIGURATION\Outpost.exe" -Wait -PassThru -ArgumentList @(
+            '--smoke-test', '--warp', '--size', '1280x720', '--frames', 3, '--save', 'HazardReview\Save.txt',
+            '--capture', 'HazardReview\HazardWarning.png', '--report', 'HazardReview\HazardWarning.txt')
+          Get-Content HazardReview\HazardWarning.txt
+          if ($process.ExitCode -ne 0) { throw "Hazard smoke failed: $($process.ExitCode)" }
+          if (-not (Select-String -Path HazardReview\HazardWarning.txt -Pattern 'hazard warning: FrigateBreach' -Quiet)) {
+            throw "The report does not name the hazard warning."
+          }
+
+      - name: Upload the hazard warning view
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hazard-review
+          path: HazardReview
+          if-no-files-found: ignore
+
       # After the build, so that a compile error is reported as a compile error rather than as
       # forty linter findings about a file that does not parse.
       - name: Run clang-tidy

@@ -43,6 +43,14 @@ enum class DockPhase : std::uint8_t
   Launching    // carried back out to the entry, collisions off and protected
 };
 
+/// Whether nothing may harm a ship in this phase (GameDesign.md D16): while it is carried in, docked,
+/// or carried out. One rule for both halves: the server honours it, and the client's hazard warning
+/// follows it.
+[[nodiscard]] constexpr bool Protects(DockPhase _phase) noexcept
+{
+  return _phase == DockPhase::Final || _phase == DockPhase::Docked || _phase == DockPhase::Launching;
+}
+
 /// The server's answer to a docking or launch command (ch. 04 §3.2), or None for a change of phase.
 enum class DockAnswer : std::uint8_t
 {
