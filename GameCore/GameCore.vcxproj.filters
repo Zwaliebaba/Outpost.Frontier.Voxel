@@ -16,6 +16,9 @@
     <Filter Include="Content">
       <UniqueIdentifier>{DFF4C181-51B9-4D34-969D-0569E82FD05D}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Combat">
+      <UniqueIdentifier>{B9834E23-12CB-5C1F-A342-A3D5B1A9CADD}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FlightModel.h">
@@ -60,6 +63,21 @@
     <ClInclude Include="DockingPoint.h">
       <Filter>Content</Filter>
     </ClInclude>
+    <ClInclude Include="ModuleRegion.h">
+      <Filter>Combat</Filter>
+    </ClInclude>
+    <ClInclude Include="Launcher.h">
+      <Filter>Combat</Filter>
+    </ClInclude>
+    <ClInclude Include="Shield.h">
+      <Filter>Combat</Filter>
+    </ClInclude>
+    <ClInclude Include="MaskEvent.h">
+      <Filter>Combat</Filter>
+    </ClInclude>
+    <ClInclude Include="Pilot.h">
+      <Filter>Combat</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FlightModel.cpp">
@@ -100,6 +118,21 @@
     </ClCompile>
     <ClCompile Include="DockingPoint.cpp">
       <Filter>Content</Filter>
+    </ClCompile>
+    <ClCompile Include="ModuleRegion.cpp">
+      <Filter>Combat</Filter>
+    </ClCompile>
+    <ClCompile Include="Launcher.cpp">
+      <Filter>Combat</Filter>
+    </ClCompile>
+    <ClCompile Include="Shield.cpp">
+      <Filter>Combat</Filter>
+    </ClCompile>
+    <ClCompile Include="MaskEvent.cpp">
+      <Filter>Combat</Filter>
+    </ClCompile>
+    <ClCompile Include="Pilot.cpp">
+      <Filter>Combat</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

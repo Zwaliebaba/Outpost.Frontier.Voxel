@@ -31,6 +31,7 @@ void FlightInput::Bind(const Neuron::CommandMap& _commands)
   m_ids.mouseFlight = _commands.FindCommand("MouseFlight");
   m_ids.mouseFlightLock = _commands.FindCommand("MouseFlightLock");
   m_ids.cancel = _commands.FindCommand("Cancel");
+  m_ids.fire = _commands.FindCommand("Fire");
 }
 
 void FlightInput::SetThrottle(float _throttle) noexcept
@@ -194,6 +195,7 @@ ShipCommand FlightInput::Sample(const Neuron::CommandMap& _commands, const Fligh
   wishes.thruster = held(m_ids.thruster);
   wishes.engineOn = m_engineOn;
   wishes.cruise = m_cruise;
+  wishes.fire = m_mouseEnabled && held(m_ids.fire);
   if (held(m_ids.strafeLeft))
   {
     wishes.strafe = StrafeDirection::Left;

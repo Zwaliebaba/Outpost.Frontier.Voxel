@@ -102,6 +102,8 @@
     <ClCompile Include="FlightHudTests.cpp" />
     <ClCompile Include="DockedViewTests.cpp" />
     <ClCompile Include="HazardWarningTests.cpp" />
+    <ClCompile Include="ClientCombatTests.cpp" />
+    <ClCompile Include="TargetingTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\NeuronCore\NeuronCore.vcxproj">

@@ -57,6 +57,7 @@ void TacticalScene::Build(const SceneAssets& _assets, const UniverseSnapshot& _u
     view.instance = scene.FindInstance(object.name);
     view.asset = scene.FindModel(object.model);
     view.model = _assets.FindModel(object.model);
+    view.sharedModel = view.model;
     if (view.asset == nullptr || view.model == nullptr)
     {
       continue;
@@ -82,11 +83,22 @@ void TacticalScene::Build(const SceneAssets& _assets, const UniverseSnapshot& _u
     {
       view.kind = InstanceView::Kind::Debris;
     }
+    if (view.instance == nullptr)
+    {
+      // Only a fight makes objects the scene did not place: what it cut loose.
+      view.kind = InstanceView::Kind::Wreck;
+    }
     m_instances.push_back(view);
   }
   BuildStars();
   // Placed at the snapshot's poses until the first Update says where the camera is.
   Update(_universe, {}, m_origin);
+}
+
+void TacticalScene::SetOverrides(std::vector<ModelOverride> _overrides)
+{
+  m_overrides = std::move(_overrides);
+  std::ranges::sort(m_overrides, {}, &ModelOverride::object);
 }
 
 UniversePosition TacticalScene::RenderOriginFor(const UniversePosition& _camera) noexcept
@@ -137,6 +149,11 @@ void TacticalScene::Place(const UniverseSnapshot& _universe, std::span<const Pos
       object.pose = _poses[view.objectIndex];
     }
     view.pose = object.pose;
+    // A damaged object is drawn from its own surface; a wreck, only once it has one.
+    const auto overridden = std::ranges::lower_bound(m_overrides, view.object, {}, &ModelOverride::object);
+    const bool found = overridden != m_overrides.end() && overridden->object == view.object;
+    view.model = found && overridden->model != nullptr ? overridden->model : view.sharedModel;
+    view.hidden = (found && overridden->model == nullptr) || (view.kind == InstanceView::Kind::Wreck && !found);
     // The pose relative to the render origin, so that the float matrix stays precise (ADR-010).
     object.pose.position =
       UniversePosition{object.pose.position.x - m_origin.x, object.pose.position.y - m_origin.y, object.pose.position.z - m_origin.z};
@@ -194,7 +211,7 @@ void TacticalScene::BuildEffects(const UniverseSnapshot& _universe)
 
   for (const InstanceView& view : m_instances)
   {
-    if (view.kind == InstanceView::Kind::Blueprint)
+    if (view.kind == InstanceView::Kind::Blueprint || view.hidden)
     {
       continue;
     }
@@ -301,7 +318,7 @@ void TacticalScene::BuildShadowCamera(const XMFLOAT3& _camera)
   const XMVECTOR camera = XMLoadFloat3(&_camera);
   for (const InstanceView& view : m_instances)
   {
-    if (view.kind == InstanceView::Kind::Blueprint ||
+    if (view.kind == InstanceView::Kind::Blueprint || view.hidden ||
         XMVectorGetX(XMVector3Length(XMVectorSubtract(XMLoadFloat3(&view.bounds.center), camera))) > SHADOW_RANGE_METRES)
     {
       continue;
@@ -349,7 +366,28 @@ const InstanceView* TacticalScene::PickShip(const Neuron::Ray& _ray) const noexc
   float bestDistance = std::numeric_limits<float>::max();
   for (const InstanceView& view : m_instances)
   {
-    if (view.kind != InstanceView::Kind::Ship)
+    if (view.kind != InstanceView::Kind::Ship || view.hidden)
+    {
+      continue;
+    }
+    float distance = 0.0f;
+    XMFLOAT3 normal{};
+    if (Neuron::IntersectRayBox(view.bounds, _ray, true, distance, normal) && distance >= 0.0f && distance < bestDistance)
+    {
+      bestDistance = distance;
+      best = &view;
+    }
+  }
+  return best;
+}
+
+const InstanceView* TacticalScene::PickTarget(const Neuron::Ray& _ray) const noexcept
+{
+  const InstanceView* best = nullptr;
+  float bestDistance = std::numeric_limits<float>::max();
+  for (const InstanceView& view : m_instances)
+  {
+    if ((view.kind != InstanceView::Kind::Ship && view.kind != InstanceView::Kind::Station) || view.hidden)
     {
       continue;
     }
@@ -430,7 +468,8 @@ void TacticalScene::RenderShadows(Neuron::Renderer& _renderer) const
   _renderer.BeginShadowPass(frame);
   for (const InstanceView& view : m_instances)
   {
-    if (view.kind == InstanceView::Kind::Blueprint || view.kind == InstanceView::Kind::Debris)
+    if (view.kind == InstanceView::Kind::Blueprint || view.kind == InstanceView::Kind::Debris || view.hidden ||
+        view.model->gpu.voxelCount == 0)
     {
       continue;
     }
@@ -443,7 +482,7 @@ void TacticalScene::Render(Neuron::Renderer& _renderer, const ViewSetup& _view, 
 {
   for (const InstanceView& view : m_instances)
   {
-    if (view.kind == InstanceView::Kind::Blueprint)
+    if (view.kind == InstanceView::Kind::Blueprint || view.hidden || view.model->gpu.voxelCount == 0)
     {
       continue;
     }
@@ -459,7 +498,7 @@ void TacticalScene::Render(Neuron::Renderer& _renderer, const ViewSetup& _view, 
   _renderer.DrawLines(m_blueprintLines);
 
   std::vector<Neuron::GpuEffect> effects;
-  effects.reserve(m_starDirections.size() + m_staticGlows.size() + m_plumes.size() * 2);
+  effects.reserve(m_starDirections.size() + m_staticGlows.size() + m_plumes.size() * 2 + m_combatEffects.size());
   for (const XMFLOAT4& star : m_starDirections)
   {
     const XMFLOAT3 position{_view.position.x + star.x * STAR_DISTANCE, _view.position.y + star.y * STAR_DISTANCE,
@@ -471,6 +510,7 @@ void TacticalScene::Render(Neuron::Renderer& _renderer, const ViewSetup& _view, 
       position, size, position, size, halo, core, Neuron::EFFECT_GLOW | Neuron::EFFECT_WIDTH_IN_PIXELS, {0.0f, 0.0f, 0.0f}});
   }
   effects.insert(effects.end(), m_staticGlows.begin(), m_staticGlows.end());
+  effects.insert(effects.end(), m_combatEffects.begin(), m_combatEffects.end());
   for (const Plume& plume : m_plumes)
   {
     const float flicker = 0.94f + 0.06f * std::sin(_timeSeconds * 23.0f + plume.phase) * std::sin(_timeSeconds * 7.0f + plume.phase * 2.0f);

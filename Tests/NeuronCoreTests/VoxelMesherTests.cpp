@@ -57,6 +57,55 @@ public:
                                        { return _face.voxel == Neuron::Int3{1, 1, 1} && _face.direction == Neuron::FaceDirection::NegX; }));
   }
 
+  TEST_METHOD(BricksTogetherGiveTheWholeSurface)
+  {
+    // A ragged 20-cell block, cut into 8-cell bricks so that bricks meet inside it and at its edge.
+    Neuron::VoxModel model(20, 19, 21);
+    std::uint32_t state = 12345;
+    for (int z = 0; z < 21; ++z)
+    {
+      for (int y = 0; y < 19; ++y)
+      {
+        for (int x = 0; x < 20; ++x)
+        {
+          state = state * 1664525u + 1013904223u;
+          if ((state >> 24) < 170)
+          {
+            model.Set(x, y, z, static_cast<std::uint8_t>(1 + ((state >> 8) % 3)));
+          }
+        }
+      }
+    }
+    const Neuron::VoxelSurface whole = Neuron::ExtractSurface(model);
+    std::vector<Neuron::SurfaceVoxel> joined;
+    std::size_t solid = 0;
+    for (int z = 0; z < 21; z += 8)
+    {
+      for (int y = 0; y < 19; y += 8)
+      {
+        for (int x = 0; x < 20; x += 8)
+        {
+          const Neuron::VoxelSurface brick =
+            Neuron::ExtractSurfaceRegion(model, nullptr, Neuron::Int3{x, y, z}, Neuron::Int3{x + 7, y + 7, z + 7});
+          Assert::IsTrue(brick.faces.empty());
+          solid += brick.solidCount;
+          joined.insert(joined.end(), brick.voxels.begin(), brick.voxels.end());
+        }
+      }
+    }
+    const auto key = [](const Neuron::SurfaceVoxel& _voxel) { return (_voxel.z * 256 + _voxel.y) * 256 + _voxel.x; };
+    std::ranges::sort(joined, {}, key);
+    Assert::AreEqual(whole.solidCount, solid);
+    Assert::AreEqual(whole.voxels.size(), joined.size());
+    for (std::size_t i = 0; i < joined.size(); ++i)
+    {
+      Assert::AreEqual(key(whole.voxels[i]), key(joined[i]));
+      Assert::AreEqual(whole.voxels[i].colorIndex, joined[i].colorIndex);
+      Assert::AreEqual(whole.voxels[i].exposedFaceMask, joined[i].exposedFaceMask);
+      Assert::AreEqual(whole.voxels[i].faceOcclusion, joined[i].faceOcclusion);
+    }
+  }
+
   TEST_METHOD(SingleVoxelHasSixOutwardFaces)
   {
     Neuron::VoxModel model(3, 3, 3);

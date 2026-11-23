@@ -99,6 +99,8 @@
     <ClInclude Include="VoxelWireframe.h" />
     <ClInclude Include="WindowsSdk.h" />
     <ClInclude Include="WireFormat.h" />
+    <ClInclude Include="VoxelMask.h" />
+    <ClInclude Include="VoxelCarve.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DdsFile.cpp" />
@@ -113,6 +115,8 @@
     <ClCompile Include="WireFormat.cpp" />
     <ClCompile Include="VoxelMesher.cpp" />
     <ClCompile Include="VoxelWireframe.cpp" />
+    <ClCompile Include="VoxelMask.cpp" />
+    <ClCompile Include="VoxelCarve.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

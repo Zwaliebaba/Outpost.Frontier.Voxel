@@ -94,6 +94,8 @@
     <ClInclude Include="SaveGame.h" />
     <ClInclude Include="SaveRecord.h" />
     <ClInclude Include="SpaceSupport.h" />
+    <ClInclude Include="Combat.h" />
+    <ClInclude Include="Ai.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Observer.cpp" />
@@ -103,6 +105,8 @@
     <ClCompile Include="SaveGame.cpp" />
     <ClCompile Include="SaveRecord.cpp" />
     <ClCompile Include="SpaceSupport.cpp" />
+    <ClCompile Include="Combat.cpp" />
+    <ClCompile Include="Ai.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NeuronCore\NeuronCore.vcxproj">

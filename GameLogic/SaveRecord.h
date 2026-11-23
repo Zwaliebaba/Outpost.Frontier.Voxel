@@ -2,13 +2,16 @@
 
 #include "RecordFile.h"
 #include "UniverseObject.h"
+#include "VoxelMask.h"
 
 #include <DirectXMath.h>
 
 #include <cstdint>
 #include <initializer_list>
 #include <string>
+#include <span>
 #include <string_view>
+#include <vector>
 
 namespace Outpost
 {
@@ -25,6 +28,9 @@ namespace Outpost
 [[nodiscard]] std::string SaveText(const UniversePosition& _value);
 [[nodiscard]] std::string SaveText(const DirectX::XMFLOAT3& _value);
 [[nodiscard]] std::string SaveText(const DirectX::XMFLOAT4& _value);
+/// Cell spans as "start:count", comma-separated (ADR-012's mask records).
+[[nodiscard]] std::string SaveText(std::span<const Neuron::CellSpan> _value);
+[[nodiscard]] std::string SaveText(std::span<const std::int32_t> _value);
 
 /// Reads one record of a save section: only the keys it allows, each required, and the first
 /// failure is kept as "<section> line <n>: <what>".
@@ -49,6 +55,13 @@ public:
   void Read(std::string_view _key, UniversePosition& _out);
   void Read(std::string_view _key, DirectX::XMFLOAT3& _out);
   void Read(std::string_view _key, DirectX::XMFLOAT4& _out);
+  void Read(std::string_view _key, std::vector<Neuron::CellSpan>& _out);
+  void Read(std::string_view _key, std::span<std::int32_t> _out);
+  /// Whether an optional key is there, so that a field added later reads from an older save.
+  [[nodiscard]] bool Has(std::string_view _key) const noexcept
+  {
+    return m_record.Find(_key) != nullptr;
+  }
   [[nodiscard]] bool Fail(std::string_view _message);
 
   [[nodiscard]] bool Ok() const noexcept

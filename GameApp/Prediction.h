@@ -32,6 +32,11 @@ public:
   }
   /// The bodies the ship can meet that the client can foresee: the static ones.
   void SetBodies(std::vector<CollisionBox> _bodies);
+  /// The ship's spec as its modules now leave it (plan task 3.6), for every tick flown from here.
+  void SetSpec(const ShipFlightSpec& _spec) noexcept
+  {
+    m_body.spec = _spec;
+  }
 
   /// Flies the next tick on a command and remembers it.
   const ShipTickResult& Step(const ShipCommand& _command, std::uint32_t _ticksPerSecond);

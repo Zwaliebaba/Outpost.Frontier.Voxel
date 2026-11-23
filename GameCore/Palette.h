@@ -1,6 +1,7 @@
 #pragma once
 
 #include "VoxModel.h"
+#include "VoxelCarve.h"
 #include "VoxelMaterial.h"
 
 #include <cstdint>
@@ -50,5 +51,23 @@ inline constexpr std::uint8_t FAMILY_SHADES = 8;
 
 /// Each index's emission, glow radius and flash period. Shared by every rendered model.
 [[nodiscard]] const Neuron::VoxelMaterialTable& MaterialTable() noexcept;
+
+/// What a palette family is made of (plan task 3.2, ADR-014): what a cell costs a carve to remove,
+/// in the same integer units a weapon's carve energy is given in; what it weighs; and what Ore
+/// mining it yields (slice 5). Armour is a stronger outer material, not a divisor.
+struct StructuralMaterial
+{
+  std::uint32_t strength = 0;
+  float massKilograms = 0.0f;
+  std::uint32_t oreYield = 0;
+};
+
+[[nodiscard]] const StructuralMaterial& MaterialOf(std::uint8_t _colorIndex) noexcept;
+/// The strength of every colour index, as the carve reads it.
+[[nodiscard]] const Neuron::StrengthTable& MaterialStrengths() noexcept;
+
+/// What a player owns is this much tougher in its module cells (GameDesign.md §7.1: the blueprint
+/// makes a player's parts three times harder to break than an NPC's in the same hull).
+inline constexpr std::uint32_t PLAYER_MODULE_TOUGHNESS = 3;
 
 } // namespace Outpost

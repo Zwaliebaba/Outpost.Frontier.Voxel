@@ -40,8 +40,22 @@ public:
     return m_lastMessageCount;
   }
 
+  /// The snapshot that tells a client an object's mask: against the archetype's full mask or the
+  /// empty one, whichever takes fewer spans.
+  [[nodiscard]] static MaskSnapshotMessage SnapshotOf(ObjectId _object, const Neuron::VoxelMask& _mask, const Neuron::VoxelMask& _full);
+
 private:
+  // What the client holds of one object's mask: the last event it was sent, and the revision.
+  struct SentMask
+  {
+    ObjectId object = NO_OBJECT;
+    std::uint64_t lastEvent = 0;
+    std::uint32_t revision = 0;
+  };
+
   [[nodiscard]] bool Send(const Message& _message, Neuron::LoopbackTransport& _transport);
+  [[nodiscard]] bool PublishMasks(const Universe& _universe, const std::vector<ObjectId>& _spawned, Neuron::LoopbackTransport& _transport);
+  [[nodiscard]] bool PublishBolts(const Universe& _universe, Neuron::LoopbackTransport& _transport);
 
   std::optional<std::uint64_t> m_sentTick;
   std::vector<UniverseObject> m_knownObjects; // as the client was last told
@@ -49,6 +63,10 @@ private:
   std::vector<ObjectiveState> m_sentObjectives;
   std::vector<ResourceState> m_sentResources;
   std::vector<ShipMotionState> m_sentMotions;
+  std::vector<SentMask> m_sentMasks;
+  std::uint64_t m_eventsSeen = 0;
+  std::uint64_t m_firedSeen = 0;
+  std::uint64_t m_hitsSeen = 0;
   ObjectId m_ownShip = NO_OBJECT;
   std::optional<std::uint64_t> m_ownShipSentTick;
   std::optional<DockStatusState> m_sentDock;

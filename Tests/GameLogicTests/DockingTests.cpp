@@ -157,6 +157,22 @@ public:
     }
   }
 
+  TEST_METHOD(DockGoesToTheTargetedStationAndOtherwiseTheNearest)
+  {
+    // GameDesign.md D26: Dock with a station targeted docks there; any other target leaves it to D20.
+    for (const char* target : {"CollarWest", "Frigate", ""})
+    {
+      Outpost::Universe universe;
+      LoadShipped(universe);
+      PlaceInSpace(universe, Outpost::UniversePosition{0.0, 16.0, -1500.0});
+      const Outpost::ObjectId ship = universe.PlayerShip();
+      const Outpost::ObjectId station = universe.FindByName(target);
+      Assert::IsTrue(universe.Command(Outpost::DockCommandMessage{universe.State().tick, ship, Outpost::DockCommand::Dock, station}));
+      Assert::IsTrue(PhaseOf(universe) != Outpost::DockPhase::None, Wide(target).c_str());
+      Assert::AreEqual(universe.System().startStation, universe.DockStatus(ship).station);
+    }
+  }
+
   TEST_METHOD(TheServerSetsThePlayersCommandsAsideWhileItFlies)
   {
     Outpost::Universe universe;

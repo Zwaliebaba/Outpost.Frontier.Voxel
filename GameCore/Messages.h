@@ -1,6 +1,7 @@
 #pragma once
 
 #include "LoopbackTransport.h"
+#include "MaskEvent.h"
 #include "ShipFlight.h"
 #include "UniverseSnapshot.h"
 
@@ -19,7 +20,7 @@ namespace Outpost
 // kind has a fixed route: reliable on a named stream, or a datagram whose newest copy wins.
 
 /// Raised whenever a message is added, removed or changes its encoding.
-inline constexpr std::uint16_t CATALOGUE_VERSION = 4;
+inline constexpr std::uint16_t CATALOGUE_VERSION = 6;
 
 /// Every encoded message begins with: catalogue version (16 bits), kind (16 bits), payload length
 /// in bytes (32 bits).
@@ -42,7 +43,13 @@ enum class MessageKind : std::uint16_t
   OwnShip = 8,
   ShipMotion = 9,
   DockCommand = 10,
-  DockStatus = 11
+  DockStatus = 11,
+  ObjectRemoved = 12,
+  UseItem = 13,
+  MaskSnapshot = 14,
+  DamageEvent = 15,
+  BoltFired = 16,
+  BoltHit = 17
 };
 
 /// The server's tick, so the client knows how current its picture is. Newest wins.
@@ -140,6 +147,7 @@ struct DockCommandMessage
   std::uint64_t tick = 0; // the client's tick when it asked
   ObjectId ship = NO_OBJECT;
   DockCommand command = DockCommand::Dock;
+  ObjectId station = NO_OBJECT; // Dock: the station the pilot has targeted, or none for the nearest (GameDesign.md D26)
 
   friend bool operator==(const DockCommandMessage&, const DockCommandMessage&) = default;
 };
@@ -155,8 +163,104 @@ struct DockStatusMessage
   friend bool operator==(const DockStatusMessage&, const DockStatusMessage&) = default;
 };
 
-using Message = std::variant<TickMessage, ShipMessage, ObjectiveMessage, ResourceMessage, ObjectSpawnMessage, ObjectStateMessage,
-                             FlightInputMessage, OwnShipMessage, ShipMotionMessage, DockCommandMessage, DockStatusMessage>;
+/// Server to client: an object the client was told of no longer exists: destroyed, or gone (plan
+/// task 3.7). Its ship and motion go with it. A fact: reliable, on the universe stream.
+struct ObjectRemovedMessage
+{
+  std::uint64_t tick = 0;
+  ObjectId id = NO_OBJECT;
+
+  friend bool operator==(const ObjectRemovedMessage&, const ObjectRemovedMessage&) = default;
+};
+
+/// What a ship carries that can be used in flight (plan task 3.11).
+enum class ItemKind : std::uint8_t
+{
+  RepairKit // patches structure in the field, and leaves modules for a hangar
+};
+
+/// Client to server: use one of an item the ship carries. Reliable, on the commands stream: each one
+/// is acted on once, in order.
+struct UseItemMessage
+{
+  std::uint64_t tick = 0; // the client's tick when it asked
+  ObjectId ship = NO_OBJECT;
+  ItemKind item = ItemKind::RepairKit;
+
+  friend bool operator==(const UseItemMessage&, const UseItemMessage&) = default;
+};
+
+/// What a snapshot's spans are counted against.
+enum class MaskReference : std::uint8_t
+{
+  Full, // the archetype's every cell: the spans are the cells absent
+  Empty // no cell: the spans are the cells present
+};
+
+/// Server to client: an object's whole voxel mask, and the last of its mask events it includes
+/// (AGENTS.md R22, ADR-012). Sent when the client is told of an object whose mask is not the one its
+/// scene instance starts with, and whenever the mask changed by anything but an event: a save
+/// restored, a ship returned to its base, a wreck cut loose. The client applies the events after it.
+/// Reliable, on the universe stream.
+struct MaskSnapshotMessage
+{
+  ObjectId object = NO_OBJECT;
+  std::uint64_t lastEvent = 0;
+  MaskReference reference = MaskReference::Full;
+  std::vector<Neuron::CellSpan> spans; // sorted and apart: the cells that differ from the reference
+
+  friend bool operator==(const MaskSnapshotMessage&, const MaskSnapshotMessage&) = default;
+};
+
+/// Server to client: one mask event, as the authority issued it (ADR-012's table). The client
+/// applies it with ApplyMaskEvent, the function the server applied it with. Reliable, on the
+/// universe stream, so each object's events arrive in their order.
+struct DamageEventMessage
+{
+  MaskEvent event;
+
+  friend bool operator==(const DamageEventMessage&, const DamageEventMessage&) = default;
+};
+
+/// Server to client: a bolt left a muzzle (plan task 3.9's tracers). It flies straight from its
+/// origin at its velocity until its lifetime runs out or a BoltHit ends it. Presentation only; a
+/// fact, so reliable on the universe stream.
+struct BoltFiredMessage
+{
+  std::uint64_t tick = 0;
+  std::uint32_t bolt = 0; // the server's number for it
+  ObjectId shooter = NO_OBJECT;
+  UniversePosition origin;
+  DirectX::XMFLOAT3 velocityMetresPerSecond{};
+  std::int32_t lifetimeTicks = 0;
+
+  // Written out: DirectX::XMFLOAT3 has no equality of its own.
+  friend bool operator==(const BoltFiredMessage& _a, const BoltFiredMessage& _b) noexcept
+  {
+    return _a.tick == _b.tick && _a.bolt == _b.bolt && _a.shooter == _b.shooter && _a.origin == _b.origin &&
+           _a.velocityMetresPerSecond.x == _b.velocityMetresPerSecond.x && _a.velocityMetresPerSecond.y == _b.velocityMetresPerSecond.y &&
+           _a.velocityMetresPerSecond.z == _b.velocityMetresPerSecond.z && _a.lifetimeTicks == _b.lifetimeTicks;
+  }
+};
+
+/// Server to client: a bolt met something, where, and what it did, for sparks and embers. The mask
+/// change, if any, is its own DamageEvent. Reliable, on the universe stream.
+struct BoltHitMessage
+{
+  std::uint64_t tick = 0;
+  std::uint32_t bolt = 0;
+  ObjectId target = NO_OBJECT;
+  UniversePosition position;
+  bool shield = false;  // it met the bubble
+  bool harmful = false; // false: it stopped and did nothing (D2, D16, D24)
+
+  friend bool operator==(const BoltHitMessage&, const BoltHitMessage&) = default;
+};
+
+using Message =
+  std::variant<TickMessage, ShipMessage, ObjectiveMessage, ResourceMessage, ObjectSpawnMessage, ObjectStateMessage, FlightInputMessage,
+               OwnShipMessage, ShipMotionMessage, DockCommandMessage, DockStatusMessage, ObjectRemovedMessage, UseItemMessage,
+               MaskSnapshotMessage, DamageEventMessage, BoltFiredMessage, BoltHitMessage>;
 
 /// How a kind of message travels.
 struct Route

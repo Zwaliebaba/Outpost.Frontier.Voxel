@@ -4,6 +4,7 @@
 #include "TacticalHud.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <numbers>
@@ -25,6 +26,9 @@ constexpr float WARNING_WIDTH = 340.0f;
 constexpr float WARNING_HEIGHT = 62.0f;
 constexpr float WARNING_TOP = 84.0f;
 constexpr float WARNING_PULSES_PER_SECOND = 1.0f;
+constexpr float TARGET_PANEL_WIDTH = 300.0f;
+constexpr float TARGET_PANEL_HEIGHT = 124.0f;
+constexpr float TARGET_PANEL_MARGIN = 24.0f;
 
 [[nodiscard]] Neuron::ScreenRect Rect(float _x, float _y, float _width, float _height) noexcept
 {
@@ -85,6 +89,92 @@ void Bar(HudBatch& _batch, const Neuron::ScreenRect& _rect, float _share, std::u
   return Rect(x, y, width, height);
 }
 
+/// Corner brackets around the target on screen, and its lead marker.
+void Brackets(HudBatch& _batch, const FlightHudInput& _input)
+{
+  const float s = _input.scale;
+  const TargetReadout& target = _input.target;
+  const std::uint32_t color = target.hostile ? RED : ACCENT;
+  const float thickness = std::max(1.0f, 1.8f * s);
+  if (target.onScreen)
+  {
+    // At least a little box, so a far target is still bracketed.
+    const float half = 10.0f * s;
+    const float centerX = (target.bracket.left + target.bracket.right) * 0.5f;
+    const float centerY = (target.bracket.top + target.bracket.bottom) * 0.5f;
+    const float left = std::min(target.bracket.left, centerX - half);
+    const float right = std::max(target.bracket.right, centerX + half);
+    const float top = std::min(target.bracket.top, centerY - half);
+    const float bottom = std::max(target.bracket.bottom, centerY + half);
+    const float arm = std::min({12.0f * s, (right - left) * 0.4f, (bottom - top) * 0.4f});
+    for (const auto& [x, y, dx, dy] : {std::array<float, 4>{left, top, 1.0f, 1.0f}, std::array<float, 4>{right, top, -1.0f, 1.0f},
+                                       std::array<float, 4>{left, bottom, 1.0f, -1.0f}, std::array<float, 4>{right, bottom, -1.0f, -1.0f}})
+    {
+      _batch.Line(x, y, x + dx * arm, y, thickness, color);
+      _batch.Line(x, y, x, y + dy * arm, thickness, color);
+    }
+    char text[96]{};
+    std::snprintf(text, sizeof(text), "%s  %.0f M", target.callsign.c_str(), static_cast<double>(target.distanceMetres));
+    _batch.Text(FontTiny, centerX, bottom + 4.0f * s, text, color, Neuron::TextAlign::Center);
+  }
+  if (target.leadOnScreen)
+  {
+    const float r = 7.0f * s;
+    const float x = target.lead.x;
+    const float y = target.lead.y;
+    _batch.Line(x, y - r, x + r, y, thickness, AMBER);
+    _batch.Line(x + r, y, x, y + r, thickness, AMBER);
+    _batch.Line(x, y + r, x - r, y, thickness, AMBER);
+    _batch.Line(x - r, y, x, y - r, thickness, AMBER);
+  }
+}
+
+/// The target's figures, top right: its shield and structure, and the module sub-targeted.
+[[nodiscard]] Neuron::ScreenRect TargetPanel(HudBatch& _batch, const FlightHudInput& _input)
+{
+  const float s = _input.scale;
+  const TargetReadout& target = _input.target;
+  const std::uint32_t color = target.hostile ? RED : ACCENT;
+  const float width = std::min(TARGET_PANEL_WIDTH * s, _input.width * 0.4f);
+  const float height = TARGET_PANEL_HEIGHT * s;
+  const float x = _input.width - width - TARGET_PANEL_MARGIN * s;
+  const float y = TARGET_PANEL_MARGIN * s;
+  _batch.Rect(x, y, width, height, PANEL_FILL);
+  _batch.Outline(x, y, width, height, std::max(1.0f, 1.2f * s), PANEL_EDGE_DIM);
+  _batch.Rect(x, y, width, 3.0f * s, color);
+  _batch.Text(FontBodyStrong, x + 14.0f * s, y + 10.0f * s, target.callsign, color);
+  char text[96]{};
+  std::snprintf(text, sizeof(text), "%.0f M", static_cast<double>(target.distanceMetres));
+  _batch.Text(FontSmall, x + width - 14.0f * s, y + 12.0f * s, text, TEXT_DIM, Neuron::TextAlign::Right);
+  if (target.ship)
+  {
+    const float barX = x + 14.0f * s;
+    const float barWidth = width - 28.0f * s;
+    if (target.shieldPercent >= 0)
+    {
+      Bar(_batch, Rect(barX, y + 52.0f * s, barWidth * 0.48f, BAR_HEIGHT * s), static_cast<float>(target.shieldPercent) / 100.0f, ACCENT,
+          target.shieldPercent == 0 ? "SHIELD DOWN" : "SHIELD", s);
+    }
+    const float hull = static_cast<float>(target.hullPercent) / 100.0f;
+    Bar(_batch, Rect(barX + barWidth * 0.52f, y + 52.0f * s, barWidth * 0.48f, BAR_HEIGHT * s), hull,
+        target.hullPercent < 50 ? RED : (target.hullPercent < 80 ? AMBER : GREEN), "STRUCTURE", s);
+    if (target.module.empty())
+    {
+      _batch.Text(FontSmall, barX, y + 76.0f * s, "WHOLE SHIP   [ ]: MODULE", TEXT_DIM);
+    }
+    else
+    {
+      std::snprintf(text, sizeof(text), "%s  %d %%", target.module.c_str(), target.modulePercent);
+      _batch.Text(FontSmall, barX, y + 76.0f * s, text, target.modulePercent < 50 ? RED : TEXT);
+    }
+  }
+  else
+  {
+    _batch.Text(FontSmall, x + 14.0f * s, y + 52.0f * s, "STATION   G: DOCK HERE", TEXT_DIM);
+  }
+  return Rect(x, y, width, height);
+}
+
 } // namespace
 
 FlightHudLayout FlightHud::Build(HudBatch& _batch, const FlightHudInput& _input) const
@@ -116,7 +206,8 @@ FlightHudLayout FlightHud::Build(HudBatch& _batch, const FlightHudInput& _input)
   const float panelWidth = std::min(PANEL_WIDTH * s, _input.width - 24.0f * s);
   const float panelHeight = PANEL_HEIGHT * s;
   const float panelX = centerX - panelWidth * 0.5f;
-  const float panelY = _input.height - panelHeight - 40.0f * s;
+  // Two lines of key help sit under the panel when they are shown.
+  const float panelY = _input.height - panelHeight - (_input.showHelp ? 58.0f : 40.0f) * s;
   layout.panel = Rect(panelX, panelY, panelWidth, panelHeight);
   _batch.Rect(panelX, panelY, panelWidth, panelHeight, PANEL_FILL);
   _batch.Outline(panelX, panelY, panelWidth, panelHeight, std::max(1.0f, 1.2f * s), PANEL_EDGE_DIM);
@@ -131,7 +222,14 @@ FlightHudLayout FlightHud::Build(HudBatch& _batch, const FlightHudInput& _input)
 
   const float barsX = panelX + 150.0f * s;
   const float barsWidth = panelWidth - 150.0f * s - 18.0f * s;
-  layout.throttleBar = Rect(barsX, panelY + 30.0f * s, barsWidth, BAR_HEIGHT * s);
+  // With a shield, it shares the throttle's row.
+  const bool shield = _input.shieldShare >= 0.0f;
+  layout.throttleBar = Rect(barsX, panelY + 30.0f * s, shield ? barsWidth * 0.48f : barsWidth, BAR_HEIGHT * s);
+  if (shield)
+  {
+    layout.shieldBar = Rect(barsX + barsWidth * 0.52f, panelY + 30.0f * s, barsWidth * 0.48f, BAR_HEIGHT * s);
+    Bar(_batch, layout.shieldBar, _input.shieldShare, _input.shieldUp ? ACCENT : RED, _input.shieldUp ? "SHIELD" : "SHIELD DOWN", s);
+  }
   layout.powerBar = Rect(barsX, panelY + 62.0f * s, barsWidth * 0.48f, BAR_HEIGHT * s);
   layout.thrustBar = Rect(barsX + barsWidth * 0.52f, panelY + 62.0f * s, barsWidth * 0.48f, BAR_HEIGHT * s);
   Bar(_batch, layout.throttleBar, _input.throttle, _input.reverse ? AMBER : ACCENT, _input.reverse ? "REVERSE" : "THROTTLE", s);
@@ -168,12 +266,15 @@ FlightHudLayout FlightHud::Build(HudBatch& _batch, const FlightHudInput& _input)
 
   if (_input.showHelp)
   {
-    const char* help = "Hold LMB: steer   Space: mouse lock   W/S, wheel: throttle   Tab: thruster   C: cruise   Z: engine   "
-                       "A/D/R/F: strafe   Q/E: roll   G: dock   Esc: cancel   H: help   F10: quit";
-    const float helpWidth = _batch.TextWidth(FontSmall, help);
-    const float helpY = _input.height - 26.0f * s;
-    layout.help = Rect(centerX - helpWidth * 0.5f, helpY, helpWidth, _batch.LineHeight(FontSmall));
-    _batch.Text(FontSmall, centerX, helpY, help, TEXT_DIM, Neuron::TextAlign::Center);
+    const char* flight = "Hold LMB: steer   Space: mouse lock   W/S, wheel: throttle   Tab: thruster   C: cruise   Z: engine   "
+                         "A/D/R/F: strafe   Q/E: roll   G: dock   Esc: cancel   H: help   F10: quit";
+    const char* combat = "Hold RMB: fire   T, MMB: target   Ctrl+T: clear target   [ ]: module   K: repair";
+    const float helpWidth = std::max(_batch.TextWidth(FontSmall, flight), _batch.TextWidth(FontSmall, combat));
+    const float lineHeight = _batch.LineHeight(FontSmall);
+    const float helpY = _input.height - 26.0f * s - lineHeight;
+    layout.help = Rect(centerX - helpWidth * 0.5f, helpY, helpWidth, lineHeight * 2.0f);
+    _batch.Text(FontSmall, centerX, helpY, flight, TEXT_DIM, Neuron::TextAlign::Center);
+    _batch.Text(FontSmall, centerX, helpY + lineHeight, combat, TEXT_DIM, Neuron::TextAlign::Center);
   }
   if (!_input.statusLine.empty())
   {
@@ -182,6 +283,11 @@ FlightHudLayout FlightHud::Build(HudBatch& _batch, const FlightHudInput& _input)
   if (_input.hazard.Active())
   {
     layout.warning = Warning(_batch, _input);
+  }
+  if (_input.target.active)
+  {
+    Brackets(_batch, _input);
+    layout.targetPanel = TargetPanel(_batch, _input);
   }
   return layout;
 }

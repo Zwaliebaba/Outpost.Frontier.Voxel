@@ -9,6 +9,10 @@
 # Every socket has a class (ADR-009): dock, module, equipment or clamp. A docking point names three
 # dock sockets of its model: the entry outside the station, the approach point and the pad; a docked
 # ship's pivot sits on the pad, nose along its normal and top along its up (plan task 2.2).
+# An instance may name its pilot (Content/Pilots.txt), the damage preset it starts with (an
+# Assets/Hulls preset) and whether it is indestructible (GameDesign.md D2), all from slice 3 on.
+# A ship whose model has a hull in Assets/Hulls/Hulls.txt has its hull and module health measured from
+# its voxels; the hull= and module= values of its ship record are then the sample's and unused.
 #
 # Keywords: camera, keylight, stars, model, socket, dockpoint, instance, ship, engine, light,
 # objective, resource, build, select, player.
@@ -72,7 +76,7 @@ dockpoint model=DockingCollar name=Mooring kind=medium entry=MooringEntry approa
 # Primary silhouette: asteroid anchor -> processing/crew blocks -> command crown -> open drydock.
 instance name=Hangar       model=HangarBay     position=0,25,130
 instance name=SectionF02   model=HangarSection position=-84,20,130
-instance name=Command      model=CommandBlock  position=0,87,150
+instance name=Command      model=CommandBlock  position=0,87,150 indestructible=true
 instance name=HabitatLower model=Habitat       position=-83,66,146
 instance name=HabitatUpper model=Habitat       position=-83,103,146
 instance name=ReactorWest  model=Reactor       position=-158,-7,144
@@ -110,11 +114,14 @@ instance name=RockD        model=AsteroidSmallC position=70,235,300 rotation=60,
 instance name=RockE        model=AsteroidSmallB position=370,-5,210 rotation=-30,0,15
 
 # ── Ships ───────────────────────────────────────────────────────────────────────────────────
-instance name=Frigate      model=Frigate      position=55,-42,18 rotation=72,0,0 scale=0.95
-instance name=Lancer       model=EscortLancer position=-170,-70,25 rotation=80,0,0
+instance name=Frigate      model=Frigate      position=55,-42,18 rotation=72,0,0 scale=0.95 preset=FrigateF317
+instance name=Lancer       model=EscortLancer position=-170,-70,25 rotation=80,0,0 owner=player
 instance name=Talon        model=EscortTalon  position=246,-8,28 rotation=62,0,0
 instance name=Tug          model=Tug          position=288,10,90 rotation=-90,0,0
 instance name=Cargo        model=CargoModule  parent=Tug parentsocket=Clamp socket=Mount
+# The one raider of slice 3 (GameDesign.md D23): four kilometres out beyond the berth's entry, facing
+# the yard, outside its pilot's 2.5 km detection range until the player flies out towards it.
+instance name=Raider       model=Raider       position=0,60,-4000 owner=hostile pilot=RaiderAce
 
 # Fragments torn from the breach, drifting off the frigate's starboard side.
 instance name=DebrisA1     model=DebrisA position=61.84,-42.76,-1.76 rotation=20,30,10
@@ -136,6 +143,7 @@ ship instance=Frigate callsign=F-317 class=Frigate hull=68 module="Hull Section 
 ship instance=Lancer  callsign=E-114 class=Escort  hull=92 module=Shields:88 module=Drives:100
 ship instance=Talon   callsign=E-208 class=Escort  hull=81 module="Wing Strut (L):64" module=Weapons:90
 ship instance=Tug     callsign=T-041 class=Tug     hull=100 module=Clamps:100
+ship instance=Raider  callsign=R-1   class=Raider  hull=100
 
 engine instance=Frigate position=12,1,12   radius=3.4 length=30
 engine instance=Frigate position=36,1,12   radius=3.4 length=30

@@ -90,8 +90,20 @@ Added with plan task 2.7, which implements D17 and D18.
 
 The blueprint's header has a time stamp, and the server half reads no wall time (R20). The file's modification time says when it was written; the universe's tick says how far the game had run.
 
+### Amended for slice 3 (ADR-012)
+
+Added with plan slice 3's server half, on 2026-11-23. Every new field is optional when read, so a save from slice 2 resumes.
+
+- **A mask is kept as the cells it lacks against its archetype**, the intact master (ADR-012): `absent=start:count,...`, sorted runs of cell indices. The player's ship carries one on its `ship` record and on its `baseship` record; the universe section has a `mask instance=<name> absent=...` record for each object whose mask is no longer the one it started with. An unchanged frigate is not written, though its preset removes 5,063 cells.
+- **`gone instance=<name>`**: an authored object that was destroyed or fled. It is not created again on resume (GameDesign.md D23).
+- **The character** gains `repairkits=` on its `character` record and a `base station= instance= point=` record: where it was last docked, the base a death returns it to (D1).
+- **A ship in space** gains `shield=`, `shieldup=`, `shieldrebuild=` and `launchers=` (four launcher clocks) on its `location` record. A save without them resumes with a full shield and ready guns.
+- **Wrecks are not kept.** They are transient until slice 5 makes them salvage.
+
+The voxel masks of slice 5's claim asteroid will use the same encoding; whether a 2.6-million-cell mask fits it as one record is for that slice to measure.
+
 ## What this forecloses
 
-- **A binary save.** Anything a save holds has to be expressible as records of text values, quote-free. Slice 5's voxel masks will need an encoding inside that rule; the plan amends this ADR for it.
+- **A binary save.** Anything a save holds has to be expressible as records of text values, quote-free. Masks are runs of absent cells (amended above).
 - **Partial loading.** A save is read whole or refused, and a refused save stops the game rather than being replaced. There is no recovery of a damaged file; the previous one is gone once the replacement lands.
 - **Hand-edited comments surviving.** A save is rewritten on every launch, docking and quit, and only records survive.

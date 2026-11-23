@@ -98,6 +98,9 @@
     <ClInclude Include="Prediction.h" />
     <ClInclude Include="DockedView.h" />
     <ClInclude Include="HazardWarning.h" />
+    <ClInclude Include="ClientCombat.h" />
+    <ClInclude Include="MaskedSurfaces.h" />
+    <ClInclude Include="Targeting.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="InputScript.cpp" />
@@ -110,6 +113,9 @@
     <ClCompile Include="Prediction.cpp" />
     <ClCompile Include="DockedView.cpp" />
     <ClCompile Include="HazardWarning.cpp" />
+    <ClCompile Include="ClientCombat.cpp" />
+    <ClCompile Include="MaskedSurfaces.cpp" />
+    <ClCompile Include="Targeting.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NeuronCore\NeuronCore.vcxproj">

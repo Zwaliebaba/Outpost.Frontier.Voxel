@@ -69,6 +69,9 @@ struct SceneInstance
   std::string socket;       // ... by this socket of our model (position/rotation are then ignored)
   InstanceStyle style = InstanceStyle::Solid;
   Owner owner = Owner::Neutral; // owner=neutral|player|hostile (ADR-009)
+  std::string pilot;            // pilot=: the pilot record that flies it (Assets/Content/Pilots.txt, plan task 3.8)
+  std::string preset;           // preset=: the damage it starts with (an Assets/Hulls preset, ADR-021)
+  bool indestructible = false;  // indestructible=true: no event carves it (GameDesign.md D2)
 };
 
 struct EngineMount

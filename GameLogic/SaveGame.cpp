@@ -20,6 +20,14 @@ void WriteUniverse(const UniverseSave& _universe, Neuron::SaveWriter& _writer)
   {
     _writer.Add("objective").Field("text", objective.text).Field("complete", SaveText(objective.complete));
   }
+  for (const MaskSave& mask : _universe.masks)
+  {
+    _writer.Add("mask").Field("instance", mask.instance).Field("absent", SaveText(mask.absent));
+  }
+  for (const std::string& instance : _universe.gone)
+  {
+    _writer.Add("gone").Field("instance", instance);
+  }
 }
 
 bool ReadUniverse(const Neuron::SaveSection& _section, UniverseSave& _outUniverse, std::string& _outError)
@@ -60,6 +68,25 @@ bool ReadUniverse(const Neuron::SaveSection& _section, UniverseSave& _outUnivers
         reader.Read("text", objective.text);
         reader.Read("complete", objective.complete);
         universe.objectives.push_back(objective);
+      }
+    }
+    else if (record.keyword == "mask")
+    {
+      MaskSave mask;
+      if (reader.AllowOnly({"instance", "absent"}))
+      {
+        reader.Read("instance", mask.instance);
+        reader.Read("absent", mask.absent);
+        universe.masks.push_back(std::move(mask));
+      }
+    }
+    else if (record.keyword == "gone")
+    {
+      std::string instance;
+      if (reader.AllowOnly({"instance"}))
+      {
+        reader.Read("instance", instance);
+        universe.gone.push_back(std::move(instance));
       }
     }
     else

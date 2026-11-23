@@ -8,7 +8,8 @@
 #   damage: hit points per second at full immersion; interference: scanner interference, 0 to 1.
 #   region: the name a named region shows. "Smallest zone wins" decides between overlapping zones.
 # station: a base the player can dock at, made of the instances whose docking points it offers.
-# start: the station a new game starts docked at (GameDesign.md D18).
+# start: the station a new game starts docked at (GameDesign.md D18), and the repair kits a new
+#   character carries (plan task 3.11).
 
 # The frigate's breach: venting debris and a cloud that blinds sensors, around the burning hull
 # section between the two fire lights.
@@ -19,4 +20,4 @@ zone name=ShipyardSpace shape=sphere position=-40,40,140 radius=1500 edge=0 regi
 
 station name=Shipyard label="Kessler Reach Shipyard" region=ShipyardSpace instance=Hangar instance=CollarWest instance=CollarLower
 
-start station=Shipyard
+start station=Shipyard repairkits=3

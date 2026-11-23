@@ -370,6 +370,24 @@ class RunClangTidyTests(TreeCase):
         self.assertClean(result)
         self.assertIn(f"/I{os.path.normpath(include)}", result.stdout.split())
 
+    @unittest.skipIf(os.name == "nt", "the fake clang-tidy is a POSIX shell script")
+    def test_findings_are_reported_on_a_cp1252_console(self) -> None:
+        # A Windows console codes in cp1252, which has no box-drawing character; the report's heading
+        # once crashed the runner there and hid the findings it was about to print.
+        self.fake_restore("Tools/QuicSpike")
+        (self.tree / "NeuronClient" / "CompiledShaders").mkdir(exist_ok=True)
+        fake = self.tree / "fake-clang-tidy"
+        fake.write_text(
+            '#!/bin/sh\nif [ "$1" = "--version" ]; then echo "LLVM version 22.1.8"; exit 0; fi\n'
+            'echo "TickClock.cpp:1:1: error: planted finding [bugprone-planted]"; exit 1\n',
+            encoding="utf-8",
+        )
+        fake.chmod(0o755)
+        result = self.run_checker(self.SCRIPT, "--clang-tidy", str(fake), "--any-version", "NeuronServer/TickClock.cpp",
+                                  env={**self.ENV, "INCLUDE": "C:\\SDK", "PYTHONIOENCODING": "cp1252"})
+        self.assertFinding(result, "bugprone-planted", "planted finding")
+        self.assertIn("1 of 1 translation unit(s) failed", result.stdout)
+
     def test_real_run_needs_the_packages_restored(self) -> None:
         # Called directly: a real run first needs the pinned clang-tidy, which this job may not have.
         import RunClangTidy

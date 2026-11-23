@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <string>
 #include <utility>
 
 using namespace DirectX;
@@ -83,7 +84,38 @@ bool Universe::LoadContent(const std::filesystem::path& _assetRoot, std::string&
   {
     return false;
   }
-  Load(scene, ships, system);
+  auto combat = std::make_shared<CombatContent>();
+  if (!LoadCombatContent(_assetRoot, scene, *combat, _outError))
+  {
+    return false;
+  }
+  const std::vector<std::string> mounts = ResolveMounts(ships, scene, combat->hulls);
+  if (!mounts.empty())
+  {
+    _outError = mounts.front();
+    return false;
+  }
+  for (const SceneInstance& instance : scene.instances)
+  {
+    if (!instance.pilot.empty() && combat->pilots.FindPilot(instance.pilot) == nullptr)
+    {
+      _outError = "Scene.txt: instance '" + instance.name + "' names pilot '" + instance.pilot + "', which Pilots.txt does not define";
+      return false;
+    }
+    if (!instance.preset.empty() && combat->hulls.FindPreset(instance.preset) == nullptr)
+    {
+      _outError = "Scene.txt: instance '" + instance.name + "' names preset '" + instance.preset + "', which Assets/Hulls does not hold";
+      return false;
+    }
+    const DamagePreset* preset = combat->hulls.FindPreset(instance.preset);
+    const HullRecord* hull = combat->hulls.HullForModel(instance.model);
+    if (preset != nullptr && (hull == nullptr || hull->name != preset->hull))
+    {
+      _outError = "Scene.txt: instance '" + instance.name + "' takes preset '" + instance.preset + "', which is for another hull";
+      return false;
+    }
+  }
+  Load(scene, ships, system, std::move(combat));
   if (!scene.playerShip.empty() && m_playerShip == NO_OBJECT)
   {
     _outError = "player ship '" + scene.playerShip + "' has no ship archetype to fly with";
@@ -92,9 +124,15 @@ bool Universe::LoadContent(const std::filesystem::path& _assetRoot, std::string&
   return true;
 }
 
-void Universe::Load(const SceneDefinition& _scene, const ShipContent& _ships, const SystemContent& _system)
+void Universe::Load(const SceneDefinition& _scene, const ShipContent& _ships, const SystemContent& _system,
+                    std::shared_ptr<const CombatContent> _combat)
 {
   m_state = UniverseSnapshot{};
+  m_scene = _scene;
+  m_ships = _ships;
+  m_gone.clear();
+  m_wrecks.clear();
+  m_nextObject = static_cast<ObjectId>(_scene.instances.size() + 1);
   m_system = _system;
   m_character = Character{};
   m_saveRequested = false;
@@ -162,6 +200,22 @@ void Universe::Load(const SceneDefinition& _scene, const ShipContent& _ships, co
     flyer.massKilograms = archetype->massKilograms;
     flyer.dockingClass = archetype->dockingClass;
     flyer.state = RestingFlightState(flyer.body.spec, object.pose);
+    flyer.baseSpec = flyer.body.spec;
+    flyer.mountRegions = _ships.MountRegions(archetype->name);
+    if (_combat != nullptr)
+    {
+      if (const HullRecord* hull = _combat->hulls.HullForModel(object.model))
+      {
+        flyer.hull = static_cast<int>(hull - _combat->hulls.hulls.data());
+      }
+      const SceneInstance* instance = _scene.FindInstance(object.name);
+      const PilotRecord* pilot = instance != nullptr ? _combat->pilots.FindPilot(instance->pilot) : nullptr;
+      if (pilot != nullptr && static_cast<int>(i) != playerIndex)
+      {
+        // Seeded from the ship's identity, so that a run repeats exactly (R16).
+        flyer.ai = Ai(*pilot, 0x5EED'0000ull + object.id);
+      }
+    }
     if (static_cast<int>(i) == playerIndex)
     {
       m_playerShip = object.id;
@@ -174,13 +228,39 @@ void Universe::Load(const SceneDefinition& _scene, const ShipContent& _ships, co
     m_flyers.push_back(flyer);
     m_state.motions.push_back(ShipMotionState{object.id, 0, 0.0f, 0.0f, false, true, CruiseState::Off});
   }
+  m_combat.Load(std::move(_combat), _scene, m_state.objects);
+  if (m_combat.Active())
+  {
+    // A ship with a hull has its health measured, not authored (GameDesign.md §3.3).
+    for (const ShipState& ship : std::vector<ShipState>(m_state.ships))
+    {
+      Measure(ship.object);
+    }
+  }
 }
 
 void Universe::Tick()
 {
   ++m_state.tick;
   PayIncome();
-  FlyShips();
+  std::vector<PendingShots> shots;
+  FlyShips(shots);
+  Fight(shots);
+  SpawnWrecks();
+  DriftWrecks();
+  // A pilot that has fled far enough is gone (ch. 05 §3.9), and does not come back to this save.
+  std::vector<ObjectId> fled;
+  for (const Flyer& flyer : m_flyers)
+  {
+    if (flyer.ai.has_value() && flyer.ai->State() == AiState::Gone)
+    {
+      fled.push_back(flyer.body.object);
+    }
+  }
+  for (const ObjectId object : fled)
+  {
+    RemoveObject(object);
+  }
   if (m_state.tick % SpaceSupport::HEARTBEAT_TICKS == 0)
   {
     BeatSupport();
@@ -212,9 +292,11 @@ void Universe::PayIncome()
   }
 }
 
-void Universe::FlyShips()
+void Universe::FlyShips(std::vector<PendingShots>& _outShots)
 {
   const std::uint64_t tick = m_state.tick;
+  // What every pilot sees: the ships as they stood at the start of the tick.
+  const std::vector<AiContact> contacts = PilotContacts();
   // Every body: the immovable ones, then each ship where it stands, except a ship that is carried or
   // docked, which nothing meets (D16). A ship that has moved this tick is met where it went; one that
   // has not yet, where it was.
@@ -265,6 +347,28 @@ void Universe::FlyShips()
       {
         command = m_heldCommand;
       }
+      else if (flyer.ai.has_value())
+      {
+        AiView view;
+        view.own = &flyer.state;
+        view.spec = &flyer.body.spec;
+        view.self = flyer.body.object;
+        view.contacts = contacts;
+        view.ticksPerSecond = TICKS_PER_SECOND;
+        if (const ShipState* ship = ShipStateOf(flyer.body.object))
+        {
+          view.hullPercent = ship->hullPercent;
+        }
+        view.corePercent = m_combat.CoreHealthPercent(flyer.body.object);
+        const LauncherMount& first = flyer.body.spec.launchers[0];
+        if (first.fitted && first.archetype < m_ships.launchers.size())
+        {
+          const LauncherArchetype& launcher = m_ships.launchers[first.archetype];
+          view.muzzleSpeedMetresPerSecond = launcher.muzzleSpeedMetresPerSecond;
+          view.gunRangeMetres = launcher.muzzleSpeedMetresPerSecond * launcher.lifetimeSeconds;
+        }
+        command = flyer.ai->Think(view);
+      }
       break;
     case DockPhase::FarApproach:
       command.manoeuvre = Manoeuvre::GoTo(flyer.farTarget, FAR_APPROACH_METRES * 0.9f);
@@ -297,6 +401,9 @@ void Universe::FlyShips()
           if (player)
           {
             m_character.baseSnapshot = ShipRecordOf(flyer.body.object);
+            const SpaceSupport::Point& berth = m_support.Points(flyer.dockStation)[flyer.dockPoint];
+            m_character.base =
+              CharacterLocation{LocationKind::Docked, m_support.StationName(flyer.dockStation), berth.instance, berth.name, FlightState{}};
             m_saveRequested = true; // D17: saved on docking
           }
           BeatSupport();
@@ -313,6 +420,19 @@ void Universe::FlyShips()
     {
       result = StepShip(flyer.body, command, bodies, TICKS_PER_SECOND, flyer.state);
       flyer.arrived = result.arrived;
+      if (result.fire.shotCount > 0)
+      {
+        PendingShots shots;
+        shots.shooter = flyer.body.object;
+        shots.owner = m_state.objects[flyer.objectIndex].owner;
+        shots.velocity = flyer.state.velocityMetresPerSecond;
+        for (std::size_t m = 0; m < MAX_LAUNCHERS; ++m)
+        {
+          shots.launchers[m] = flyer.body.spec.launchers[m].archetype;
+        }
+        shots.fire = result.fire;
+        _outShots.push_back(shots);
+      }
       if (result.contact)
       {
         const auto body = std::ranges::find(bodies, result.contactObject, &CollisionBox::object);
@@ -351,6 +471,11 @@ void Universe::FlyShips()
                            flyer.state.thrusterActive,
                            result.controls.engineOn,
                            flyer.state.cruise};
+    if (flyer.body.spec.shield.capacity > 0.0f)
+    {
+      motion.shieldPercent =
+        flyer.state.shieldUp ? std::clamp(static_cast<int>(100.0f * flyer.state.shield / flyer.body.spec.shield.capacity), 0, 100) : 0;
+    }
     m_state.motions[i] = motion;
   }
 }
@@ -617,11 +742,26 @@ bool Universe::Command(const DockCommandMessage& _command)
       return false;
     }
     // The nearest station in range that has a point for the ship's class (D20), measured to the
-    // nearest fitting entry.
+    // nearest fitting entry; with a station targeted, that station only (D26).
+    std::size_t targeted = SpaceSupport::NO_POINT;
+    if (const UniverseObject* object = m_state.FindObject(_command.station))
+    {
+      for (const StationDefinition& station : m_system.stations)
+      {
+        if (std::ranges::find(station.instances, object->name) != station.instances.end())
+        {
+          targeted = m_support.FindStation(station.name);
+        }
+      }
+    }
     std::size_t nearestStation = SpaceSupport::NO_POINT;
     double nearest = static_cast<double>(DOCK_RANGE_METRES);
     for (std::size_t station = 0; station < m_support.StationCount(); ++station)
     {
+      if (targeted != SpaceSupport::NO_POINT && station != targeted)
+      {
+        continue;
+      }
       for (const SpaceSupport::Point& point : m_support.Points(station))
       {
         const double distance = Distance(point.path.entry, flyer->state.position);
@@ -732,6 +872,12 @@ CharacterShip Universe::ShipRecordOf(ObjectId _ship) const
     record.hullPercent = ship->hullPercent;
     record.modules = ship->modules;
   }
+  const Neuron::VoxelMask* mask = m_combat.Mask(_ship);
+  const VoxelArchetype* archetype = m_combat.ArchetypeOf(_ship);
+  if (mask != nullptr && archetype != nullptr)
+  {
+    record.absent = Neuron::AbsentSpans(*mask, archetype->full);
+  }
   return record;
 }
 
@@ -761,7 +907,10 @@ bool Universe::NewGame(std::string& _outError)
   m_character = Character{};
   m_character.ship = ShipRecordOf(m_playerShip);
   m_character.baseSnapshot = m_character.ship;
+  m_character.repairKits = m_system.startRepairKits;
   PlaceDocked(*flyer, station, answer.point);
+  const SpaceSupport::Point& berth = m_support.Points(station)[answer.point];
+  m_character.base = CharacterLocation{LocationKind::Docked, m_system.startStation, berth.instance, berth.name, FlightState{}};
   return true;
 }
 
@@ -803,6 +952,42 @@ bool Universe::Restore(const SaveGame& _save, std::string& _outError)
     }
     objectiveIndices.push_back(static_cast<std::size_t>(found - m_state.objectives.begin()));
   }
+  // Masks and the objects that are gone, against this content (ADR-012).
+  std::vector<std::pair<ObjectId, Neuron::VoxelMask>> masks;
+  const auto maskFrom = [&](ObjectId _object, const std::vector<Neuron::CellSpan>& _absent, std::string_view _what)
+  {
+    const VoxelArchetype* archetype = m_combat.ArchetypeOf(_object);
+    Neuron::VoxelMask mask;
+    if (archetype == nullptr || !Neuron::MaskFromAbsentSpans(archetype->full, _absent, mask))
+    {
+      _outError = "the save's mask of " + std::string(_what) + " does not fit its model";
+      return false;
+    }
+    masks.emplace_back(_object, std::move(mask));
+    return true;
+  };
+  if (m_combat.Active() && !maskFrom(m_playerShip, character.ship.absent, "the player's ship"))
+  {
+    return false;
+  }
+  for (const MaskSave& saved : _save.universe.masks)
+  {
+    const ObjectId named = FindByName(saved.instance);
+    if (named == NO_OBJECT || named == m_playerShip || !maskFrom(named, saved.absent, "'" + saved.instance + "'"))
+    {
+      _outError = _outError.empty() ? "the save names unknown object '" + saved.instance + "'" : _outError;
+      return false;
+    }
+  }
+  for (const std::string& name : _save.universe.gone)
+  {
+    const ObjectId named = FindByName(name);
+    if (named == NO_OBJECT || named == m_playerShip)
+    {
+      _outError = "the save has '" + name + "' gone, which this content does not place or which the player flies";
+      return false;
+    }
+  }
   std::size_t station = SpaceSupport::NO_POINT;
   std::size_t point = SpaceSupport::NO_POINT;
   if (character.location.kind == LocationKind::Docked)
@@ -841,7 +1026,16 @@ bool Universe::Restore(const SaveGame& _save, std::string& _outError)
     m_state.objectives[objectiveIndices[i]].complete = _save.universe.objectives[i].complete;
   }
   m_character = character;
-  if (ShipState* ship = ShipStateOf(m_playerShip))
+  for (const std::string& name : _save.universe.gone)
+  {
+    RemoveObject(FindByName(name));
+  }
+  for (const auto& [id, mask] : masks)
+  {
+    static_cast<void>(m_combat.SetMask(id, mask));
+    Measure(id);
+  }
+  if (ShipState* ship = ShipStateOf(m_playerShip); ship != nullptr && !m_combat.Active())
   {
     ship->hullPercent = character.ship.hullPercent;
     ship->modules = character.ship.modules;
@@ -851,12 +1045,23 @@ bool Universe::Restore(const SaveGame& _save, std::string& _outError)
   m_commandsStarted = false;
   if (station != SpaceSupport::NO_POINT)
   {
+    flyer = FindFlyer(m_playerShip);
     PlaceDocked(*flyer, station, point);
   }
   else
   {
     m_support.Release(m_playerShip);
+    flyer = FindFlyer(m_playerShip); // removals above may have moved it
     flyer->state = character.location.flight;
+    if (flyer->state.shield < 0.0f)
+    {
+      // A save from before shields: full, up, and the guns ready.
+      const FlightState rested = RestingFlightState(flyer->body.spec, Pose{});
+      flyer->state.shield = rested.shield;
+      flyer->state.shieldUp = true;
+      flyer->state.shieldRebuildTicks = 0;
+      flyer->state.launcherClockTicks = rested.launcherClockTicks;
+    }
     flyer->manoeuvre = Manoeuvre::FreeFlight();
     flyer->dock = DockStatusState{};
     flyer->dockStation = SpaceSupport::NO_POINT;
@@ -910,7 +1115,329 @@ SaveGame Universe::MakeSave() const
   {
     save.universe.objectives.push_back(ObjectiveSave{objective.text, objective.complete});
   }
+  for (const UniverseObject& object : m_state.objects)
+  {
+    const Neuron::VoxelMask* mask = m_combat.Mask(object.id);
+    const Neuron::VoxelMask* initial = m_combat.Initial(object.id);
+    if (object.id != m_playerShip && !IsWreck(object.id) && mask != nullptr && initial != nullptr && !(*mask == *initial))
+    {
+      save.universe.masks.push_back(MaskSave{object.name, Neuron::AbsentSpans(*mask, m_combat.ArchetypeOf(object.id)->full)});
+    }
+  }
+  save.universe.gone = m_gone;
   return save;
+}
+
+std::vector<AiContact> Universe::PilotContacts() const
+{
+  std::vector<AiContact> contacts;
+  for (const Flyer& flyer : m_flyers)
+  {
+    const UniverseObject& object = m_state.objects[flyer.objectIndex];
+    contacts.push_back(AiContact{object.id, object.owner, flyer.state.position, flyer.state.velocityMetresPerSecond,
+                                 flyer.state.orientation, flyer.dock.phase == DockPhase::None});
+  }
+  return contacts;
+}
+
+void Universe::Fight(const std::vector<PendingShots>& _shots)
+{
+  const std::uint64_t tick = m_state.tick;
+  for (const PendingShots& shots : _shots)
+  {
+    for (std::size_t k = 0; k < shots.fire.shotCount; ++k)
+    {
+      const Shot& shot = shots.fire.shots[k];
+      m_combat.Fire(shots.shooter, shots.owner, shot, shots.launchers[shot.mount], m_ships, shots.velocity, TICKS_PER_SECOND, tick);
+    }
+  }
+  if (m_combat.BoltCount() == 0)
+  {
+    return;
+  }
+  // Everything a bolt can meet, where the tick left it.
+  std::vector<CombatTarget> targets;
+  targets.reserve(m_state.objects.size());
+  for (const UniverseObject& object : m_state.objects)
+  {
+    CombatTarget target;
+    target.object = object.id;
+    target.pose = object.pose;
+    target.scale = object.scale;
+    target.owner = object.owner;
+    if (Flyer* flyer = FindFlyer(object.id))
+    {
+      target.isProtected = Protects(flyer->dock.phase);
+      target.flight = &flyer->state;
+      target.spec = &flyer->body.spec;
+      target.shieldRadiusMetres = flyer->body.radiusMetres;
+    }
+    targets.push_back(target);
+  }
+  const std::vector<BoltHit> hits = m_combat.StepBolts(targets, m_ships, TICKS_PER_SECOND, tick);
+  std::vector<ObjectId> carved;
+  for (const BoltHit& hit : hits)
+  {
+    if (!hit.harmful)
+    {
+      continue;
+    }
+    Flyer* flyer = FindFlyer(hit.target);
+    if (flyer != nullptr && (hit.shieldDamage > 0.0f || hit.energyDamage > 0.0f))
+    {
+      if (hit.shield)
+      {
+        static_cast<void>(DamageShield(flyer->body.spec, TICKS_PER_SECOND, hit.shieldDamage, flyer->state));
+      }
+      flyer->state.powerPool = std::max(0.0f, flyer->state.powerPool - hit.energyDamage);
+      if (hit.target == m_playerShip)
+      {
+        flyer->divergedAt = tick; // the client could not have predicted the hit
+      }
+    }
+    if (!hit.carved.removed.empty() && std::ranges::find(carved, hit.target) == carved.end())
+    {
+      carved.push_back(hit.target);
+    }
+  }
+  for (const ObjectId object : carved)
+  {
+    Measure(object);
+    if (m_combat.CoreStopped(object))
+    {
+      Destroy(object);
+    }
+  }
+}
+
+void Universe::Measure(ObjectId _ship)
+{
+  const VoxelArchetype* archetype = m_combat.ArchetypeOf(_ship);
+  const HullRecord* hull = archetype != nullptr ? m_combat.Content()->HullOf(*archetype) : nullptr;
+  ShipState* ship = ShipStateOf(_ship);
+  if (hull == nullptr || ship == nullptr)
+  {
+    return;
+  }
+  ship->hullPercent = m_combat.HullPercent(_ship);
+  ship->modules = m_combat.Modules(_ship);
+  if (Flyer* flyer = FindFlyer(_ship))
+  {
+    // The condition is read from the health as stated, as the client reads it (plan task 3.6).
+    const ShipCondition condition = ConditionOf(m_combat.Content()->hulls, *hull, ship->modules, flyer->mountRegions);
+    flyer->body.spec = ApplyCondition(flyer->baseSpec, condition);
+  }
+}
+
+void Universe::Destroy(ObjectId _ship)
+{
+  if (_ship == m_playerShip)
+  {
+    if (Flyer* flyer = FindFlyer(_ship))
+    {
+      ReturnToBase(*flyer);
+    }
+    return;
+  }
+  const UniverseObject* object = m_state.FindObject(_ship);
+  if (object == nullptr)
+  {
+    return;
+  }
+  const Flyer* flyer = FindFlyer(_ship);
+  m_combat.BreakUp(_ship, object->pose, object->scale, flyer != nullptr ? flyer->state.velocityMetresPerSecond : XMFLOAT3{});
+  RemoveObject(_ship);
+}
+
+bool Universe::IsWreck(ObjectId _object) const noexcept
+{
+  return std::ranges::find(m_wrecks, _object, &WreckMotion::object) != m_wrecks.end();
+}
+
+void Universe::SpawnWrecks()
+{
+  for (const Wreck& wreck : m_combat.TakeWrecks())
+  {
+    const UniverseObject* parent = m_state.FindObject(wreck.parent);
+    const VoxelArchetype* archetype = m_combat.Content() != nullptr && wreck.archetype < m_combat.Content()->archetypes.size()
+                                        ? &m_combat.Content()->archetypes[wreck.archetype]
+                                        : nullptr;
+    if (archetype == nullptr)
+    {
+      continue;
+    }
+    UniverseObject object;
+    object.id = m_nextObject++;
+    object.name = "Wreck-" + std::to_string(object.id);
+    // The parent's model, so that the wreck's cells, in the parent's grid, draw where they were.
+    object.model = parent != nullptr ? parent->model : archetype->model;
+    object.owner = Owner::Neutral;
+    object.scale = wreck.scale;
+    object.pose = wreck.pose;
+    object.poseTick = m_state.tick;
+    m_state.objects.push_back(object);
+    m_combat.AdoptWreck(object.id, wreck);
+    m_wrecks.push_back(WreckMotion{object.id, wreck.velocityMetresPerSecond, wreck.centroidMetres, wreck.spinRadiansPerSecond,
+                                   static_cast<std::int32_t>(WRECK_LIFETIME_SECONDS * static_cast<float>(TICKS_PER_SECOND))});
+    ++m_state.objectsRevision;
+  }
+}
+
+void Universe::DriftWrecks()
+{
+  const float dt = 1.0f / static_cast<float>(TICKS_PER_SECOND);
+  std::vector<ObjectId> expired;
+  for (WreckMotion& wreck : m_wrecks)
+  {
+    UniverseObject* object = m_state.FindObject(wreck.object);
+    if (object == nullptr || --wreck.ticksLeft <= 0)
+    {
+      expired.push_back(wreck.object);
+      continue;
+    }
+    // It turns about its middle: the middle moves with the velocity, the pose turns about it.
+    const XMVECTOR orientation = XMLoadFloat4(&object->pose.orientation);
+    const XMVECTOR centroid = XMLoadFloat3(&wreck.centroidMetres);
+    const XMVECTOR before = XMVector3Rotate(centroid, orientation);
+    const XMVECTOR spin = XMLoadFloat3(&wreck.spinRadiansPerSecond);
+    const float angle = XMVectorGetX(XMVector3Length(spin)) * dt;
+    XMVECTOR turned = orientation;
+    if (angle > 0.0f)
+    {
+      turned = XMQuaternionNormalize(XMQuaternionMultiply(orientation, XMQuaternionRotationNormal(XMVector3Normalize(spin), angle)));
+    }
+    XMFLOAT3 shift{};
+    XMStoreFloat3(&shift, XMVectorSubtract(XMVectorAdd(before, XMVectorScale(XMLoadFloat3(&wreck.velocityMetresPerSecond), dt)),
+                                           XMVector3Rotate(centroid, turned)));
+    object->pose.position.x += static_cast<double>(shift.x);
+    object->pose.position.y += static_cast<double>(shift.y);
+    object->pose.position.z += static_cast<double>(shift.z);
+    XMStoreFloat4(&object->pose.orientation, turned);
+    object->poseTick = m_state.tick;
+    ++m_state.posesRevision;
+  }
+  for (const ObjectId object : expired)
+  {
+    RemoveObject(object);
+  }
+}
+
+void Universe::RemoveObject(ObjectId _object)
+{
+  const auto found = std::ranges::find(m_state.objects, _object, &UniverseObject::id);
+  if (found == m_state.objects.end() || _object == m_playerShip)
+  {
+    return;
+  }
+  const auto index = static_cast<std::size_t>(found - m_state.objects.begin());
+  if (IsWreck(_object))
+  {
+    std::erase_if(m_wrecks, [_object](const WreckMotion& _wreck) { return _wreck.object == _object; });
+  }
+  else
+  {
+    m_gone.push_back(found->name);
+  }
+  m_state.objects.erase(found);
+  std::erase_if(m_state.ships, [_object](const ShipState& _ship) { return _ship.object == _object; });
+  for (std::size_t f = 0; f < m_flyers.size();)
+  {
+    if (m_flyers[f].body.object == _object)
+    {
+      m_flyers.erase(m_flyers.begin() + static_cast<std::ptrdiff_t>(f));
+      m_state.motions.erase(m_state.motions.begin() + static_cast<std::ptrdiff_t>(f));
+      continue;
+    }
+    if (m_flyers[f].objectIndex > index)
+    {
+      --m_flyers[f].objectIndex;
+    }
+    ++f;
+  }
+  std::erase_if(m_staticBodies, [_object](const CollisionBox& _body) { return _body.object == _object; });
+  m_support.Release(_object);
+  m_combat.Remove(_object);
+  ++m_state.objectsRevision;
+}
+
+void Universe::ReturnToBase(Flyer& _flyer)
+{
+  // D1: the ship breaks up where it died, and the player is back at the last base with the ship as
+  // fitted there; cargo is lost.
+  const UniverseObject& object = m_state.objects[_flyer.objectIndex];
+  m_combat.Shatter(object.id, object.pose, object.scale, _flyer.state.velocityMetresPerSecond);
+  if (const VoxelArchetype* archetype = m_combat.ArchetypeOf(object.id))
+  {
+    Neuron::VoxelMask base;
+    if (Neuron::MaskFromAbsentSpans(archetype->full, m_character.baseSnapshot.absent, base))
+    {
+      static_cast<void>(m_combat.SetMask(object.id, base));
+    }
+  }
+  m_character.cargo.clear();
+  std::size_t station = m_support.FindStation(m_character.base.station);
+  std::size_t point = SpaceSupport::NO_POINT;
+  if (station != SpaceSupport::NO_POINT)
+  {
+    const std::vector<SpaceSupport::Point>& points = m_support.Points(station);
+    for (std::size_t i = 0; i < points.size(); ++i)
+    {
+      if (points[i].instance == m_character.base.instance && points[i].name == m_character.base.point)
+      {
+        point = i;
+      }
+    }
+  }
+  m_support.Release(object.id);
+  if (point == SpaceSupport::NO_POINT)
+  {
+    station = m_support.FindStation(m_system.startStation);
+    const SpaceSupport::Answer answer =
+      m_support.Request(object.id, _flyer.dockingClass, _flyer.state.position, station, true, m_state.tick);
+    point = answer.point;
+  }
+  if (station == SpaceSupport::NO_POINT || point == SpaceSupport::NO_POINT)
+  {
+    return;
+  }
+  _flyer.manoeuvre = Manoeuvre::FreeFlight();
+  m_commands.clear();
+  m_heldCommand = ShipCommand{};
+  m_commandsStarted = false;
+  Measure(object.id);
+  PlaceDocked(_flyer, station, point);
+  m_saveRequested = true; // back in a berth, as on docking (D17)
+}
+
+bool Universe::UseItem(const UseItemMessage& _use)
+{
+  Flyer* flyer = FindFlyer(_use.ship);
+  if (flyer == nullptr || _use.ship != m_playerShip || flyer->dock.phase != DockPhase::None || m_character.repairKits <= 0 ||
+      !m_combat.Active())
+  {
+    return false;
+  }
+  // A kit patches structure in the field and leaves modules for a hangar (ch. 03 §3.10). A kit
+  // that finds nothing to patch is not used up.
+  if (m_combat.Patch(_use.ship, REPAIR_KIT_CELLS, m_state.tick) == 0)
+  {
+    return false;
+  }
+  --m_character.repairKits;
+  Measure(_use.ship);
+  return true;
+}
+
+std::optional<AiState> Universe::PilotState(ObjectId _ship) const noexcept
+{
+  const Flyer* flyer = FindFlyer(_ship);
+  return flyer != nullptr && flyer->ai.has_value() ? std::optional<AiState>(flyer->ai->State()) : std::nullopt;
+}
+
+ObjectId Universe::FindByName(std::string_view _instance) const noexcept
+{
+  const auto found = std::ranges::find(m_state.objects, _instance, &UniverseObject::name);
+  return found != m_state.objects.end() ? found->id : NO_OBJECT;
 }
 
 Universe::Flyer* Universe::FindFlyer(ObjectId _ship) noexcept

@@ -22,6 +22,9 @@
     <Filter Include="Records">
       <UniqueIdentifier>{A8EF9A3D-5FD5-4F96-BF70-846CF9CF5E9E}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Voxel">
+      <UniqueIdentifier>{448988BD-BAFD-50B5-BA6A-7DF851D36AE8}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TestSupport.h">
@@ -52,6 +55,9 @@
     </ClCompile>
     <ClCompile Include="RecordFileTests.cpp">
       <Filter>Records</Filter>
+    </ClCompile>
+    <ClCompile Include="VoxelMaskTests.cpp">
+      <Filter>Voxel</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

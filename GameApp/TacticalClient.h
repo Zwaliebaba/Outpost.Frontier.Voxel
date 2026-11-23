@@ -2,6 +2,7 @@
 
 #include "DockedView.h"
 #include "ChaseCamera.h"
+#include "ClientCombat.h"
 #include "CommandMap.h"
 #include "ControlFocus.h"
 #include "FlightHud.h"
@@ -12,6 +13,9 @@
 #include "HudBatch.h"
 #include "InputScript.h"
 #include "LoopbackTransport.h"
+#include "MaskedSurfaces.h"
+#include "Messages.h"
+#include "ModuleRegion.h"
 #include "OrbitCamera.h"
 #include "PointerGesture.h"
 #include "Prediction.h"
@@ -22,11 +26,13 @@
 #include "SpriteSheet.h"
 #include "TacticalHud.h"
 #include "TacticalScene.h"
+#include "Targeting.h"
 #include "UniverseSnapshot.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -58,6 +64,13 @@ public:
   // A go-to order on a ship stops this many of its bounding radii short of it.
   static constexpr float ORDER_STAND_OFF_RADII = 3.0f;
   static constexpr float ORDER_STAND_OFF_POINT_METRES = 10.0f;
+  // The guns converge this far out along the ray through the cursor (plan task 3.4): about their range.
+  static constexpr float AIM_DISTANCE_METRES = 500.0f;
+  // Combat effects (plan task 3.9): a tracer's length behind its bolt, how long a hit's spark and a
+  // shield's flash last, and how long the embers a hull hit throws off take to fade.
+  static constexpr float TRACER_SECONDS = 0.03f;
+  static constexpr float SPARK_SECONDS = 0.25f;
+  static constexpr float EMBER_SECONDS = 0.8f;
 
   TacticalClient() = default;
   /// Waits for the GPU before any of the client's resources is released (see the .cpp).
@@ -169,6 +182,16 @@ public:
     return m_view == ClientView::Flight && m_prediction.Active();
   }
 
+  /// The client's combat picture, for tests and the smoke report.
+  [[nodiscard]] const ClientCombat& Combat() const noexcept
+  {
+    return m_combat;
+  }
+  [[nodiscard]] const Targeting& Target() const noexcept
+  {
+    return m_targeting;
+  }
+
   [[nodiscard]] const SceneDefinition& Scene() const noexcept
   {
     return m_assets.Scene();
@@ -202,11 +225,58 @@ private:
   void OrderAt(float _x, float _y);
   /// Sizes the chase camera for the own ship's archetype and points it along _orientation.
   void ResetChaseCamera(const DirectX::XMFLOAT4& _orientation);
+  /// The own ship's spec as the modules the server states leave it (plan task 3.6).
+  void ApplyOwnCondition();
+  /// Where the guns converge: the point under the cursor, AIM_DISTANCE_METRES out.
+  [[nodiscard]] UniversePosition AimPoint() const;
+  /// Brings the damaged objects' surfaces up to their masks within the frame's brick budget, nearest
+  /// the camera first, uploads each one rebuilt, and tells the scene what draws what (ADR-013).
+  void UpdateMaskedModels(const UniversePosition& _camera);
+  /// A GPU buffer an earlier frame may still read is released once that frame is surely done.
+  void Retire(Neuron::GpuVoxelModel _gpu);
+  void ReleaseRetired();
+  /// What the player can target this frame: the ships and stations drawn.
+  [[nodiscard]] std::vector<TargetCandidate> TargetCandidates() const;
+  /// Targets whatever is under the cursor (the middle button, D26).
+  void TargetAtCursor();
+  [[nodiscard]] TargetReadout MakeTargetReadout(const ViewSetup& _view, double _renderTick) const;
+  /// Tracers, sparks and embers in render space (plan task 3.9).
+  void BuildCombatEffects(double _renderTick, float _timeSeconds);
 
   Neuron::GraphicsDevice* m_device = nullptr;
   Neuron::Renderer m_renderer;
   SceneAssets m_assets;
   ShipContent m_ships;
+  HullContent m_hulls;       // the hulls' regions and thresholds, for the own ship's condition
+  ClientCombat m_combat;     // the masks, events and bolts the server sends (plan task 3.9)
+  MaskedSurfaces m_surfaces; // what each damaged object is drawn with, by brick (ADR-013)
+  struct MaskedModel
+  {
+    ObjectId object = NO_OBJECT;
+    std::uint64_t generation = 0;
+    std::unique_ptr<LoadedModel> model; // a stable address: the scene's views point at it
+  };
+  std::vector<MaskedModel> m_maskedModels;
+  struct RetiredModel
+  {
+    std::uint64_t frame = 0;
+    Neuron::GpuVoxelModel gpu;
+  };
+  std::vector<RetiredModel> m_retired;
+  std::uint64_t m_frameCount = 0;
+  struct Spark
+  {
+    UniversePosition position;
+    float startSeconds = 0.0f;
+    bool shield = false;
+    bool harmful = false;
+    std::uint32_t seed = 0;
+  };
+  std::vector<Spark> m_sparks;
+  Targeting m_targeting;
+  TargetReadout m_targetReadout;         // this frame's, for the flight HUD
+  ShipFlightSpec m_baseSpec;             // the own ship's archetype spec, before its condition
+  std::optional<ItemKind> m_pendingItem; // asked by a key, sent with the next tick (plan task 3.11)
   TacticalScene m_scene;
   TacticalHud m_hud;
   FlightHud m_flightHud;

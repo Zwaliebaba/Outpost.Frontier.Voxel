@@ -1,10 +1,13 @@
 #pragma once
 
+#include "Launcher.h"
+#include "Shield.h"
 #include "ShipArchetype.h"
 #include "UniverseObject.h"
 
 #include <DirectXMath.h>
 
+#include <array>
 #include <cstdint>
 
 namespace Outpost
@@ -40,6 +43,8 @@ struct ShipFlightSpec
   float thrustChargePerSecond = 0.0f;
   float thrusterForceNewtons = 0.0f;
   float thrusterDrainPerSecond = 0.0f;
+  ShieldSpec shield;                                    // plan task 3.5
+  std::array<LauncherMount, MAX_LAUNCHERS> launchers{}; // plan task 3.4, one per weapon mount
 
   /// Speed at full throttle with the engine on and cruise off: thrust over drag.
   [[nodiscard]] float TopSpeedMetresPerSecond() const noexcept;
@@ -75,12 +80,13 @@ struct FlightControls
   bool thruster = false;
   bool engineOn = true; // false is engine kill
   bool cruise = false;  // the wish to be in cruise
+  bool fire = false;    // the wish to fire every launcher at the command's aim point (plan task 3.4)
 
   friend bool operator==(const FlightControls& _a, const FlightControls& _b) noexcept
   {
     return _a.throttle == _b.throttle && _a.steering.x == _b.steering.x && _a.steering.y == _b.steering.y &&
            _a.steering.z == _b.steering.z && _a.strafe == _b.strafe && _a.reverse == _b.reverse && _a.thruster == _b.thruster &&
-           _a.engineOn == _b.engineOn && _a.cruise == _b.cruise;
+           _a.engineOn == _b.engineOn && _a.cruise == _b.cruise && _a.fire == _b.fire;
   }
 };
 
@@ -99,6 +105,14 @@ struct FlightState
   // charging may begin while it is still negative (ch. 02 §3.8).
   std::int32_t cruiseTimerTicks = 0;
   float cruiseRamp = 0.0f; // r: the share of cruise speed that cruise thrust aims for
+  // The shield (plan task 3.5): its health, whether the bubble is up, and the ticks until a collapsed
+  // one may come back.
+  float shield = 0.0f;
+  bool shieldUp = true;
+  std::int32_t shieldRebuildTicks = 0;
+  // Each launcher's clock, in ticks since its last attempt to fire (plan task 3.4).
+  std::array<std::int32_t, MAX_LAUNCHERS> launcherClockTicks{LAUNCHER_CLOCK_READY_TICKS, LAUNCHER_CLOCK_READY_TICKS,
+                                                             LAUNCHER_CLOCK_READY_TICKS, LAUNCHER_CLOCK_READY_TICKS};
 
   [[nodiscard]] float SpeedMetresPerSecond() const noexcept;
 
@@ -106,7 +120,7 @@ struct FlightState
   friend bool operator==(const FlightState& _a, const FlightState& _b) noexcept;
 };
 
-/// A ship at rest at a pose, with full pools.
+/// A ship at rest at a pose, with full pools and a full shield.
 [[nodiscard]] FlightState RestingFlightState(const ShipFlightSpec& _spec, const Pose& _pose) noexcept;
 
 /// The blueprint's flight model on a fixed tick (ch. 02 §3.7 and §3.8), shared by both halves.

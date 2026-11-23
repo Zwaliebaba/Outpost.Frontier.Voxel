@@ -56,9 +56,16 @@ ShipTickResult StepShip(const ShipBody& _ship, const ShipCommand& _command, std:
   const XMFLOAT3 motion{static_cast<float>(_state.position.x - start.x), static_cast<float>(_state.position.y - start.y),
                         static_cast<float>(_state.position.z - start.z)};
 
+  // The shield regenerates, then the guns fire, each paying from the pool the flight model refilled.
+  const auto armed = [&]()
+  {
+    StepShield(_ship.spec, _ticksPerSecond, _state);
+    result.fire = StepLaunchers(_ship.spec, _command.wishes.fire, _command.aim, _ticksPerSecond, _state);
+  };
   SweepHit hit;
   if (!SweepSphere(start, motion, _ship.radiusMetres, _bodies, _ship.object, hit))
   {
+    armed();
     return result;
   }
   const float length = XMVectorGetX(XMVector3Length(XMLoadFloat3(&motion)));
@@ -77,7 +84,22 @@ ShipTickResult StepShip(const ShipBody& _ship, const ShipCommand& _command, std:
   result.contactSpeedMetresPerSecond = XMVectorGetX(XMVector3Length(XMLoadFloat3(&relative)));
   Bounce(relative, hit.normal);
   XMStoreFloat3(&_state.velocityMetresPerSecond, XMVectorAdd(XMLoadFloat3(&relative), bodyVelocity));
+  armed();
   return result;
+}
+
+ShipFlightSpec ApplyCondition(const ShipFlightSpec& _spec, const ShipCondition& _condition) noexcept
+{
+  const auto scale = [](float _value, int _ratePercent) { return _value * (static_cast<float>(_ratePercent) / 100.0f); };
+  ShipFlightSpec spec = _spec;
+  spec.engineThrustNewtons = scale(spec.engineThrustNewtons, _condition.engineRatePercent);
+  spec.powerChargePerSecond = scale(spec.powerChargePerSecond, _condition.powerRatePercent);
+  spec.shield.regenerationPerSecond = scale(spec.shield.regenerationPerSecond, _condition.shieldRatePercent);
+  for (std::size_t i = 0; i < MAX_LAUNCHERS; ++i)
+  {
+    spec.launchers[i].working = spec.launchers[i].working && _condition.mountWorking[i];
+  }
+  return spec;
 }
 
 } // namespace Outpost

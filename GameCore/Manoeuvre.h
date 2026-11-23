@@ -57,6 +57,11 @@ struct ManoeuvreOutput
 /// cruise, and cruise is refused while the way ahead is obstructed (task 1.11, ShipFlight.h).
 [[nodiscard]] FlightControls Arbitrate(const FlightControls& _wishes, bool _wayAheadObstructed = false) noexcept;
 
+/// The axis throttle that turns the nose onto a world direction (unit), as the autopilot steers, and
+/// the cosine of the angle still to turn. NPC pilots steer with it too (plan task 3.8).
+[[nodiscard]] DirectX::XMFLOAT3 SteeringTowards(const DirectX::XMFLOAT3& _direction, const ShipFlightSpec& _spec, const FlightState& _state,
+                                                float& _outCosine) noexcept;
+
 /// One tick of a manoeuvre: what it asks of the ship, through the arbiter. _input is the player's
 /// wishes and matters only to free flight. Pure: the same arguments give the same controls.
 [[nodiscard]] ManoeuvreOutput RunManoeuvre(const Manoeuvre& _manoeuvre, const FlightControls& _input, const ShipFlightSpec& _spec,

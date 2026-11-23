@@ -98,6 +98,7 @@
     <ClCompile Include="SaveGameTests.cpp" />
     <ClCompile Include="SpaceSupportTests.cpp" />
     <ClCompile Include="DockingTests.cpp" />
+    <ClCompile Include="CombatTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\NeuronCore\NeuronCore.vcxproj">

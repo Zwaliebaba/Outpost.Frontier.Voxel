@@ -3,6 +3,7 @@
 #include "FlightModel.h"
 #include "SaveFile.h"
 #include "UniverseSnapshot.h"
+#include "VoxelMask.h"
 
 #include <cstdint>
 #include <string>
@@ -39,6 +40,7 @@ struct CharacterShip
   std::string instance; // the scene instance that is the ship
   int hullPercent = 100;
   std::vector<ShipModuleState> modules;
+  std::vector<Neuron::CellSpan> absent; // the cells its mask lacks against its archetype, the intact master (ADR-012)
 
   friend bool operator==(const CharacterShip&, const CharacterShip&) = default;
 };
@@ -57,7 +59,9 @@ struct Character
   CharacterShip ship;
   std::vector<CargoItem> cargo;
   std::int64_t money = 0;
-  CharacterShip baseSnapshot; // the ship as it was when last docked
+  CharacterShip baseSnapshot;  // the ship as it was when last docked
+  CharacterLocation base;      // where it was last docked: the base a death returns it to (GameDesign.md D1)
+  std::int64_t repairKits = 0; // carried, for field repairs (plan task 3.11)
   // Interface state, as the client's own key and value pairs: the server keeps them and does not read
   // them.
   std::vector<std::pair<std::string, std::string>> interfaceState;

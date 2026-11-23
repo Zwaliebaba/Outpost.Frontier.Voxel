@@ -1,7 +1,10 @@
 #pragma once
 
+#include "Ai.h"
 #include "Character.h"
 #include "Collision.h"
+#include "Combat.h"
+#include "MaskEvent.h"
 #include "Messages.h"
 #include "SaveGame.h"
 #include "SceneDefinition.h"
@@ -17,6 +20,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
@@ -57,12 +61,24 @@ struct ContactRecord
 ///
 /// What the player owns is a character record (R23), and the universe saves it with the universe's own
 /// state when the save rule says (D17); TakeSaveRequest tells the executable when.
+///
+/// Combat (plan slice 3): every ship flies its launchers and its shield in StepShip, and its shots
+/// become the bolts Combat traces. A harmful bolt that meets a bubble takes from the shield; one that
+/// meets voxels carves them by a mask event (ADR-012), and the ship's module health, measured from
+/// its mask, sets its condition: thrust, charge, regeneration and guns. A ship whose core stops is
+/// destroyed and breaks up into wrecks; the player's returns to its last base as it was fitted there
+/// (D1). An NPC with a pilot flies itself (plan task 3.8), and a pilot that flees far enough is gone.
 class Universe
 {
 public:
   static constexpr std::size_t MAX_CONTACT_RECORDS = 256;
   // Commands for ticks further ahead than this are refused, so a client cannot fill the queue.
   static constexpr std::uint64_t MAX_COMMAND_LEAD_TICKS = 120;
+
+  /// A repair kit restores at most this many structure cells (plan task 3.11).
+  static constexpr std::uint32_t REPAIR_KIT_CELLS = 120;
+  /// A wreck drifts for this long and is then gone. Wrecks are not saved.
+  static constexpr float WRECK_LIFETIME_SECONDS = 90.0f;
 
   /// The scripted mover's speeds: the approach peaks at this (ch. 04 §3.3's 18 m/s cap) ...
   static constexpr float DOCKING_PEAK_METRES_PER_SECOND = 18.0f;
@@ -72,14 +88,18 @@ public:
   /// point this far out along the docking axis, then in along the axis to the entry.
   static constexpr float AXIS_STANDOFF_METRES = 250.0f;
 
-  /// Loads Scene.txt, the model sizes, Content/Ships.txt and Content/System.txt from the asset root.
-  /// On broken content, false and why.
+  /// Loads Scene.txt, the model sizes, Content/Ships.txt, Content/System.txt and the combat content
+  /// (hulls, modules, pilots and every model's voxels) from the asset root. On broken content, false
+  /// and why.
   [[nodiscard]] bool LoadContent(const std::filesystem::path& _assetRoot, std::string& _outError);
   /// Builds the universe from parsed content. Attached instances need their models' sizes set
   /// (LoadSceneContent); without them their poses use a pivot at the origin, and the bodies are
   /// empty boxes. The player's ship starts where the scene places it, flying; NewGame or Restore
   /// then puts it where a game starts.
-  void Load(const SceneDefinition& _scene, const ShipContent& _ships = {}, const SystemContent& _system = {});
+  /// Without combat content nothing can be carved: bolts meet only shields, and module health stays
+  /// as the scene authored it.
+  void Load(const SceneDefinition& _scene, const ShipContent& _ships = {}, const SystemContent& _system = {},
+            std::shared_ptr<const CombatContent> _combat = {});
 
   /// A new game (GameDesign.md D18): the player's ship docked at a free point of the start station,
   /// with a fresh character. False, with the reason, when the station has no free point for it.
@@ -98,6 +118,33 @@ public:
   /// answer reaches the client as the ship's dock status. False for another ship, or for a command
   /// that does not apply in the ship's phase.
   bool Command(const DockCommandMessage& _command);
+  /// Uses one of an item the player's ship carries (plan task 3.11). False for another ship, for none
+  /// left, or for a ship that is docked or carried, where the hangar repairs.
+  bool UseItem(const UseItemMessage& _use);
+  [[nodiscard]] std::int64_t RepairKits() const noexcept
+  {
+    return m_character.repairKits;
+  }
+  [[nodiscard]] const Combat& Battle() const noexcept
+  {
+    return m_combat;
+  }
+  /// The wrecks drifting now, each an object of its own (plan task 3.9).
+  [[nodiscard]] std::size_t WreckCount() const noexcept
+  {
+    return m_wrecks.size();
+  }
+  [[nodiscard]] bool IsWreck(ObjectId _object) const noexcept;
+  /// The authored objects that are gone, destroyed or fled, by name.
+  [[nodiscard]] const std::vector<std::string>& Gone() const noexcept
+  {
+    return m_gone;
+  }
+  /// What an NPC's pilot is doing, or nothing for a ship without one.
+  [[nodiscard]] std::optional<AiState> PilotState(ObjectId _ship) const noexcept;
+  /// The object authored under this instance name, or NO_OBJECT.
+  [[nodiscard]] ObjectId FindByName(std::string_view _instance) const noexcept;
+
   /// Where a ship is in docking, and the answer to its last command.
   [[nodiscard]] DockStatusState DockStatus(ObjectId _ship) const;
   /// Whether nothing may harm the ship: while it is carried in, docked, or carried out (D16).
@@ -195,10 +242,43 @@ private:
     UniversePosition holdAnchor;
     std::optional<UniversePosition> axisPoint; // staging's first leg, when the way to the entry is blocked
     Mover mover;
+    ShipFlightSpec baseSpec;               // the archetype's spec; body.spec is it as the modules leave it
+    std::vector<std::string> mountRegions; // the weapon module of each mount
+    int hull = -1;                         // the hull of its archetype in the combat content, or -1
+    std::optional<Ai> ai;                  // its pilot, for an NPC that has one
+  };
+
+  struct WreckMotion
+  {
+    ObjectId object = NO_OBJECT;
+    DirectX::XMFLOAT3 velocityMetresPerSecond{};
+    DirectX::XMFLOAT3 centroidMetres{}; // in the object's axes and scale
+    DirectX::XMFLOAT3 spinRadiansPerSecond{};
+    std::int32_t ticksLeft = 0;
+  };
+
+  struct PendingShots
+  {
+    ObjectId shooter = NO_OBJECT;
+    Owner owner = Owner::Neutral;
+    DirectX::XMFLOAT3 velocity{};
+    std::array<std::uint8_t, MAX_LAUNCHERS> launchers{};
+    FireResult fire;
   };
 
   void PayIncome();
-  void FlyShips();
+  void FlyShips(std::vector<PendingShots>& _outShots);
+  void Fight(const std::vector<PendingShots>& _shots);
+  /// A ship's health again, from its mask, and a flying ship's condition with it.
+  void Measure(ObjectId _ship);
+  void Destroy(ObjectId _ship);
+  /// Makes an object of every wreck combat cut loose this tick.
+  void SpawnWrecks();
+  /// Every wreck drifts and turns a tick; one whose time is up is removed.
+  void DriftWrecks();
+  void RemoveObject(ObjectId _object);
+  void ReturnToBase(Flyer& _flyer);
+  [[nodiscard]] std::vector<AiContact> PilotContacts() const;
   void BeatSupport();
   void StateDock(Flyer& _flyer, DockPhase _phase, DockAnswer _answer, std::string _reason = {});
   void AskForPoint(Flyer& _flyer);
@@ -218,6 +298,12 @@ private:
   [[nodiscard]] const Flyer* FindFlyer(ObjectId _ship) const noexcept;
 
   UniverseSnapshot m_state;
+  SceneDefinition m_scene; // kept for the pilots and presets content names
+  ShipContent m_ships;
+  Combat m_combat;
+  std::vector<std::string> m_gone;
+  std::vector<WreckMotion> m_wrecks;
+  ObjectId m_nextObject = 1; // past every authored object: what a wreck takes
   SystemContent m_system;
   SpaceSupport m_support;
   Character m_character; // the player's record; location and ship are read from the universe when saved

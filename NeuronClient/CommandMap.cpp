@@ -20,7 +20,7 @@ struct NamedKey
 };
 
 // Win32 virtual-key codes, written out so that this header and its tests need no <windows.h>.
-constexpr std::array<NamedKey, 30> NAMED_KEYS{{{"Backspace", 0x08},
+constexpr std::array<NamedKey, 32> NAMED_KEYS{{{"Backspace", 0x08},
                                                {"Tab", 0x09},
                                                {"Enter", 0x0D},
                                                {"Shift", 0x10},
@@ -45,6 +45,8 @@ constexpr std::array<NamedKey, 30> NAMED_KEYS{{{"Backspace", 0x08},
                                                {"Minus", 0xBD},
                                                {"Period", 0xBE},
                                                {"Backquote", 0xC0},
+                                               {"BracketLeft", 0xDB},
+                                               {"BracketRight", 0xDD},
                                                {"MouseLeft", KEY_MOUSE_LEFT},
                                                {"MouseRight", KEY_MOUSE_RIGHT},
                                                {"MouseMiddle", KEY_MOUSE_MIDDLE},
@@ -62,6 +64,11 @@ constexpr int FUNCTION_KEYS = 24;
 [[nodiscard]] bool ReadFlag(const Record& _record, std::string_view _key, bool& _out)
 {
   return _record.Find(_key) == nullptr || _record.GetBool(_key, _out);
+}
+
+[[nodiscard]] bool IsModifier(InputKey _key) noexcept
+{
+  return _key == KeyFromName("Shift") || _key == KeyFromName("Control") || _key == KeyFromName("Alt");
 }
 
 } // namespace
@@ -187,7 +194,16 @@ bool CommandMap::Parse(std::string_view _text, std::string_view _fileName, Comma
       _outError = LineError(_fileName, record, "a binding needs command=, context= and key=");
       return false;
     }
-    Binding binding{KeyFromName(keyName), map.FindCommand(commandName), map.FindContext(contextName)};
+    // A chord names its modifier first: key=Control+T.
+    const std::size_t plus = keyName.find('+');
+    const InputKey modifier = plus == std::string::npos ? NO_KEY : KeyFromName(std::string_view(keyName).substr(0, plus));
+    const InputKey key = KeyFromName(plus == std::string::npos ? std::string_view(keyName) : std::string_view(keyName).substr(plus + 1));
+    if (plus != std::string::npos && !IsModifier(modifier))
+    {
+      _outError = LineError(_fileName, record, "a chord in '" + keyName + "' begins with Shift, Control or Alt");
+      return false;
+    }
+    Binding binding{key, map.FindCommand(commandName), map.FindContext(contextName), modifier};
     if (binding.key == NO_KEY)
     {
       _outError = LineError(_fileName, record, "unknown key '" + keyName + "'");
@@ -202,7 +218,7 @@ bool CommandMap::Parse(std::string_view _text, std::string_view _fileName, Comma
     }
     for (const Binding& other : map.m_bindings)
     {
-      if (other.key == binding.key && other.context == binding.context)
+      if (other.key == binding.key && other.modifier == binding.modifier && other.context == binding.context)
       {
         std::string message = "key '";
         message += keyName;
@@ -275,12 +291,20 @@ bool CommandMap::IsContextActive(ContextId _context) const noexcept
 
 CommandId CommandMap::Resolve(InputKey _key) const noexcept
 {
-  // The binding of the live context with the highest priority; between equals, the earlier context.
+  // A chord whose modifier is held beats the key alone; then the binding of the live context with
+  // the highest priority; between equals, the earlier context.
+  const auto held = [this](InputKey _modifier) { return std::ranges::find(m_down, _modifier, &DownKey::key) != m_down.end(); };
   const Binding* best = nullptr;
   for (const Binding& binding : m_bindings)
   {
     const Context& context = m_contexts[binding.context];
-    if (binding.key == _key && context.active && (best == nullptr || context.priority > m_contexts[best->context].priority))
+    if (binding.key != _key || !context.active || (binding.modifier != NO_KEY && !held(binding.modifier)))
+    {
+      continue;
+    }
+    const bool chord = binding.modifier != NO_KEY;
+    const bool bestChord = best != nullptr && best->modifier != NO_KEY;
+    if (best == nullptr || (chord && !bestChord) || (chord == bestChord && context.priority > m_contexts[best->context].priority))
     {
       best = &binding;
     }

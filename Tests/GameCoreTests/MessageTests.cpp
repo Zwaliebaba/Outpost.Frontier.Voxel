@@ -78,6 +78,29 @@ namespace
   return own;
 }
 
+[[nodiscard]] Outpost::DamageEventMessage SampleCarve()
+{
+  Outpost::DamageEventMessage damage;
+  damage.event.target = 12;
+  damage.event.kind = Outpost::MaskEventKind::Carve;
+  damage.event.carve = Neuron::CarveSpec{41, {10, -2, 7}, {-64, 3, 12}, Neuron::CarveShape::Capsule, 2, 6, 400, 0xDEADBEEFu};
+  damage.event.toughened = true;
+  damage.event.cause = Outpost::DamageCause::Weapon;
+  damage.event.inflictor = 7;
+  return damage;
+}
+
+[[nodiscard]] Outpost::DamageEventMessage SamplePatch()
+{
+  Outpost::DamageEventMessage damage;
+  damage.event.target = 7;
+  damage.event.kind = Outpost::MaskEventKind::Patch;
+  damage.event.patch = Neuron::PatchSpec{42, 120};
+  damage.event.cause = Outpost::DamageCause::Repair;
+  damage.event.inflictor = 7;
+  return damage;
+}
+
 [[nodiscard]] std::vector<Outpost::Message> OneOfEach()
 {
   return {Outpost::TickMessage{123'456'789'012ull},
@@ -88,10 +111,17 @@ namespace
           Outpost::ObjectStateMessage{10, 12, SampleObject().pose},
           SampleInput(),
           SampleOwnShip(),
-          Outpost::ShipMotionMessage{{7, 50, 0.4f, 33.0f, true, false, Outpost::CruiseState::Charging}},
-          Outpost::DockCommandMessage{88, 7, Outpost::DockCommand::Launch},
+          Outpost::ShipMotionMessage{{7, 50, 0.4f, 33.0f, true, false, Outpost::CruiseState::Charging, 55}},
+          Outpost::DockCommandMessage{88, 7, Outpost::DockCommand::Dock, 3},
           Outpost::DockStatusMessage{
-            7, {90, Outpost::DockPhase::Docked, Outpost::DockAnswer::LaunchRefused, "Shipyard", "the ship has no power plant"}}};
+            7, {90, Outpost::DockPhase::Docked, Outpost::DockAnswer::LaunchRefused, "Shipyard", "the ship has no power plant"}},
+          Outpost::ObjectRemovedMessage{91, 12},
+          Outpost::UseItemMessage{92, 7, Outpost::ItemKind::RepairKit},
+          Outpost::MaskSnapshotMessage{12, 40, Outpost::MaskReference::Empty, {{3, 4}, {100, 1}, {4'000'000, 17}}},
+          SampleCarve(),
+          SamplePatch(),
+          Outpost::BoltFiredMessage{93, 5, 7, Outpost::UniversePosition{1.0e8 + 0.5, -1.0, 2.0}, {0.0f, 600.0f, -3.5f}, 60},
+          Outpost::BoltHitMessage{94, 5, 12, Outpost::UniversePosition{1.0e8 + 0.25, 30.0, 2.0}, true, false}};
 }
 
 /// The decoded message; fails the test if the bytes do not decode.
@@ -230,19 +260,102 @@ public:
 
   TEST_METHOD(AnOutOfRangeSwitchOrStateIsRefused)
   {
-    // The last byte of a flight input holds its switches: four bits.
+    // A flight input's switches, five bits, come just before its aim point, three doubles.
     std::vector<std::uint8_t> input = Outpost::Encode(SampleInput());
-    input.back() = 16;
-    AssertError(input, Outpost::DecodeError::Malformed, L"a fifth switch bit");
-    // The last byte of a ship motion is its cruise state.
+    input[input.size() - 25] = 32;
+    AssertError(input, Outpost::DecodeError::Malformed, L"a sixth switch bit");
+    // A ship motion's cruise state comes just before its shield share, four bytes.
     std::vector<std::uint8_t> motion =
       Outpost::Encode(Outpost::ShipMotionMessage{{1, 1, 0.0f, 0.0f, false, true, Outpost::CruiseState::Off}});
-    motion.back() = 4;
+    motion[motion.size() - 5] = 4;
     AssertError(motion, Outpost::DecodeError::Malformed, L"cruise state 4 is not in the catalogue");
-    // The last byte of a dock command is the command.
+    // A dock command's command comes just before the targeted station, four bytes.
     std::vector<std::uint8_t> dock = Outpost::Encode(Outpost::DockCommandMessage{1, 7, Outpost::DockCommand::Dock});
-    dock.back() = 3;
+    dock[dock.size() - 5] = 3;
     AssertError(dock, Outpost::DecodeError::Malformed, L"dock command 3 is not in the catalogue");
+  }
+
+  TEST_METHOD(FireAndAimTravelWithTheFlightInput)
+  {
+    Outpost::FlightInputMessage input = SampleInput();
+    input.command.wishes.fire = true;
+    input.command.aim = Outpost::UniversePosition{1.0e5 / 3.0, -12.5, 7.0};
+    const auto decoded = Outpost::Decode(Outpost::Encode(input));
+    Assert::IsTrue(decoded.has_value());
+    Assert::IsTrue(std::get<Outpost::FlightInputMessage>(*decoded) == input, L"the fire switch and the aim point, exactly");
+  }
+
+  TEST_METHOD(TheOwnShipsShieldAndLauncherClocksTravelExactly)
+  {
+    Outpost::OwnShipMessage own;
+    own.tick = 40;
+    own.ship = 7;
+    own.state.shield = 512.25f;
+    own.state.shieldUp = false;
+    own.state.shieldRebuildTicks = 431;
+    own.state.launcherClockTicks = {0, 3, 17, Outpost::LAUNCHER_CLOCK_READY_TICKS};
+    const auto decoded = Outpost::Decode(Outpost::Encode(own));
+    Assert::IsTrue(decoded.has_value());
+    Assert::IsTrue(std::get<Outpost::OwnShipMessage>(*decoded) == own);
+  }
+
+  TEST_METHOD(ARemovedObjectLeavesTheClientWithItsShipAndMotion)
+  {
+    Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::ObjectRemoved) ==
+                   Outpost::Route{Neuron::Delivery::Reliable, Outpost::STREAM_UNIVERSE});
+    Outpost::UniverseSnapshot universe;
+    Outpost::UniverseObject raider;
+    raider.id = 54;
+    raider.name = "Raider";
+    Outpost::ApplyMessage(Outpost::ObjectSpawnMessage{raider}, universe);
+    Outpost::ShipState ship;
+    ship.object = 54;
+    ship.instance = "Raider";
+    Outpost::ApplyMessage(Outpost::ShipMessage{ship}, universe);
+    Outpost::ApplyMessage(Outpost::ShipMotionMessage{{54, 3, 0.5f, 10.0f, false, true, Outpost::CruiseState::Off}}, universe);
+    const std::uint64_t revision = universe.objectsRevision;
+    const auto decoded = Outpost::Decode(Outpost::Encode(Outpost::ObjectRemovedMessage{90, 54}));
+    Assert::IsTrue(decoded.has_value());
+    Outpost::ApplyMessage(*decoded, universe);
+    Assert::IsTrue(universe.objects.empty() && universe.ships.empty() && universe.motions.empty());
+    Assert::AreEqual(revision + 1, universe.objectsRevision, L"presentation rebuilds its instances");
+    Outpost::ApplyMessage(*decoded, universe);
+    Assert::AreEqual(revision + 1, universe.objectsRevision, L"a second removal of the same object changes nothing");
+  }
+
+  TEST_METHOD(MasksTheirEventsAndBoltsAreReliableFacts)
+  {
+    for (const Outpost::MessageKind kind : {Outpost::MessageKind::MaskSnapshot, Outpost::MessageKind::DamageEvent,
+                                            Outpost::MessageKind::BoltFired, Outpost::MessageKind::BoltHit})
+    {
+      Assert::IsTrue(Outpost::RouteOf(kind) == Outpost::Route{Neuron::Delivery::Reliable, Outpost::STREAM_UNIVERSE});
+    }
+    // They change nothing in the snapshot: the client's combat picture takes them.
+    Outpost::UniverseSnapshot universe;
+    Outpost::ApplyMessage(SampleCarve(), universe);
+    Outpost::ApplyMessage(Outpost::MaskSnapshotMessage{12, 1, Outpost::MaskReference::Full, {}}, universe);
+    Assert::IsTrue(universe.objects.empty() && universe.objectsRevision == 0);
+  }
+
+  TEST_METHOD(ASnapshotWithMoreSpansThanItsBytesIsRefused)
+  {
+    std::vector<std::uint8_t> bytes = Outpost::Encode(Outpost::MaskSnapshotMessage{12, 40, Outpost::MaskReference::Full, {{3, 4}}});
+    // The span count sits after the object (4), the last event (8) and the base (1).
+    const std::size_t countAt = Outpost::MESSAGE_HEADER_BYTES + 13;
+    bytes[countAt] = 0xFF;
+    bytes[countAt + 1] = 0xFF;
+    AssertError(bytes, Outpost::DecodeError::Malformed, L"a span count beyond the payload");
+  }
+
+  TEST_METHOD(UsingAnItemIsAReliableCommand)
+  {
+    Assert::IsTrue(Outpost::RouteOf(Outpost::MessageKind::UseItem) == Outpost::Route{Neuron::Delivery::Reliable, Outpost::STREAM_COMMANDS});
+    const Outpost::UseItemMessage use{12, 7, Outpost::ItemKind::RepairKit};
+    std::vector<std::uint8_t> bytes = Outpost::Encode(use);
+    const auto decoded = Outpost::Decode(bytes);
+    Assert::IsTrue(decoded.has_value() && std::get<Outpost::UseItemMessage>(*decoded) == use);
+    bytes.back() = 1;
+    AssertError(bytes, Outpost::DecodeError::Malformed, L"item 1 is not in the catalogue");
   }
 
   TEST_METHOD(DockingTravelsReliablyAndTheClientKeepsItsStatus)

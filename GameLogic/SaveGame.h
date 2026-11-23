@@ -32,13 +32,26 @@ struct ObjectiveSave
   friend bool operator==(const ObjectiveSave&, const ObjectiveSave&) = default;
 };
 
-/// The universe as a save keeps it: its clock, the outpost's ledger and the objectives. The rest of the
-/// universe is content, rebuilt on load.
+/// An object's mask, as the cells it lacks against its archetype (ADR-012), by its instance name. Kept only
+/// for an object whose mask is no longer the one it started with.
+struct MaskSave
+{
+  std::string instance;
+  std::vector<Neuron::CellSpan> absent;
+
+  friend bool operator==(const MaskSave&, const MaskSave&) = default;
+};
+
+/// The universe as a save keeps it: its clock, the outpost's ledger and the objectives, the masks that
+/// have changed and the authored objects that are gone, destroyed or fled (plan task 3.7). The rest of
+/// the universe is content, rebuilt on load. Wrecks are not kept.
 struct UniverseSave
 {
   std::uint64_t tick = 0;
   std::vector<ResourceSave> resources;
   std::vector<ObjectiveSave> objectives;
+  std::vector<MaskSave> masks;
+  std::vector<std::string> gone;
 
   friend bool operator==(const UniverseSave&, const UniverseSave&) = default;
 };

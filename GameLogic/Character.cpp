@@ -39,7 +39,11 @@ namespace
 
 void WriteShip(std::string_view _shipKeyword, std::string_view _moduleKeyword, const CharacterShip& _ship, Neuron::SaveWriter& _writer)
 {
-  _writer.Add(_shipKeyword).Field("instance", _ship.instance).Field("hull", SaveText(_ship.hullPercent));
+  Neuron::SaveWriter& record = _writer.Add(_shipKeyword).Field("instance", _ship.instance).Field("hull", SaveText(_ship.hullPercent));
+  if (!_ship.absent.empty())
+  {
+    record.Field("absent", SaveText(_ship.absent));
+  }
   for (const ShipModuleState& module : _ship.modules)
   {
     _writer.Add(_moduleKeyword).Field("name", module.name).Field("health", SaveText(module.healthPercent));
@@ -51,7 +55,14 @@ void WriteShip(std::string_view _shipKeyword, std::string_view _moduleKeyword, c
 void WriteCharacter(const Character& _character, Neuron::SaveWriter& _writer)
 {
   _writer.BeginSection(CHARACTER_SECTION);
-  _writer.Add("character").Field("money", SaveText(_character.money));
+  _writer.Add("character").Field("money", SaveText(_character.money)).Field("repairkits", SaveText(_character.repairKits));
+  if (!_character.base.station.empty())
+  {
+    _writer.Add("base")
+      .Field("station", _character.base.station)
+      .Field("instance", _character.base.instance)
+      .Field("point", _character.base.point);
+  }
   const CharacterLocation& location = _character.location;
   if (location.kind == LocationKind::Docked)
   {
@@ -75,7 +86,11 @@ void WriteCharacter(const Character& _character, Neuron::SaveWriter& _writer)
       .Field("thruster", SaveText(flight.thrusterActive))
       .Field("cruise", CruiseText(flight.cruise))
       .Field("cruisetimer", SaveText(flight.cruiseTimerTicks))
-      .Field("cruiseramp", SaveText(flight.cruiseRamp));
+      .Field("cruiseramp", SaveText(flight.cruiseRamp))
+      .Field("shield", SaveText(flight.shield))
+      .Field("shieldup", SaveText(flight.shieldUp))
+      .Field("shieldrebuild", SaveText(flight.shieldRebuildTicks))
+      .Field("launchers", SaveText(std::span<const std::int32_t>(flight.launcherClockTicks)));
   }
   WriteShip("ship", "module", _character.ship, _writer);
   for (const CargoItem& cargo : _character.cargo)
@@ -110,9 +125,23 @@ bool ReadCharacter(const Neuron::SaveSection& _section, Character& _outCharacter
     };
     if (record.keyword == "character")
     {
-      if (once(sawCharacter, record.keyword) && reader.AllowOnly({"money"}))
+      if (once(sawCharacter, record.keyword) && reader.AllowOnly({"money", "repairkits"}))
       {
         reader.Read("money", character.money);
+        if (reader.Has("repairkits"))
+        {
+          reader.Read("repairkits", character.repairKits);
+        }
+      }
+    }
+    else if (record.keyword == "base")
+    {
+      character.base.kind = LocationKind::Docked;
+      if (reader.AllowOnly({"station", "instance", "point"}))
+      {
+        reader.Read("station", character.base.station);
+        reader.Read("instance", character.base.instance);
+        reader.Read("point", character.base.point);
       }
     }
     else if (record.keyword == "location")
@@ -143,7 +172,7 @@ bool ReadCharacter(const Neuron::SaveSection& _section, Character& _outCharacter
         FlightState& flight = location.flight;
         std::string cruise;
         if (reader.AllowOnly({"kind", "position", "orientation", "velocity", "spin", "power", "thrust", "thruster", "cruise", "cruisetimer",
-                              "cruiseramp"}))
+                              "cruiseramp", "shield", "shieldup", "shieldrebuild", "launchers"}))
         {
           reader.Read("position", flight.position);
           reader.Read("orientation", flight.orientation);
@@ -155,6 +184,16 @@ bool ReadCharacter(const Neuron::SaveSection& _section, Character& _outCharacter
           reader.Read("cruise", cruise);
           reader.Read("cruisetimer", flight.cruiseTimerTicks);
           reader.Read("cruiseramp", flight.cruiseRamp);
+          // Slice 3's fields: a save from before them resumes with a full shield and ready guns,
+          // which the universe sets when it restores the ship.
+          flight.shield = -1.0f;
+          if (reader.Has("shield"))
+          {
+            reader.Read("shield", flight.shield);
+            reader.Read("shieldup", flight.shieldUp);
+            reader.Read("shieldrebuild", flight.shieldRebuildTicks);
+            reader.Read("launchers", std::span<std::int32_t>(flight.launcherClockTicks));
+          }
         }
         if (reader.Ok() && !ReadCruise(cruise, flight.cruise))
         {
@@ -169,10 +208,14 @@ bool ReadCharacter(const Neuron::SaveSection& _section, Character& _outCharacter
     else if (record.keyword == "ship" || record.keyword == "baseship")
     {
       CharacterShip& ship = record.keyword == "ship" ? character.ship : character.baseSnapshot;
-      if (once(record.keyword == "ship" ? sawShip : sawBaseShip, record.keyword) && reader.AllowOnly({"instance", "hull"}))
+      if (once(record.keyword == "ship" ? sawShip : sawBaseShip, record.keyword) && reader.AllowOnly({"instance", "hull", "absent"}))
       {
         reader.Read("instance", ship.instance);
         reader.Read("hull", ship.hullPercent);
+        if (reader.Has("absent"))
+        {
+          reader.Read("absent", ship.absent);
+        }
       }
     }
     else if (record.keyword == "module" || record.keyword == "basemodule")

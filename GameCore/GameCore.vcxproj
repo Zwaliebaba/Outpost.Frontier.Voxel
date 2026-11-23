@@ -101,6 +101,11 @@
     <ClInclude Include="SystemContent.h" />
     <ClInclude Include="Zone.h" />
     <ClInclude Include="DockingPoint.h" />
+    <ClInclude Include="ModuleRegion.h" />
+    <ClInclude Include="Launcher.h" />
+    <ClInclude Include="Shield.h" />
+    <ClInclude Include="MaskEvent.h" />
+    <ClInclude Include="Pilot.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FlightModel.cpp" />
@@ -116,6 +121,11 @@
     <ClCompile Include="SystemContent.cpp" />
     <ClCompile Include="Zone.cpp" />
     <ClCompile Include="DockingPoint.cpp" />
+    <ClCompile Include="ModuleRegion.cpp" />
+    <ClCompile Include="Launcher.cpp" />
+    <ClCompile Include="Shield.cpp" />
+    <ClCompile Include="MaskEvent.cpp" />
+    <ClCompile Include="Pilot.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NeuronCore\NeuronCore.vcxproj">

@@ -1,0 +1,13 @@
+# Pilots: how an NPC flies and fights (plan task 3.8; blueprint ch. 05 §3.4, §3.8, §3.9).
+#
+#   detection: metres within which it notices a player's ship that is not docked or carried
+#   turnin, pass: the attack pass's distances; passtime: seconds it holds its line through the pass;
+#     extendtime: the most seconds it flies away before turning in again
+#   trail: the distance it holds behind a target it has got behind
+#   burst, pause: seconds of fire and of rest, each jittered by up to half (ch. 05 §3.8)
+#   cone, exponent: aim error, an angle cone * u^exponent off the lead point, re-rolled every
+#     rerollmin to rerollmax seconds; rangefactor: it opens fire within this times its gun range
+#   evade: metres within which an enemy behind it makes it dodge; dodge: seconds between moves
+#   flee: it runs once its core is below this percent, or its hull below fleehull percent, and is gone
+#     once this many metres from every player ship
+pilot name=RaiderAce detection=2500 turnin=900 pass=250 passtime=2 extendtime=6 trail=250 burst=2 pause=1 cone=4 exponent=1.1 rerollmin=0.5 rerollmax=2 rangefactor=1.1 evade=300 dodge=3 flee=80 fleehull=40 gone=5000
